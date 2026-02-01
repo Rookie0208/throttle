@@ -1,0 +1,1417 @@
+{
+  "info": {
+    "_postman_id": "340c38f9-946a-444f-8615-c42b6877cdde",
+    "name": "Rider Group Ride MVP APIs",
+    "description": "Complete backend API test collection for Rider Group Ride MVP",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "29121329"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Amit Rawat\",\n  \"email\": \"amitsr2612@gmail.com\",\n  \"password\": \"password123\",\n  \"city\": \"Delhi\",\n  \"bikeType\": \"Naked\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/signup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signup"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Register",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Amit Rawat\",\n  \"email\": \"amitsr2612@gmail.com\",\n  \"password\": \"password123\",\n  \"city\": \"Delhi\",\n  \"bikeType\": \"Naked\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/signup",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "signup"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"id\": \"u123\",\n  \"name\": \"Amit Rawat\",\n  \"email\": \"amitsr2612@gmail.com\",\n  \"token\": \"jwt-token\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"token\", jsonData.accessToken);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@rider.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Login",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"test@rider.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"accessToken\": \"jwt-token\",\n  \"refreshToken\": \"refresh-token\"\n}\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rides",
+      "item": [
+        {
+          "name": "Create Ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"rideId\", jsonData.id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "// {\n//   \"title\": \"Sunday Morning Ride\",\n//   \"startLocation\": \"Khar, Mumbai\",\n//   \"destination\": \"Lonavala\",\n//   \"rideTime\": \"2026-02-02T06:00:00\",\n//   \"rideType\": \"HIGHWAY\"\n// }\n\n{\n  \"title\": \"Sunday Morning Ride\",\n  \"description\": \"Relaxed highway ride with breakfast stop\",\n  \"startLocation\": {\n    \"name\": \"Delhi\",\n    \"latitude\": 82.0735,\n    \"longitude\": 51.8261\n  },\n  \"endLocation\": {\n    \"name\": \"Mathura\",\n    \"latitude\": 46.7557,\n    \"longitude\": 23.4091\n  },\n  \"routeType\": \"HIGHWAY\",           // highway, offroad, mix\n  \"rideTime\": \"2026-02-02T06:00:00\",\n  \"maxRiders\": 20,\n  \"visibility\": \"PUBLIC\",           // public, private\n  \"rules\": [                        // not mandatory\n    \"Full riding gear mandatory\",\n    \"No rash riding\",\n    \"Follow group lead\"\n  ]\n}\n"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rides",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Create Ride",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Sunday Morning Ride\",\n  \"description\": \"Relaxed highway ride with breakfast stop\",\n  \"startLocation\": {\n    \"name\": \"Delhi\",\n    \"latitude\": 28.6139,\n    \"longitude\": 77.2090\n  },\n  \"endLocation\": {\n    \"name\": \"Mathura\",\n    \"latitude\": 27.4924,\n    \"longitude\": 77.6737\n  },\n  \"routeType\": \"HIGHWAY\",\n  \"startTime\": \"2026-02-02T06:00:00+05:30\",\n  \"maxRiders\": 20,\n  \"visibility\": \"PUBLIC\",\n  \"rules\": [\n    \"Full riding gear mandatory\",\n    \"No rash riding\",\n    \"Follow group lead\"\n  ]\n}\n"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rides",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"rideId\": \"R-UUIDV7\",        // R-LOCAL_DATE_TIME(yyyyMMdd)-HHmmss-RANDOM_4_DIGIT_NUM\n  \"status\": \"CREATED\",\n  \"error\" : {}\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Get Ride",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rides/{{ride}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{{ride}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Get Ride",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{{ride}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{{ride}}"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"rideId\": \"R-UUIDV7\",\n  \"title\": \"Sunday Morning Ride\",\n  \"startLocation\": \"Delhi\",\n  \"endLocation\": \"Mathura\",\n  \"participants\": 8,\n  \"captain\": \"Amit Rawat\",\n  \"status\": \"SCHEDULED\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Join Ride",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocation\": {\n    \"name\": \"Dhaula Kuan\",\n    \"latitude\": 29.1197,\n    \"longitude\": 38.8464\n  },\n  \"hasPillion\": false,\n  \"note\": \"Will join from Dhaula Kuan\",\n  \"emergencyContact\": \"+91-9876543210\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rides/{{rideId}}/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{{rideId}}",
+                "join"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Join Ride",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pickupLocation\": {\n    \"name\": \"Dhaula Kuan\",\n    \"latitude\": 29.1197,\n    \"longitude\": 38.8464\n  },\n  \"hasPillion\": false,\n  \"note\": \"Will join from Dhaula Kuan\",\n  \"emergencyContact\": \"+91-9876543210\"\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{{rideId}}/join",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{{rideId}}",
+                    "join"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"JOINED\",\n  \"errors\": {}\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Complete Ride",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endTime\": \"2026-02-02T10:30:00\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rides/{{rideId}}/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{{rideId}}",
+                "complete"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Complete Ride",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"endTime\": \"2026-02-02T10:30:00\"\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{{rideId}}/complete",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{{rideId}}",
+                    "complete"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"COMPLETED\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Ride Summary",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"rideId\": \"RIDE-20260202-060000-4821\",\n    \"title\": \"Sunday Morning Ride\",\n    \"startTime\": \"2026-02-02T06:02:00+05:30\",\n    \"endTime\": \"2026-02-02T09:32:00+05:30\",\n    \"totalDistanceKm\": 92.4,\n    \"movingTimeMinutes\": 165,\n    \"totalTimeMinutes\": 210,\n    \"avgSpeedKmph\": 51.2,\n    \"maxSpeedKmph\": 128,\n    \"elevationGainMeters\": 640,\n    \"fuelConsumedLiters\": 4.8,\n    \"stops\": {\n        \"count\": 3,\n        \"totalStopTimeMinutes\": 45\n    },\n    \"participants\": {\n        \"total\": 14,\n        \"finished\": 12\n    },\n    \"difficulty\": \"EASY\", // otpional\n    \"routeType\": \"HIGHWAY\",\n    \"safety\": {\n        \"incidents\": 0,\n        \"breakdowns\": 1\n    },\n    \"captainNote\": \"Smooth ride, group followed lead bike well\",\n    \"highlights\": [\n        \"Sunrise stretch before Mathura\",\n        \"Breakfast stop at highway dhaba\"\n    ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rides/{{rideId}}/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{{rideId}}",
+                "summary"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Ride Summary",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"startTime\": \"2026-02-02T06:02:00+05:30\",\n    \"endTime\": \"2026-02-02T09:32:00+05:30\",\n    \"totalDistanceKm\": 92.4,\n    \"movingTimeMinutes\": 165,\n    \"totalTimeMinutes\": 210,\n    \"avgSpeedKmph\": 51.2,\n    \"maxSpeedKmph\": 128,\n    \"elevationGainMeters\": 640,\n    \"fuelConsumedLiters\": 4.8,\n    \"stops\": {\n        \"count\": 3,\n        \"totalStopTimeMinutes\": 45\n    },\n    \"participants\": {\n        \"total\": 14,\n        \"finished\": 12\n    },\n    \"difficulty\": \"EASY\", // otpional\n    \"routeType\": \"HIGHWAY\",\n    \"safety\": {\n        \"incidents\": 0,\n        \"breakdowns\": 1\n    },\n    \"captainNote\": \"Smooth ride, group followed lead bike well\",\n    \"riderFeedback\": [\n    {\n      \"userId\": \"USER-8405136\",\n      \"rating\": 4.5,\n      \"note\": \"Great ride, smooth pacing!\",\n      \"highlights\": \"Sunrise stretch before Mathura\",\n      \"issues\": \"Traffic jam near Delhi\"\n    },\n    {\n      \"userId\": \"USER-1676723\",\n      \"rating\": 5,\n      \"note\": \"Loved the breakfast stop!\",\n      \"highlights\": \"Breakfast stop at highway dhaba\",\n      \"issues\": \"\"\n    }\n    // ...other riders\n  ],\n    \"highlights\": [\n        \"Sunrise stretch before Mathura\",\n        \"Breakfast stop at highway dhaba\"\n    ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{{rideId}}/summary",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{{rideId}}",
+                    "summary"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"SUCCESS\",\n  \"rideId\": \"R-UUIDV7\",\n  \"summary\": {\n    \"totalDistanceKm\": 92.4,\n    \"movingTimeMinutes\": 165,\n    \"totalTimeMinutes\": 210,\n    \"avgSpeedKmph\": 51.2,\n    \"maxSpeedKmph\": 128,\n    \"elevationGainMeters\": 640,\n    \"fuelConsumedLiters\": 4.8,\n    \"fuelEfficiencyKmpl\": 19.25,\n    \"stops\": {\n      \"count\": 3,\n      \"totalStopTimeMinutes\": 45\n    },\n    \"participantsSummary\": {\n      \"total\": 14,\n      \"finished\": 12,\n      \"left\": 2\n    },\n    \"safety\": {\n      \"incidents\": 0,\n      \"breakdowns\": 1\n    },\n    \"captainNote\": \"Smooth ride, everyone followed lead bike well\",\n    \"riderFeedback\": [\n    {\n      \"userId\": \"USER-8405136\",\n      \"rating\": 4.5,\n      \"note\": \"Great ride, smooth pacing!\",\n      \"highlights\": [\"Sunrise stretch before Mathura\"],\n      \"issues\": [\"Traffic jam near Delhi\"]\n    },\n    {\n      \"userId\": \"USER-1676723\",\n      \"rating\": 5,\n      \"note\": \"Loved the breakfast stop!\",\n      \"highlights\": [\"Breakfast stop at highway dhaba\"],\n      \"issues\": []\n    }\n    // ...other riders\n  ],\n    \"highlights\": [\n      \"Sunrise stretch before Mathura\",\n      \"Breakfast stop at highway dhaba\"\n    ]\n  }\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Participants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rides/{{rideId}}/participants",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{{rideId}}",
+                "participants"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Participants",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{{rideId}}/participants",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{{rideId}}",
+                    "participants"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"rideId\": \"{{rideId}}\",\n  \"participants\": [\n    {\n      \"userId\": \"{{userId}}\",\n      \"name\": \"Amit Rawat\",\n      \"role\": \"CAPTAIN\",\n      \"pickupLocation\": \"CP\",\n      \"status\": \"CONFIRMED\"\n    },\n    {\n      \"userId\": \"{{userId}}\",\n      \"name\": \"Abhay Gupta\",\n      \"role\": \"RIDER\",\n      \"pickupLocation\": \"Dhaula Kuan\",\n      \"status\": \"JOINED\"\n    }\n  ]\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Feedback",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 4.5,\n  \"note\": \"Great ride, smooth pacing by captain!\",\n  \"highlights\": [\n    \"Sunrise stretch before Mathura\",\n    \"Breakfast stop at highway dhaba\"\n  ],\n  \"issues\": [\n    \"Traffic jam near Delhi\",\n    \"Long fuel stop\"\n  ]\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rides/{rideId}/feedback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{rideId}",
+                "feedback"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Feedback",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"rating\": 4.5,\n  \"note\": \"Great ride, smooth pacing by captain!\",\n  \"highlights\": [\n    \"Sunrise stretch before Mathura\",\n    \"Breakfast stop at highway dhaba\"\n  ],\n  \"issues\": [\n    \"Traffic jam near Delhi\",\n    \"Long fuel stop\"\n  ]\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{rideId}/feedback",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{rideId}",
+                    "feedback"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"SUCCESS\",\n  \"rideId\": \"R-UUIDV7\",\n  \"submittedAt\": \"2026-02-02T11:45:00+05:30\",\n  \"message\": \"Thank you for your feedback!\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "SOS",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"name\": \"Dhaula Kuan\",\n    \"latitude\": 28.5955,\n    \"longitude\": 77.1746\n  },\n  \"message\": \"Bike skid, need help\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rides/{rideId}/sos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{rideId}",
+                "sos"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "SOS",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"location\": {\n    \"name\": \"Dhaula Kuan\",\n    \"latitude\": 28.5955,\n    \"longitude\": 77.1746\n  },\n  \"message\": \"Bike skid, need help\"\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{rideId}/sos",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{rideId}",
+                    "sos"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"SUCCESS\",\n  \"rideId\": \"RIDE-20260202-060000-4821\",\n  \"sosId\": \"SOS-20260202-001\",\n  \"message\": \"SOS alert sent successfully\",\n  \"notified\": {\n    \"captain\": \"USER-8405136\",\n    \"groupMembers\": 12,\n    \"emergencyContacts\": 2\n  },\n  \"timestamp\": \"2026-02-02T08:15:00+05:30\"\n}\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Ride on! Let's roll 🏍️\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rides/{rideId}/chat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{rideId}",
+                "chat"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Send Message",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"message\": \"Ride on! Let's roll 🏍️\"\n}"
+                },
+                "url": {
+                  "raw": ""
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"SENT\",\n  \"messageId\": \"MSG-UUIDV7\",\n  \"sentAt\": \"2026-02-02T05:55:01+05:30\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Get Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/rides/{rideId}/chat?limit=50&before=2026-02-02T06:00:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rides",
+                "{rideId}",
+                "chat"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "before",
+                  "value": "2026-02-02T06:00:00"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Get Messages",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/rides/{{rideId}}/chat?limit=50&before=2026-02-02T06:00:00",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "rides",
+                    "{{rideId}}",
+                    "chat"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "50"
+                    },
+                    {
+                      "key": "before",
+                      "value": "2026-02-02T06:00:00"
+                    }
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"event\": \"RIDE_CHAT_MESSAGE\",\n  \"rideId\": \"R-UUIDV7\",\n  \"sender\": \"Rohan\",\n  \"message\": \"Fuel stop in 2 km\"\n}\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Stats",
+      "item": [
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/my/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "my",
+                "stats"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Get User Stats",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/my/stats",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "my",
+                    "stats"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"totalRides\": 34,\n  \"totalDistanceKm\": 4120,\n  \"totalRideTimeHours\": 86,\n  \"avgSpeed\": 58,\n  \"topSpeed\": 142,\n  \"totalElevationGainMeters\": 15230,        // optional\n  \"averageElevationPerRideMeters\": 448,     // optional\n  \"terrainBreakdown\": {                     // optional\n    \"highwayRides\": 24,\n    \"offroadRides\": 6,\n    \"mixedRides\": 4\n  },\n  \"totalFuelConsumedLiters\": 212,           // future task\n  \"averageFuelEfficiencyKmpl\": 19.4,        // used for group rides\n  \"ridesPerMonth\": 5,\n  \"longestStreakDays\": 12,\n  \"averageDistancePerRideKm\": 121,\n  \"incidents\": 0,\n  \"breakdowns\": 2,\n  \"ridesWithFriends\": 14,\n  \"ridesAsCaptain\": 8,\n  \"favoriteRoute\": \"Delhi to Mathura\",\n  \"longestRideKm\": 420,\n  \"longestRideHours\": 7.5,\n  \"topElevationGainMeters\": 1250,\n  \"mostRidesInMonth\": 9,\n  \"groupJoined\": 3,\n  \"achievementBadges\": 6,\n  \"upcomingRides\": 2\n}\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \n  \"bio\": \"Weekend rider & highway lover\",\n  \"experienceYears\": 4,\n  \"emergencyContact\": \"+919999999999\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/my/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "my",
+                "profile"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Get Profile",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/users/my/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "my",
+                    "profile"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n    \"status\": \"UPDATED\",\n    \"data\": {\n        \"firstName\": \"Amit\",\n        \"lastName\": \"Rawat\",\n        \"email\": \"amitsr2612@gmail.com\",\n        \"mobileNumber\": 9643362998,\n        \"pronoun\": \"his/him\",\n        \"bio\": \"Weekend rider & highway lover\",\n        \"experienceYears\": 4,\n        \"emergencyContact\": \"+919999999999\"\n    },\n    \"errors\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Profile",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstName\": \"Amit\",\n    \"lastName\": \"Rawat\",\n    \"email\": \"amitsr2612@gmail.com\",\n    \"mobileNumber\": 9643362998,\n    \"pronoun\": \"his/him\",\n    \"bio\": \"Weekend rider & highway lover\",\n    \"experienceYears\": 4,\n    \"emergencyContact\": \"+919999999999\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/my/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "my",
+                "profile"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Get Profile",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"firstName\": \"Amit\",\n    \"lastName\": \"Rawat\",\n    \"email\": \"amitsr2612@gmail.com\",\n    \"mobileNumber\": 9643362998,\n    \"pronoun\": \"his/him\",\n    \"bio\": \"Weekend rider & highway lover\",\n    \"experienceYears\": 4,\n    \"emergencyContact\": \"+919999999999\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/my/profile",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "my",
+                    "profile"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n    \"firstName\": \"Amit\",\n    \"lastName\": \"Rawat\",\n    \"email\": \"amitsr2612@gmail.com\",\n    \"mobileNumber\": 9643362998,\n    \"pronoun\": \"his/him\",\n  \"bio\": \"Weekend rider & highway lover\",\n  \"experienceYears\": 4,\n  \"emergencyContact\": \"+919999999999\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Add Bike",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brand\": \"Hero\",\n  \"model\": \"Xtreme 250R\",\n  \"cc\": 250,\n  \"registrationNumber\": \"DL14TA4512\",\n  \"vlnNumber\": \"MBLNCU016SGF00061\",\n  \"engineNumber\": \"NC25ACSGE00342\",\n  \"purchasedOn\": \"08/08/2025\",\n  \"warrantEndDate\": \"07/08/2030\",\n  \"bikeImg\": \"img_may_be\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/my/bike",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "my",
+                "bike"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Add Bike",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"brand\": \"Hero\",\n  \"model\": \"Xtreme 250R\",\n  \"cc\": 250,\n  \"registrationNumber\": \"DL14TA4512\",\n  \"vlnNumber\": \"MBLNCU016SGF00061\",\n  \"engineNumber\": \"NC25ACSGE00342\",\n  \"purchasedOn\": \"08/08/2025\",\n  \"warrantEndDate\": \"07/08/2030\",\n  \"bikeImg\": \"img_may_be\"\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/users/my/bike",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "users",
+                    "my",
+                    "bike"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"bikeId\": \"B-YOUR_REGI0N-UUID-v7\", // B-DL-UUIDV4\n  \"status\": \"CREATED\",\n  \"errors\": {}\n}\n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lone Riders\",\n  \"description\": \"Weekend night rides\",\n  \"maxNumberOfParticipants\": 20,\n  \"visibility\": \"PUBLIC\",\n  \"baseLocation\": {\n    \"name\": \"Delhi\",\n    \"latitude\": 28.6139,\n    \"longitude\": 77.2090\n  },\n  \"rules\": [            // optional\n    \"Full riding gear mandatory\",\n    \"Follow lead rider\",\n    \"No rash driving\"\n  ],\n  \"preferredRideTypes\": [\"HIGHWAY\", \"OFFROAD\"],         // optional\n  \"createdByUserId\": \"USER-8405136\",                    // captain\n  \"tags\": [\"night rides\", \"weekend\", \"highway\"],\n  \"groupPhotoUrl\": \"https://example.com/loneriders.jpg\",\n  \"chatEnabled\": true,\n  \"requiresApproval\": false\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/groups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Create Group",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Lone Riders\",\n  \"description\": \"Weekend night rides\",\n  \"maxNumberOfParticipants\": 20,\n  \"visibility\": \"PUBLIC\",\n  \"baseLocation\": {\n    \"name\": \"Delhi\",\n    \"latitude\": 28.6139,\n    \"longitude\": 77.2090\n  },\n  \"rules\": [            // optional\n    \"Full riding gear mandatory\",\n    \"Follow lead rider\",\n    \"No rash driving\"\n  ],\n  \"preferredRideTypes\": [\"HIGHWAY\", \"OFFROAD\"],         // optional\n  \"createdByUserId\": \"USER-8405136\",                    // captain\n  \"tags\": [\"night rides\", \"weekend\", \"highway\"],\n  \"groupPhotoUrl\": \"https://example.com/loneriders.jpg\",\n  \"chatEnabled\": true,\n  \"requiresApproval\": false\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/groups",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "groups"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"SUCCESS\",\n  \"groupId\": \"GROUP-20260201-0001\",\n  \"message\": \"Group created successfully\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Join Group",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"USER-8405136\",       // optional if using JWT auth\n  \"bikeId\": \"BIKE-2026-000045\",   // optional, can be associated with user\n  \"address\": \"Dhaula Kuan\" // optional\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/groups/{{groupId}}/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups",
+                "{{groupId}}",
+                "join"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Join Group",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userId\": \"USER-8405136\",       // optional if using JWT auth\n  \"bikeId\": \"BIKE-2026-000045\",   // optional, can be associated with user\n  \"address\": \"Dhaula Kuan\" // optional\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/groups/{{groupId}}/join",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "groups",
+                    "{{groupId}}",
+                    "join"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"SUCCESS\",\n  \"errors\": {},\n  \"memberStatus\": \"APPROVED\",       // if the requestApproval for the group is false\n  \"groupId\": \"GROUP-20260201-0001\",\n  \"message\": \"You have successfully joined the group\",\n  \"currentNumberOfParticipants\": 12\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Approve Member",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"APPROVE\" // or \"REJECT\"\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/groups/{groupId}/members/{userId}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups",
+                "{groupId}",
+                "members",
+                "{userId}",
+                "approve"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Approve Member",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"APPROVE\" // or \"REJECT\"\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/groups/{groupId}/members/{userId}/approve",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "groups",
+                    "{groupId}",
+                    "members",
+                    "{userId}",
+                    "approve"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"status\": \"SUCCESS\",\n  \"message\": \"User has been approved to join the group\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "Group Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/groups/{{groupId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "groups",
+                "{{groupId}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Group Details",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/groups/{{groupId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "groups",
+                    "{{groupId}}"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "",
+              "header": [],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\n  \"groupId\": \"GROUP-20260201-0001\",\n  \"name\": \"Lone Riders\",\n  \"description\": \"Weekend night rides\",\n  \"maxNumberOfParticipants\": 20,\n  \"currentNumberOfParticipants\": 12,\n  \"visibility\": \"PRIVATE\",\n  \"requiresApproval\": true,\n  \"members\": [\n    {\n      \"userId\": \"USER-8405136\",\n      \"name\": \"Amit Rawat\",\n      \"role\": \"ADMIN\",\n      \"status\": \"APPROVED\"\n    }\n  ]\n}\n"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api/v1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "rideId",
+      "value": ""
+    }
+  ]
+}
