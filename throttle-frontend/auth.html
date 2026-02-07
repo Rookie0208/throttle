@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Riders App - Auth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      width: 380px;
+      background: #020617;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.6);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .toggle {
+      text-align: center;
+      margin-top: 10px;
+      cursor: pointer;
+      color: #60a5fa;
+    }
+
+    .msg {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <h2 id="title">Register</h2>
+
+  <div id="registerForm">
+    <input id="name" placeholder="Name">
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <input id="city" placeholder="City">
+    <input id="bikeType" placeholder="Bike Type">
+    <button onclick="register()">Register</button>
+  </div>
+
+  <div id="loginForm" style="display:none;">
+    <input id="loginEmail" placeholder="Email">
+    <input id="loginPassword" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+  </div>
+
+  <div class="toggle" onclick="toggle()">Switch to Login / Register</div>
+
+  <div class="msg" id="msg"></div>
+
+</div>
+
+<script>
+const BASE_URL = "http://localhost:8080/api/v1";
+
+function toggle() {
+  const reg = document.getElementById("registerForm");
+  const login = document.getElementById("loginForm");
+  const title = document.getElementById("title");
+
+  if (reg.style.display === "none") {
+    reg.style.display = "block";
+    login.style.display = "none";
+    title.innerText = "Register";
+  } else {
+    reg.style.display = "none";
+    login.style.display = "block";
+    title.innerText = "Login";
+  }
+}
+
+async function register() {
+  const data = {
+    name: name.value,
+    email: email.value,
+    password: password.value,
+    city: city.value,
+    bikeType: bikeType.value
+  };
+
+  const res = await fetch(`${BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+
+  const json = await res.json();
+  document.getElementById("msg").innerText = json.message || "Registered Successfully";
+}
+
+async function login() {
+  const data = {
+    email: loginEmail.value,
+    password: loginPassword.value
+  };
+
+  const res = await fetch(`${BASE_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+
+  const json = await res.json();
+
+  if (json.data?.token) {
+    localStorage.setItem("token", json.data.token);
+    document.getElementById("msg").innerText = "Login successful. JWT saved.";
+  } else {
+    document.getElementById("msg").innerText = "Login failed";
+  }
+}
+</script>
+
+</body>
+</html>
