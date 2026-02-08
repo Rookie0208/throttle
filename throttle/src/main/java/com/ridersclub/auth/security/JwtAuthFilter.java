@@ -1,5 +1,6 @@
 package com.ridersclub.auth.security;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,7 +41,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (bearerToken != null) {
                 Claims claims = jwtService.parse(bearerToken).getBody();
                 String userId = claims.getSubject();
-                List<String> roles = (List<String>) claims.getOrDefault("roles", List.of());
+                String rolesStr = (String) claims.get("roles");
+                List<String> roles = Arrays.asList(rolesStr.split(","));
                 Collection<SimpleGrantedAuthority> authorities = roles.stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role)).collect(Collectors.toList());
 

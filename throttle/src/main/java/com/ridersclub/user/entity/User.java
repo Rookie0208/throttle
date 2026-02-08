@@ -50,4 +50,8 @@ public class User {
 
     private int experienceYears;
 
+    public boolean hasRole(String string) {
+        return role.name().equals(string);
+    }
+
 }
