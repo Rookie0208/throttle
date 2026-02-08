@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -32,11 +33,13 @@ public class SecurityConfig {
         http.cors(cors -> cors.disable())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/swagger-ui/**", "/127.0.0.1:5500").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**", "/127.0.0.1:5500").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/rides/**")
+                        .hasAnyRole("CAPTAIN", "ADMIN")
                         .anyRequest().authenticated())
-                        .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-;
+        ;
         return http.build();
     }
 
