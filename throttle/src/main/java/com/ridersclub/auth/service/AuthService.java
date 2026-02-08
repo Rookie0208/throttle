@@ -2,6 +2,8 @@ package com.ridersclub.auth.service;
 
 import java.time.LocalDateTime;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.stereotype.Service;
+
 import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
 import com.ridersclub.auth.dto.response.LoginResponse;
@@ -11,6 +13,7 @@ import com.ridersclub.common.enums.Role;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
+@Service
 public class AuthService {
  private final UserRepository userRepository;
  
