@@ -2,6 +2,7 @@ package com.ridersclub.auth.dto.request;
 
 import java.util.List;
 
+import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Gender;
 
 import lombok.Data;
@@ -18,4 +19,5 @@ public class RegisterRequest {
     private int experienceYears;
     private List<Integer> emergencyContacts;
     private String bikeType;
+    private Role role;
 }

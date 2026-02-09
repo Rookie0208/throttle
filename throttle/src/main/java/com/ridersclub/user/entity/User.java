@@ -3,6 +3,7 @@ package com.ridersclub.user.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.enums.Role;
 
 import jakarta.persistence.Column;
@@ -32,14 +33,25 @@ public class User {
 
     private String password;
 
+    private String pronoun;
+
+    private Gender gender;
+
     private String city;
 
     private String bikeType;
 
     @Enumerated(EnumType.STRING)
-    private Role role = Role.MEMBER;
+    private Role role = Role.RIDER;
 
     private boolean active = true;
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    private int experienceYears;
+
+    public boolean hasRole(String string) {
+        return role.name().equals(string);
+    }
+
 }

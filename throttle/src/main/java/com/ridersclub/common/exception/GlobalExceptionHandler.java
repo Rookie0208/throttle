@@ -16,7 +16,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-@ExceptionHandler(MethodArgumentNotValidException.class)
+
+  @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ApiResponse<Void>> badRequest(MethodArgumentNotValidException ex, HttpServletRequest request) {
     ApiErrors error = new ApiErrors("VALIDATION_FAILED", ex.getMessage(), request.getRequestURI());
     return ResponseEntity.badRequest().body(ApiResponse.failure(error, "Validation failed"));
@@ -28,9 +29,17 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest().body(ApiResponse.failure(error, "Invalid argument provided"));
   }
 
+  @ExceptionHandler(RuntimeException.class)
+  public ResponseEntity<ApiResponse<Void>> runtime(RuntimeException ex, HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("RUNTIME_ERROR", ex.getMessage(), request.getRequestURI());
+    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        .body(ApiResponse.failure(error, "A runtime error occurred"));
+  }
+  
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Void>> generic(Exception ex, HttpServletRequest request) {
     ApiErrors error = new ApiErrors("INTERNAL_SERVER_ERROR", ex.getMessage(), request.getRequestURI());
+    System.out.println(ex);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponse.failure(error, "An unexpected error occurred"));
   }
