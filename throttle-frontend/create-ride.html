@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Create Ride - Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 480px;
+      background: #020617;
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 5px;
+      border: none;
+      outline: none;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .msg {
+      margin-top: 12px;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <h2>Create Ride (API Test)</h2>
+
+  <div class="small">JWT Token</div>
+  <input id="token" placeholder="Paste Bearer token here">
+
+  <input id="title" placeholder="Ride Title">
+  <textarea id="description" placeholder="Description"></textarea>
+
+  <h4>Start Location</h4>
+  <input id="startName" placeholder="City / Location Name">
+  <input id="startLat" type="number" step="any" placeholder="Latitude">
+  <input id="startLng" type="number" step="any" placeholder="Longitude">
+
+  <h4>End Location</h4>
+  <input id="endName" placeholder="City / Location Name">
+  <input id="endLat" type="number" step="any" placeholder="Latitude">
+  <input id="endLng" type="number" step="any" placeholder="Longitude">
+
+  <select id="routeType">
+    <option value="">Route Type</option>
+    <option value="HIGHWAY">HIGHWAY</option>
+    <option value="CITY">CITY</option>
+    <option value="OFFROAD">OFFROAD</option>
+  </select>
+
+  <input id="startTime" type="datetime-local">
+
+  <input id="maxRiders" type="number" placeholder="Max Riders">
+
+  <select id="visibility">
+    <option value="">Visibility</option>
+    <option value="PUBLIC">PUBLIC</option>
+    <option value="PRIVATE">PRIVATE</option>
+  </select>
+
+  <textarea id="rules" placeholder="Rules (one per line)"></textarea>
+
+  <button onclick="createRide()">Create Ride</button>
+
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+const BASE_URL = "http://localhost:8080/api/v1/rides";
+
+function toOffsetDateTime(dateTimeLocal) {
+  if (!dateTimeLocal) return null;
+  const date = new Date(dateTimeLocal);
+  return date.toISOString();
+}
+
+async function createRide() {
+  const rules = document.getElementById("rules").value
+    .split("\n")
+    .map(r => r.trim())
+    .filter(r => r.length > 0);
+
+  const payload = {
+    title: title.value,
+    description: description.value,
+    startLocation: {
+      name: startName.value,
+      latitude: Number(startLat.value),
+      longitude: Number(startLng.value)
+    },
+    endLocation: {
+      name: endName.value,
+      latitude: Number(endLat.value),
+      longitude: Number(endLng.value)
+    },
+    routeType: routeType.value,
+    startTime: toOffsetDateTime(startTime.value),
+    maxRiders: Number(maxRiders.value),
+    visibility: visibility.value,
+    rules: rules
+  };
+
+  try {
+    const res = await fetch(`${BASE_URL}/create`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token.value
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await res.text();
+    msg.innerText = `Status: ${res.status}\n\n${text}`;
+  } catch (e) {
+    msg.innerText = "Error: " + e.message;
+  }
+}
+</script>
+
+</body>
+</html>

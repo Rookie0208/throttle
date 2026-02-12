@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Riders App - Auth</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -16,7 +17,7 @@
     }
 
     .container {
-      width: 380px;
+      width: 400px;
       background: #020617;
       padding: 25px;
       border-radius: 10px;
@@ -28,7 +29,7 @@
       margin-bottom: 15px;
     }
 
-    input {
+    input, select {
       width: 100%;
       padding: 10px;
       margin: 6px 0;
@@ -58,6 +59,7 @@
       margin-top: 10px;
       cursor: pointer;
       color: #60a5fa;
+      font-size: 14px;
     }
 
     .msg {
@@ -67,28 +69,58 @@
     }
   </style>
 </head>
+
 <body>
 
 <div class="container">
 
-  <h2 id="title">Register</h2>
+  <h2 id="title">User Register</h2>
 
-  <div id="registerForm">
-    <input id="name" placeholder="Name">
+  <!-- USER REGISTER -->
+  <div id="userRegister">
+    <input id="firstName" placeholder="First Name">
+    <input id="lastName" placeholder="Last Name">
+
+    <select id="pronoun">
+      <option value="">Select Pronoun</option>
+      <option value="HE/HIM">He / Him</option>
+      <option value="SHE/HER">She / Her</option>
+      <option value="OTHER">Other</option>
+    </select>
+
+    <select id="role">
+      <option value="">Select Role</option>
+      <option value="CAPTAIN">Captain</option>
+      <option value="RIDER">Rider</option>
+    </select>
+
     <input id="email" placeholder="Email">
     <input id="password" type="password" placeholder="Password">
-    <input id="city" placeholder="City">
-    <input id="bikeType" placeholder="Bike Type">
-    <button onclick="register()">Register</button>
+
+    <input id="experienceYears" type="number" placeholder="Experience Years (optional)">
+    <input id="emergencyContact" placeholder="Emergency Contact (optional)">
+
+    <button onclick="registerUser()">Register</button>
   </div>
 
+  <!-- ADMIN REGISTER -->
+  <div id="adminRegister" style="display:none;">
+    <input id="adminName" placeholder="Admin Name">
+    <input id="adminEmail" placeholder="Admin Email">
+    <input id="adminPassword" type="password" placeholder="Password">
+    <button onclick="registerAdmin()">Register Admin</button>
+  </div>
+
+  <!-- LOGIN -->
   <div id="loginForm" style="display:none;">
     <input id="loginEmail" placeholder="Email">
     <input id="loginPassword" type="password" placeholder="Password">
     <button onclick="login()">Login</button>
   </div>
 
-  <div class="toggle" onclick="toggle()">Switch to Login / Register</div>
+  <div class="toggle" onclick="showUserRegister()">User Register</div>
+  <div class="toggle" onclick="showAdminRegister()">Admin Register</div>
+  <div class="toggle" onclick="showLogin()">Login</div>
 
   <div class="msg" id="msg"></div>
 
@@ -97,29 +129,41 @@
 <script>
 const BASE_URL = "http://localhost:8080/api/v1";
 
-function toggle() {
-  const reg = document.getElementById("registerForm");
-  const login = document.getElementById("loginForm");
-  const title = document.getElementById("title");
-
-  if (reg.style.display === "none") {
-    reg.style.display = "block";
-    login.style.display = "none";
-    title.innerText = "Register";
-  } else {
-    reg.style.display = "none";
-    login.style.display = "block";
-    title.innerText = "Login";
-  }
+function hideAll() {
+  userRegister.style.display = "none";
+  adminRegister.style.display = "none";
+  loginForm.style.display = "none";
 }
 
-async function register() {
+function showUserRegister() {
+  hideAll();
+  userRegister.style.display = "block";
+  title.innerText = "User Register";
+}
+
+function showAdminRegister() {
+  hideAll();
+  adminRegister.style.display = "block";
+  title.innerText = "Admin Register";
+}
+
+function showLogin() {
+  hideAll();
+  loginForm.style.display = "block";
+  title.innerText = "Login";
+}
+
+// USER REGISTER
+async function registerUser() {
   const data = {
-    name: name.value,
+    firstName: firstName.value,
+    lastName: lastName.value,
+    pronoun: pronoun.value,      // backend maps pronoun → gender
+    role: role.value,
     email: email.value,
     password: password.value,
-    city: city.value,
-    bikeType: bikeType.value
+    experienceYears: experienceYears.value || 0,
+    emergencyContact: emergencyContact.value || null
   };
 
   const res = await fetch(`${BASE_URL}/auth/register`, {
@@ -129,9 +173,28 @@ async function register() {
   });
 
   const json = await res.json();
-  document.getElementById("msg").innerText = json.message || "Registered Successfully";
+  msg.innerText = json.message || "User registered successfully";
 }
 
+// ADMIN REGISTER
+async function registerAdmin() {
+  const data = {
+    name: adminName.value,
+    email: adminEmail.value,
+    password: adminPassword.value
+  };
+
+  const res = await fetch(`${BASE_URL}/auth/admin/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+
+  const json = await res.json();
+  msg.innerText = json.message || "Admin registered successfully";
+}
+
+// LOGIN
 async function login() {
   const data = {
     email: loginEmail.value,
@@ -148,9 +211,9 @@ async function login() {
 
   if (json.data?.token) {
     localStorage.setItem("token", json.data.token);
-    document.getElementById("msg").innerText = "Login successful. JWT saved.";
+    msg.innerText = "Login successful. JWT saved.";
   } else {
-    document.getElementById("msg").innerText = "Login failed";
+    msg.innerText = "Login failed";
   }
 }
 </script>
