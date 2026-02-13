@@ -3,6 +3,7 @@ package com.ridersclub.ride.repository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Repository;
@@ -18,6 +19,11 @@ public class InMemoryRideRepo implements RideRepository {
     public Ride save(Ride ride) {
         rides.put(ride.getRideUid().toString(), ride);
         return ride;
+    }
+
+    @Override
+    public Optional<Ride> findById(String id) {
+        return Optional.ofNullable(rides.get(id));
     }
 
     @Override
