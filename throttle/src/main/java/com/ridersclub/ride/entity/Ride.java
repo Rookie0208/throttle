@@ -85,6 +85,8 @@ public class Ride {
 
     private RideStatus status;
 
+    private UUID captainId;
+
     @PrePersist
     void onCreate() {
         this.createdAt = OffsetDateTime.now();
