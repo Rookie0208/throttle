@@ -59,7 +59,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: TextButton(
                   onPressed: skip,
                   child: const Text("Skip",
-                      style: TextStyle(color: Color(0xfffe6603))),
+                      style: TextStyle(color: Color.fromARGB(255, 225, 202, 186), fontSize: 12)),
                 ),
               ),
 
@@ -121,9 +121,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       backgroundColor: const Color(0xfffe6603)),
                   child: Text(
                       currentIndex == pages.length - 1
-                          ? "GET STARTED"
-                          : "NEXT",
-                      style: const TextStyle(fontSize: 16)),
+                          ? "Get Started"
+                          : "Next  >",
+                      style: const TextStyle(fontSize: 14, color: Colors.white)),
                 ),
               ),
             ],
