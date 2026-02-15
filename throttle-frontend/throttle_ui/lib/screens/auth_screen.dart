@@ -39,32 +39,40 @@ class _AuthScreenState extends State<AuthScreen> {
   final List<String> pronounOptions = ["HE/HIM", "SHE/HER", "OTHER"];
   final List<String> roleOptions = ["CAPTAIN", "RIDER"];
 
-  Widget input(String hint, TextEditingController c,
+  final Duration animDuration = const Duration(milliseconds: 400);
+
+  // INPUT WIDGET
+  Widget input(String label, TextEditingController c,
       {bool isPassword = false, TextInputType type = TextInputType.text}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: TextField(
+      child: TextFormField(
         controller: c,
         obscureText: isPassword,
         keyboardType: type,
         decoration: InputDecoration(
-          hintText: hint,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          labelText: label,
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          fillColor: Colors.white10,
+          filled: true,
         ),
       ),
     );
   }
 
-  Widget dropdown(String hint, TextEditingController c, List<String> options) {
+  // DROPDOWN WIDGET
+  Widget dropdown(String label, TextEditingController c, List<String> options) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: DropdownButtonFormField<String>(
         value: c.text.isEmpty ? null : c.text,
         decoration: InputDecoration(
-          hintText: hint,
+          labelText: label,
+          floatingLabelBehavior: FloatingLabelBehavior.auto,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          fillColor: Colors.white10,
+          filled: true,
         ),
         items: options
             .map((p) => DropdownMenuItem(value: p, child: Text(p)))
@@ -74,6 +82,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  // REGISTER USER
   Future<void> registerUser() async {
     if (firstName.text.isEmpty ||
         lastName.text.isEmpty ||
@@ -106,6 +115,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  // REGISTER ADMIN
   Future<void> registerAdmin() async {
     if (adminName.text.isEmpty ||
         adminEmail.text.isEmpty ||
@@ -128,6 +138,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  // LOGIN
   Future<void> login() async {
     if (loginEmail.text.isEmpty || loginPassword.text.isEmpty) {
       setState(() => message = "Please enter email and password");
@@ -155,68 +166,109 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  // RETURN CURRENT FORM WIDGET
+  Widget currentViewWidget() {
+    switch (current) {
+      case ViewType.user:
+        return Column(
+          key: const ValueKey(1),
+          children: [
+            input("First Name", firstName),
+            input("Last Name", lastName),
+            dropdown("Pronoun", pronoun, pronounOptions),
+            dropdown("Role", role, roleOptions),
+            input("Email", email, type: TextInputType.emailAddress),
+            input("Password", password, isPassword: true),
+            input("Experience Years", experienceYears, type: TextInputType.number),
+            input("Emergency Contact", emergencyContact),
+            const SizedBox(height: 10),
+            AnimatedButton(text: "Register", onPressed: registerUser),
+          ],
+        );
+      case ViewType.admin:
+        return Column(
+          key: const ValueKey(2),
+          children: [
+            input("Admin Name", adminName),
+            input("Admin Email", adminEmail, type: TextInputType.emailAddress),
+            input("Password", adminPassword, isPassword: true),
+            const SizedBox(height: 10),
+            AnimatedButton(text: "Register Admin", onPressed: registerAdmin),
+          ],
+        );
+      case ViewType.login:
+        return Column(
+          key: const ValueKey(3),
+          children: [
+            input("Email", loginEmail, type: TextInputType.emailAddress),
+            input("Password", loginPassword, isPassword: true),
+            const SizedBox(height: 10),
+            AnimatedButton(text: "Login", onPressed: login),
+          ],
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f172a),
-      body: Center(
-        child: Container(
-          width: 380,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
+      body: AnimatedContainer(
+        duration: animDuration,
+        padding: const EdgeInsets.all(20),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: current == ViewType.user
+                ? [Colors.blue.shade800, Colors.blue.shade600]
+                : current == ViewType.admin
+                    ? [Colors.purple.shade800, Colors.purple.shade600]
+                    : [Colors.teal.shade800, Colors.teal.shade600],
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Container(
+            width: 380,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
               color: const Color(0xff020617),
-              borderRadius: BorderRadius.circular(12)),
-          child: SingleChildScrollView(
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Column(
               children: [
-                Text(current.name.toUpperCase(),
-                    style: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-
-                const SizedBox(height: 12),
-
-                // USER REGISTER
-                if (current == ViewType.user) ...[
-                  input("First Name", firstName),
-                  input("Last Name", lastName),
-                  dropdown("Pronoun", pronoun, pronounOptions),
-                  dropdown("Role", role, roleOptions),
-                  input("Email", email, type: TextInputType.emailAddress),
-                  input("Password", password, isPassword: true),
-                  input("Experience Years", experienceYears,
-                      type: TextInputType.number),
-                  input("Emergency Contact", emergencyContact),
-                  const SizedBox(height: 10),
-                  ElevatedButton(onPressed: registerUser, child: const Text("Register")),
-                ],
-
-                // ADMIN REGISTER
-                if (current == ViewType.admin) ...[
-                  input("Admin Name", adminName),
-                  input("Admin Email", adminEmail, type: TextInputType.emailAddress),
-                  input("Password", adminPassword, isPassword: true),
-                  const SizedBox(height: 10),
-                  ElevatedButton(onPressed: registerAdmin, child: const Text("Register Admin")),
-                ],
-
-                // LOGIN
-                if (current == ViewType.login) ...[
-                  input("Email", loginEmail, type: TextInputType.emailAddress),
-                  input("Password", loginPassword, isPassword: true),
-                  const SizedBox(height: 10),
-                  ElevatedButton(onPressed: login, child: const Text("Login")),
-                ],
-
-                const SizedBox(height: 12),
                 Text(
-                  message,
-                  style: TextStyle(
-                      color: message.toLowerCase().contains("fail")
-                          ? Colors.red
-                          : Colors.green),
-                  textAlign: TextAlign.center,
+                  current.name.toUpperCase(),
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
-
+                const SizedBox(height: 12),
+                // ANIMATED SWITCHER FOR FORMS
+                AnimatedSwitcher(
+                  duration: animDuration,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                              begin: const Offset(0, 0.2), end: Offset.zero)
+                          .animate(animation),
+                      child: child,
+                    ),
+                  ),
+                  child: currentViewWidget(),
+                ),
+                const SizedBox(height: 12),
+                // MESSAGE
+                AnimatedOpacity(
+                  duration: animDuration,
+                  opacity: message.isEmpty ? 0 : 1,
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                        color: message.toLowerCase().contains("fail")
+                            ? Colors.red
+                            : Colors.green),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
@@ -236,6 +288,44 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// CUSTOM ANIMATED BUTTON
+class AnimatedButton extends StatefulWidget {
+  final String text;
+  final VoidCallback onPressed;
+  const AnimatedButton({super.key, required this.text, required this.onPressed});
+
+  @override
+  State<AnimatedButton> createState() => _AnimatedButtonState();
+}
+
+class _AnimatedButtonState extends State<AnimatedButton> {
+  bool isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => isPressed = true),
+      onTapUp: (_) {
+        setState(() => isPressed = false);
+        widget.onPressed();
+      },
+      onTapCancel: () => setState(() => isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        height: 50,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isPressed ? Colors.blue.shade700 : Colors.blue.shade500,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(widget.text,
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
       ),
     );
   }
