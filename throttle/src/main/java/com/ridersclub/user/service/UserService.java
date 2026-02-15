@@ -36,7 +36,7 @@ public class UserService {
         user.setCity(req.getCity());
         user.setBikeType(req.getBikeType());
         user.setExperienceYears(req.getExperienceYears());
-        user.setUuid(UUID.randomUUID().toString());
+        user.setUuid(UUID.randomUUID());
         user.setRole(req.getRole() != null ? req.getRole() : Role.RIDER);
         user.setGender(getGenderFromPronoun(req.getPronoun()));
 
