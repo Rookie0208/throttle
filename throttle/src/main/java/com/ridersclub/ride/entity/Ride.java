@@ -83,6 +83,10 @@ public class Ride {
     @Column(nullable = false)
     private String createdBy;
 
+    private RideStatus status;
+
+    private UUID captainId;
+
     @PrePersist
     void onCreate() {
         this.createdAt = OffsetDateTime.now();
