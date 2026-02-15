@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RideParticipant {
-private String id;
+private Long id;
     private String rideId;
     private String userId;
     private LocalDateTime joinedAt;
