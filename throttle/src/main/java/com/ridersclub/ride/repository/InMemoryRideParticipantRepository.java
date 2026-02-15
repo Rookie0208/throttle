@@ -4,14 +4,17 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.springframework.stereotype.Repository;
+
 import com.ridersclub.ride.entity.RideParticipant;
 
+@Repository
 public class InMemoryRideParticipantRepository implements RideParticipantRepository {
     private final List<RideParticipant> list = new CopyOnWriteArrayList<>();
 
     @Override
     public RideParticipant save(RideParticipant rp) {
-        rp.setId(UUID.randomUUID().toString());
+        rp.setUserId(UUID.randomUUID().toString());
         list.add(rp);
         return rp;
     }
