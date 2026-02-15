@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/main_screen.dart';
 import 'dashboard_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -19,7 +20,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   final nameController = TextEditingController();
   final firstNameController = TextEditingController();
-final surNameController = TextEditingController();
+  final surNameController = TextEditingController();
   final bikeModelController = TextEditingController();
   final bikeYearController = TextEditingController();
 
@@ -31,7 +32,7 @@ final surNameController = TextEditingController();
     "Cruiser",
     "Adventure",
     "Touring",
-    "Electric"
+    "Electric",
   ];
 
   final preferences = [
@@ -40,46 +41,51 @@ final surNameController = TextEditingController();
     "City Riding",
     "Track Days",
     "Group Rides",
-    "Casual Riding"
+    "Casual Riding",
   ];
 
   void next() {
-  if (step == 0) {
-    if (firstNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("First name is required"),
-          backgroundColor: Colors.red,
-        ),
+    if (step == 0) {
+      if (firstNameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("First name is required"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    if (step < 2) {
+      controller.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
       );
-      return;
+      setState(() => step++);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
     }
   }
-
-  if (step < 2) {
-    controller.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut);
-    setState(() => step++);
-  } else {
-    Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const DashboardScreen()));
-  }
-}
-
 
   void back() {
     if (step > 0) {
       controller.previousPage(
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut);
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
       setState(() => step--);
     }
   }
 
-  Widget optionGrid(List<String> options, String selected,
-      Function(String) onSelect) {
+  Widget optionGrid(
+    List<String> options,
+    String selected,
+    Function(String) onSelect,
+  ) {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
@@ -88,8 +94,7 @@ final surNameController = TextEditingController();
         return GestureDetector(
           onTap: () => onSelect(e),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isSelected
                   ? const Color(0xfffe6603)
@@ -109,8 +114,11 @@ final surNameController = TextEditingController();
     );
   }
 
-  Widget thinInput(String hint, TextEditingController controller,
-      {TextInputType type = TextInputType.text}) {
+  Widget thinInput(
+    String hint,
+    TextEditingController controller, {
+    TextInputType type = TextInputType.text,
+  }) {
     return TextField(
       controller: controller,
       keyboardType: type,
@@ -145,43 +153,46 @@ final surNameController = TextEditingController();
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
                   // STEP 1 — FIRST NAME + SURNAME + PRONOUN
-buildStep(
-  "Tell us about you",
-  Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      thinInput("First Name *", firstNameController),
+                  buildStep(
+                    "Tell us about you",
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        thinInput("First Name", firstNameController),
 
-      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-      thinInput("Surname (Optional)", surNameController),
+                        thinInput("Last Name", surNameController),
 
-      const SizedBox(height: 30),
+                        const SizedBox(height: 30),
 
-      const Text(
-        "Pronoun",
-        style: TextStyle(
-          color: Colors.white70,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+                        const Text(
+                          "Pronoun",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
 
-      const SizedBox(height: 15),
+                        const SizedBox(height: 15),
 
-      optionGrid(
-        pronouns,
-        pronoun,
-        (v) => setState(() => pronoun = v),
-      ),
-    ],
-  ),
-),
+                        optionGrid(
+                          pronouns,
+                          pronoun,
+                          (v) => setState(() => pronoun = v),
+                        ),
+                      ],
+                    ),
+                  ),
 
                   // STEP 2 — RIDING PREFERENCE
                   buildStep(
                     "Your Riding Style",
-                    optionGrid(preferences, preference,
-                        (v) => setState(() => preference = v)),
+                    optionGrid(
+                      preferences,
+                      preference,
+                      (v) => setState(() => preference = v),
+                    ),
                   ),
 
                   // STEP 3 — BIKE DETAILS
@@ -190,18 +201,27 @@ buildStep(
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Bike Type",
-                            style: TextStyle(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500)),
+                        const Text(
+                          "Bike Type",
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                         const SizedBox(height: 15),
-                        optionGrid(bikeTypes, bikeType,
-                            (v) => setState(() => bikeType = v)),
+                        optionGrid(
+                          bikeTypes,
+                          bikeType,
+                          (v) => setState(() => bikeType = v),
+                        ),
                         const SizedBox(height: 30),
                         thinInput("Bike Model", bikeModelController),
                         const SizedBox(height: 20),
-                        thinInput("Year of Purchase", bikeYearController,
-                            type: TextInputType.number),
+                        thinInput(
+                          "Year of Purchase",
+                          bikeYearController,
+                          type: TextInputType.number,
+                        ),
                       ],
                     ),
                   ),
@@ -223,8 +243,9 @@ buildStep(
                       child: const Text(
                         "CONTINUE",
                         style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold),
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -234,13 +255,12 @@ buildStep(
                       onPressed: back,
                       child: const Text(
                         "Back",
-                        style: TextStyle(
-                            color: Colors.white54),
+                        style: TextStyle(color: Colors.white54),
                       ),
                     ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -255,11 +275,14 @@ buildStep(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 30),
-            Text(title,
-                style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white)),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
             const SizedBox(height: 40),
             content,
           ],
