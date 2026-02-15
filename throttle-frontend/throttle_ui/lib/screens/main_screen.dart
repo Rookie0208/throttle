@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
-import '../widgets/bottom_nav.dart';
+import 'placeholder_screen.dart'; // For other tabs
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -10,49 +10,54 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int currentIndex = 0;
+  int _currentIndex = 0;
 
-  final List<Widget> pages = const [
-    DashboardScreen(),
-    PlaceholderScreen(title: "Groups"),
-    PlaceholderScreen(title: "Track"),
-    PlaceholderScreen(title: "Stats"),
-    PlaceholderScreen(title: "Profile"),
+  final List<Widget> _screens = [
+    const DashboardScreen(),
+    const PlaceholderScreen(label: "Groups"),
+    const PlaceholderScreen(label: "Track"),
+    const PlaceholderScreen(label: "Stats"),
+    const PlaceholderScreen(label: "Profile"),
   ];
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: pages[currentIndex],
-      bottomNavigationBar: BottomNav(
-        activeIndex: currentIndex,
-        onTabChange: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
-      ),
-    );
+  void _onTabChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
   }
-}
-
-/// Temporary placeholder widget for tabs you haven't implemented yet
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
-      body: Center(
-        child: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
+      body: _screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: _onTabChanged,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Colors.orange,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: "Dashboard",
           ),
-        ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.group),
+            label: "Groups",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.navigation),
+            label: "Track",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: "Stats",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: "Profile",
+          ),
+        ],
       ),
     );
   }
