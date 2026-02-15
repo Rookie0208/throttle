@@ -31,10 +31,6 @@ public class RideService {
     @Autowired private RideStatsRepository statsRepo;
 
     public Ride createRide(CreateRideRequest request, User currentUser) throws AccessDeniedException {
-        // 1. Authorization
-        if (!currentUser.hasRole("CAPTAIN") && !currentUser.hasRole("ADMIN")) {
-            throw new AccessDeniedException("You are not allowed to create rides");
-        }
         Ride ride = new Ride();
         ride.setTitle(request.getTitle());
         ride.setDescription(request.getDescription());
@@ -44,6 +40,7 @@ public class RideService {
         ride.setVisibility(request.getVisibility());
         ride.setRules(request.getRules());
         ride.setRideUid(UUID.randomUUID());
+        ride.setCaptainId(currentUser.getUuid());
 
         RideLocation start = new RideLocation();
         start.setName(request.getStartLocation().getName());
@@ -58,7 +55,7 @@ public class RideService {
         ride.setEndLocation(end);
 
         // 3. Ownership
-        ride.setCreatedBy(currentUser.getUuid());
+        ride.setCreatedBy(currentUser.getUuid().toString());
 
         Ride saved = rideRepository.save(ride);
         participantRepo.save(new RideParticipant(saved.getId(), null, currentUser.getUuid().toString(), LocalDateTime.now()));

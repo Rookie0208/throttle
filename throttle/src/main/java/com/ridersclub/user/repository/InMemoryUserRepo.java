@@ -19,7 +19,7 @@ private final Map<String, User> users = new ConcurrentHashMap<>();
     @Override
     public User save(User user) {
         if (user.getUuid() == null) {
-            user.setUuid(UUID.randomUUID().toString());
+            user.setUuid(UUID.randomUUID());
         }
         users.put(user.getEmail(), user);
         return user;
