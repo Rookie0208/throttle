@@ -18,6 +18,8 @@ class _SignupScreenState extends State<SignupScreen> {
   String preference = "";
 
   final nameController = TextEditingController();
+  final firstNameController = TextEditingController();
+final surNameController = TextEditingController();
   final bikeModelController = TextEditingController();
   final bikeYearController = TextEditingController();
 
@@ -42,16 +44,30 @@ class _SignupScreenState extends State<SignupScreen> {
   ];
 
   void next() {
-    if (step < 2) {
-      controller.nextPage(
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut);
-      setState(() => step++);
-    } else {
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const DashboardScreen()));
+  if (step == 0) {
+    if (firstNameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("First name is required"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
     }
   }
+
+  if (step < 2) {
+    controller.nextPage(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut);
+    setState(() => step++);
+  } else {
+    Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const DashboardScreen()));
+  }
+}
+
 
   void back() {
     if (step > 0) {
@@ -128,26 +144,38 @@ class _SignupScreenState extends State<SignupScreen> {
                 controller: controller,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  // STEP 1 — NAME + PRONOUN
-                  buildStep(
-                    "Tell us about you",
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        thinInput("Full Name", nameController),
-                        const SizedBox(height: 25),
-                        const Text("Pronoun",
-                            style: TextStyle(
-                                color: Colors.white70,
-                                fontWeight: FontWeight.w500)),
-                        const SizedBox(height: 15),
-                        optionGrid(
-                            pronouns,
-                            pronoun,
-                            (v) => setState(() => pronoun = v)),
-                      ],
-                    ),
-                  ),
+                  // STEP 1 — FIRST NAME + SURNAME + PRONOUN
+buildStep(
+  "Tell us about you",
+  Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      thinInput("First Name *", firstNameController),
+
+      const SizedBox(height: 20),
+
+      thinInput("Surname (Optional)", surNameController),
+
+      const SizedBox(height: 30),
+
+      const Text(
+        "Pronoun",
+        style: TextStyle(
+          color: Colors.white70,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+
+      const SizedBox(height: 15),
+
+      optionGrid(
+        pronouns,
+        pronoun,
+        (v) => setState(() => pronoun = v),
+      ),
+    ],
+  ),
+),
 
                   // STEP 2 — RIDING PREFERENCE
                   buildStep(
