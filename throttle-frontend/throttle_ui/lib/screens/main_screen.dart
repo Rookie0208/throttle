@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/group-screen.dart';
+import 'package:throttle_ui/screens/profile_screen.dart';
 import 'dashboard_screen.dart';
 import 'placeholder_screen.dart'; // For other tabs
 
@@ -14,10 +16,10 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const PlaceholderScreen(label: "Groups"),
+    const GroupsScreen(),
     const PlaceholderScreen(label: "Track"),
     const PlaceholderScreen(label: "Stats"),
-    const PlaceholderScreen(label: "Profile"),
+    const ProfileScreen()
   ];
 
   void _onTabChanged(int index) {
