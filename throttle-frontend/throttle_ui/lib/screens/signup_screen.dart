@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/login_screen.dart';
 import 'package:throttle_ui/screens/main_screen.dart';
-import 'dashboard_screen.dart';
+import 'package:throttle_ui/services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -11,18 +12,21 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final PageController controller = PageController();
+
   int step = 0;
 
-  String name = "";
   String pronoun = "";
   String bikeType = "";
   String preference = "";
 
-  final nameController = TextEditingController();
+  bool obscurePassword = true;
+
   final firstNameController = TextEditingController();
   final surNameController = TextEditingController();
   final bikeModelController = TextEditingController();
   final bikeYearController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
 
   final pronouns = ["He/Him", "She/Her", "They/Them", "Other"];
 
@@ -44,32 +48,63 @@ class _SignupScreenState extends State<SignupScreen> {
     "Casual Riding",
   ];
 
-  void next() {
-    if (step == 0) {
-      if (firstNameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("First name is required"),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+  // ================= NEXT BUTTON =================
+ Future<void> next() async {
+  // STEP 1 VALIDATION
+  if (step == 0) {
+    if (firstNameController.text.trim().isEmpty) {
+      showError("First name is required");
+      return;
     }
 
-    if (step < 2) {
-      controller.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
-      setState(() => step++);
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainScreen()),
-      );
+    if (emailController.text.trim().isEmpty) {
+      showError("Email is required");
+      return;
+    }
+
+    if (!emailController.text.contains("@")) {
+      showError("Enter a valid email");
+      return;
+    }
+
+    if (passwordController.text.length < 6) {
+      showError("Password must be at least 6 characters");
+      return;
     }
   }
+
+  // STEP 3 → REGISTER
+  if (step == 2) {
+    final result = await AuthService.register(
+      firstName: firstNameController.text.trim(),
+      lastName: surNameController.text.trim(),
+      pronoun: pronoun,
+      email: emailController.text.trim(),
+      password: passwordController.text.trim(),
+      bikeType: bikeType,
+      experienceYears: 0,
+    );
+
+    if (result["success"]) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    } else {
+      showError(result["message"]);
+    }
+
+    return; // 🔥 VERY IMPORTANT — stop execution here
+  }
+
+  // GO TO NEXT STEP
+  controller.nextPage(
+    duration: const Duration(milliseconds: 400),
+    curve: Curves.easeInOut,
+  );
+
+  setState(() => step++);
+}
 
   void back() {
     if (step > 0) {
@@ -81,6 +116,16 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
+  void showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  // ================= OPTION GRID =================
   Widget optionGrid(
     List<String> options,
     String selected,
@@ -91,10 +136,12 @@ class _SignupScreenState extends State<SignupScreen> {
       runSpacing: 10,
       children: options.map((e) {
         final isSelected = selected == e;
+
         return GestureDetector(
           onTap: () => onSelect(e),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isSelected
                   ? const Color(0xfffe6603)
@@ -104,7 +151,8 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Text(
               e,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
+                color:
+                    isSelected ? Colors.white : Colors.white70,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -114,14 +162,17 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  // ================= INPUT FIELD =================
   Widget thinInput(
     String hint,
     TextEditingController controller, {
     TextInputType type = TextInputType.text,
+    bool isPassword = false,
   }) {
     return TextField(
       controller: controller,
       keyboardType: type,
+      obscureText: isPassword ? obscurePassword : false,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
@@ -130,15 +181,33 @@ class _SignupScreenState extends State<SignupScreen> {
           borderSide: BorderSide(color: Colors.grey, width: 0.6),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xfffe6603), width: 1),
+          borderSide:
+              BorderSide(color: Color(0xfffe6603), width: 1),
         ),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(
+                  obscurePassword
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  color: Colors.white54,
+                ),
+                onPressed: () {
+                  setState(() {
+                    obscurePassword = !obscurePassword;
+                  });
+                },
+              )
+            : null,
       ),
     );
   }
 
+  // ================= BUILD =================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xff0f1115),
       body: SafeArea(
         child: Column(
           children: [
@@ -150,77 +219,97 @@ class _SignupScreenState extends State<SignupScreen> {
             Expanded(
               child: PageView(
                 controller: controller,
-                physics: const NeverScrollableScrollPhysics(),
+                physics:
+                    const NeverScrollableScrollPhysics(),
                 children: [
-                  // STEP 1 — FIRST NAME + SURNAME + PRONOUN
+                  // ================= STEP 1 =================
                   buildStep(
                     "Tell us about you",
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
-                        thinInput("First Name", firstNameController),
-
+                        thinInput(
+                            "First Name",
+                            firstNameController),
                         const SizedBox(height: 20),
-
-                        thinInput("Last Name", surNameController),
-
+                        thinInput("Last Name",
+                            surNameController),
+                        const SizedBox(height: 20),
+                        thinInput(
+                          "Email",
+                          emailController,
+                          type: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 20),
+                        thinInput(
+                          "Password",
+                          passwordController,
+                          isPassword: true,
+                        ),
                         const SizedBox(height: 30),
-
                         const Text(
                           "Pronoun",
                           style: TextStyle(
                             color: Colors.white70,
-                            fontWeight: FontWeight.w500,
+                            fontWeight:
+                                FontWeight.w500,
                           ),
                         ),
-
                         const SizedBox(height: 15),
-
                         optionGrid(
                           pronouns,
                           pronoun,
-                          (v) => setState(() => pronoun = v),
+                          (v) =>
+                              setState(() => pronoun = v),
                         ),
                       ],
                     ),
                   ),
 
-                  // STEP 2 — RIDING PREFERENCE
+                  // ================= STEP 2 =================
                   buildStep(
                     "Your Riding Style",
                     optionGrid(
                       preferences,
                       preference,
-                      (v) => setState(() => preference = v),
+                      (v) =>
+                          setState(() => preference = v),
                     ),
                   ),
 
-                  // STEP 3 — BIKE DETAILS
+                  // ================= STEP 3 =================
                   buildStep(
                     "Your Bike",
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         const Text(
                           "Bike Type",
                           style: TextStyle(
                             color: Colors.white70,
-                            fontWeight: FontWeight.w500,
+                            fontWeight:
+                                FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 15),
                         optionGrid(
                           bikeTypes,
                           bikeType,
-                          (v) => setState(() => bikeType = v),
+                          (v) =>
+                              setState(() => bikeType = v),
                         ),
                         const SizedBox(height: 30),
-                        thinInput("Bike Model", bikeModelController),
+                        thinInput(
+                            "Bike Model",
+                            bikeModelController),
                         const SizedBox(height: 20),
                         thinInput(
                           "Year of Purchase",
                           bikeYearController,
-                          type: TextInputType.number,
+                          type:
+                              TextInputType.number,
                         ),
                       ],
                     ),
@@ -228,6 +317,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 ],
               ),
             ),
+
+            // ================= BUTTONS =================
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -237,14 +328,17 @@ class _SignupScreenState extends State<SignupScreen> {
                     height: 55,
                     child: ElevatedButton(
                       onPressed: next,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xfffe6603),
+                      style:
+                          ElevatedButton.styleFrom(
+                        backgroundColor:
+                            const Color(0xfffe6603),
                       ),
                       child: const Text(
                         "CONTINUE",
                         style: TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
                     ),
@@ -255,7 +349,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       onPressed: back,
                       child: const Text(
                         "Back",
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(
+                            color: Colors.white54),
                       ),
                     ),
                 ],
@@ -267,12 +362,14 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  // ================= STEP WRAPPER =================
   Widget buildStep(String title, Widget content) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 30),
             Text(
