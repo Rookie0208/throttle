@@ -23,7 +23,7 @@ import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.service.UserService;
 
-@CrossOrigin(origins = "http://127.0.0.1:5500")
+@CrossOrigin(origins = "http://localhost:61215/")
 @RestController
 @RequestMapping("api/v1/auth")
 public class AuthController {
@@ -39,7 +39,7 @@ public class AuthController {
         User user = userService.register(request);
 
         System.out.println("Encoded Password: " + user.getPassword());
-        RegisterResponse response = new RegisterResponse(user.getUuid(), false, "none");
+        RegisterResponse response = new RegisterResponse(user.getUuid().toString(), false, "none");
         System.out.println("Received registration request: " + request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "User registered successfully"));
@@ -48,9 +48,9 @@ public class AuthController {
     @PostMapping("/login")
     ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
         User user = userService.authenticate(request);
-        String token = jwtService.generate(user.getUuid(), Map.of("roles", user.getRole()), 864000);
+        String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", user.getRole()), 864000);
 
-        LoginResponse response = new LoginResponse(user.getUuid(), token, 864000);
+        LoginResponse response = new LoginResponse(user.getUuid().toString(), token, 864000);
         return ResponseEntity.ok(ApiResponse.success(response, "User logged in successfully"));
     }
 

@@ -28,10 +28,10 @@ public class AuthService {
     if(user == null) {
       user = new User();
       user.setId((long) 1);
-      user.setUuid(UserUtility.generateUserId("USER"));
+      user.setUuid(UserUtility.generateUUID());
       user.setEmail(request.getEmail());
     }
-    return new LoginResponse(user.getUuid(), "token-placeholder", 3600L);
+    return new LoginResponse(user.getUuid().toString(), "token-placeholder", 3600L);
  }
 
     public RegisterResponse register(RegisterRequest request) {
@@ -40,7 +40,7 @@ public class AuthService {
         }
 
         User newUser = new User();
-        newUser.setUuid(UserUtility.generateUserId("USER"));
+        newUser.setUuid(UserUtility.generateUUID());
         newUser.setEmail("amitsr2612@gmail.com");
         newUser.setPassword("password");
         newUser.setCreatedAt(LocalDateTime.now());
@@ -56,6 +56,6 @@ public class AuthService {
         userRepository.save(newUser);
         boolean verificationRequired = true; // Assume verification is required
 
-        return new RegisterResponse(newUser.getUuid(), verificationRequired, verificationRequired ? "EMAIL" : "NONE");
+        return new RegisterResponse(newUser.getUuid().toString(), verificationRequired, verificationRequired ? "EMAIL" : "NONE");
     }
 }

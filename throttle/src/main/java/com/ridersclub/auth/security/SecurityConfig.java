@@ -33,7 +33,7 @@ public class SecurityConfig {
         http.cors(cors -> cors.disable())
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**", "/localhost:52426/").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**", "/localhost:61215/").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/rides/**")
                         .hasAnyRole("CAPTAIN", "ADMIN")
                         .anyRequest().authenticated())
