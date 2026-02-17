@@ -48,7 +48,7 @@ public class AuthController {
     @PostMapping("/login")
     ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
         User user = userService.authenticate(request);
-        String token = jwtService.generate(user.getUuid(), Map.of("roles", user.getRole()), 864000);
+        String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", user.getRole()), 864000);
 
         LoginResponse response = new LoginResponse(user.getUuid(), token, 864000);
         return ResponseEntity.ok(ApiResponse.success(response, "User logged in successfully"));

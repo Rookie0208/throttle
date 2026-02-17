@@ -1,7 +1,9 @@
 package com.ridersclub.auth.dto.response;
 
-public record RegisterResponse(String userId,
+import java.util.UUID;
+
+public record RegisterResponse(UUID userId,
     boolean verificationRequired,
     String verificationType) {
-
+         
 }
