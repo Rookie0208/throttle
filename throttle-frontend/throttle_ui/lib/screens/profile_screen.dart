@@ -308,7 +308,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     const SizedBox(height: 12),
 
                     SizedBox(
-                      height: 300, // adjust as needed
+                     height: MediaQuery.of(context).size.height * 0.45,
                       child: TabBarView(
                         controller: _tabController,
                         children: [

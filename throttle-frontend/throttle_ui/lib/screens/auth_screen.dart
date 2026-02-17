@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:throttle_ui/screens/main_screen.dart';
 import '../services/api_service.dart';
 import 'create_ride_screen.dart';
 
@@ -157,7 +158,7 @@ class _AuthScreenState extends State<AuthScreen> {
         await prefs.setString("token", body["data"]["token"]);
 
         Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const CreateRideScreen()));
+            context, MaterialPageRoute(builder: (_) => const MainScreen()));
       } else {
         setState(() => message = body["message"] ?? "Login failed");
       }
