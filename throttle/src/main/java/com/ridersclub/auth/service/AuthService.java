@@ -28,7 +28,7 @@ public class AuthService {
     if(user == null) {
       user = new User();
       user.setId((long) 1);
-      user.setUuid(UserUtility.generateUserId("USER"));
+      // user.setUuid(UserUtility.generateUserId("USER"));     // hibernate will generate
       user.setEmail(request.getEmail());
     }
     return new LoginResponse(user.getUuid(), "token-placeholder", 3600L);
@@ -40,7 +40,7 @@ public class AuthService {
         }
 
         User newUser = new User();
-        newUser.setUuid(UserUtility.generateUserId("USER"));
+        // newUser.setUuid(UserUtility.generateUserId("USER"));       // hibernate will generate
         newUser.setEmail("amitsr2612@gmail.com");
         newUser.setPassword("password");
         newUser.setCreatedAt(LocalDateTime.now());
