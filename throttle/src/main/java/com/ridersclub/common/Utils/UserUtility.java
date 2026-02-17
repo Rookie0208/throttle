@@ -7,4 +7,8 @@ public class UserUtility {
     public static String generateUserId(String prefix) {
         return prefix + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
+
+    public static UUID generateUUID() {
+        return UUID.randomUUID();
+    }
 }
