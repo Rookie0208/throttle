@@ -3,6 +3,9 @@ package com.ridersclub.user.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.enums.Role;
 
@@ -28,6 +31,9 @@ public class User {
 
     private String firstName;
     private String lastName;
+
+    @JdbcTypeCode(SqlTypes.UUID)
+    @Column(nullable = false, unique = true, updatable = false)
     private UUID uuid;
     @Column(unique = true, nullable = false)
     private String email;
