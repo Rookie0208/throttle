@@ -15,47 +15,48 @@ import com.ridersclub.user.repository.UserRepository;
 
 @Service
 public class AuthService {
- private final UserRepository userRepository;
- 
- public AuthService(UserRepository userRepository) {
-   this.userRepository = userRepository;
- }
+  private final UserRepository userRepository;
 
- public LoginResponse login(LoginRequest request) {
+  public AuthService(UserRepository userRepository) {
+    this.userRepository = userRepository;
+  }
+
+  public LoginResponse login(LoginRequest request) {
     User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+        .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
-    if(user == null) {
+    if (user == null) {
       user = new User();
       user.setId((long) 1);
       user.setUuid(UserUtility.generateUUID());
       user.setEmail(request.getEmail());
     }
     return new LoginResponse(user.getUuid().toString(), "token-placeholder", 3600L);
- }
+  }
 
-    public RegisterResponse register(RegisterRequest request) {
-        if (request != null && userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email already in use");
-        }
-
-        User newUser = new User();
-        newUser.setUuid(UserUtility.generateUUID());
-        newUser.setEmail("amitsr2612@gmail.com");
-        newUser.setPassword("password");
-        newUser.setCreatedAt(LocalDateTime.now());
-        newUser.setBikeType("naked");
-        newUser.setCity("Delhi");
-        newUser.setFirstName("Amit");
-        newUser.setLastName("Rawat");
-        newUser.setRole(Role.ADMIN);
-        newUser.setActive(true);
-        // Set other fields from request as needed
-
-        // Save user to repository (not implemented here)
-        userRepository.save(newUser);
-        boolean verificationRequired = true; // Assume verification is required
-
-        return new RegisterResponse(newUser.getUuid().toString(), verificationRequired, verificationRequired ? "EMAIL" : "NONE");
+  public RegisterResponse register(RegisterRequest request) {
+    if (request != null && userRepository.existsByEmail(request.getEmail())) {
+      throw new IllegalArgumentException("Email already in use");
     }
+
+    User newUser = new User();
+    newUser.setUuid(UserUtility.generateUUID());
+    newUser.setEmail("amitsr2612@gmail.com");
+    newUser.setPassword("password");
+    newUser.setCreatedAt(LocalDateTime.now());
+    newUser.setBikeType("naked");
+    newUser.setCity("Delhi");
+    newUser.setFirstName("Amit");
+    newUser.setLastName("Rawat");
+    newUser.setRole(Role.ADMIN);
+    newUser.setActive(true);
+    // Set other fields from request as needed
+
+    // Save user to repository (not implemented here)
+    userRepository.save(newUser);
+    boolean verificationRequired = true; // Assume verification is required
+
+    return new RegisterResponse(newUser.getUuid().toString(), verificationRequired,
+        verificationRequired ? "EMAIL" : "NONE");
+  }
 }
