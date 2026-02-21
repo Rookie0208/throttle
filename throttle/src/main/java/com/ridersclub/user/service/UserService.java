@@ -11,6 +11,8 @@ import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
 import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.user.dto.request.UpdateProfileRequest;
+import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
@@ -70,4 +72,39 @@ public class UserService {
 
         return user;
     }
+
+    public UserProfileResponse getProfile(String userId) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return new UserProfileResponse(user);
+    }
+
+    public UserProfileResponse updateProfile(
+            String userId,
+            UpdateProfileRequest request
+    ) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Update only non-null fields
+        if (request.getFirstName() != null)
+            user.setFirstName(request.getFirstName());
+
+        if (request.getLastName() != null)
+            user.setLastName(request.getLastName());
+
+        if (request.getBio() != null)
+            user.setBio(request.getBio());
+
+        if (request.getProfileImage() != null)
+            user.setProfileImage(request.getProfileImage());
+
+        userRepository.save(user);
+
+        return new UserProfileResponse(user);
+    }
+
 }

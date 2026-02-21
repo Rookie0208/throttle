@@ -8,10 +8,13 @@ import java.util.stream.Collectors;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.ridersclub.user.entity.User;
+import com.ridersclub.user.repository.InMemoryUserRepo;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.io.IOException;
@@ -31,9 +34,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        User user = new User();
-        user.setEmail("amitsr2612@gmail.com");
-        user.setPassword("password");
 
         String authHeader = request.getHeader("Authorization");
         String bearerToken = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
@@ -41,43 +41,29 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (bearerToken != null) {
                 Claims claims = jwtService.parse(bearerToken).getBody();
                 String userId = claims.getSubject();
+               
                 String rolesStr = (String) claims.get("roles");
                 List<String> roles = Arrays.asList(rolesStr.split(","));
                 Collection<SimpleGrantedAuthority> authorities = roles.stream()
                         .map(role -> new SimpleGrantedAuthority("ROLE_" + role)).collect(Collectors.toList());
 
-                AbstractAuthenticationToken authToken = new AbstractAuthenticationToken(authorities) {
-// UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(userId, "N/A", authorities);
+                UsernamePasswordAuthenticationToken authentication =
+            new UsernamePasswordAuthenticationToken(
+                    userId,   // principal
+                    null,     // credentials
+                    authorities
+            );
 
-                    @Override
-                    public Object getCredentials() {
-                        // password
-                        return "N/A";
-                    }
+    authentication.setDetails(
+            new WebAuthenticationDetailsSource().buildDetails(request)
+    );
 
-                    @Override
-                    public Object getPrincipal() {
-                        // logged-in user id
-                        return userId;
-                    }
-
-                    @Override
-                    public boolean isAuthenticated() {
-                        return true;
-                    }
-
-                };
-                authToken.setDetails(claims);
-                // set in security context
-                org.springframework.security.core.context.SecurityContextHolder.getContext()
-                        .setAuthentication(authToken);
+    SecurityContextHolder.getContext().setAuthentication(authentication);
             }
             filterChain.doFilter(request, response);
         } catch (Exception e) {
             throw new ServletException("Invalid or expired JWT token", e);
-        } finally {
-            org.springframework.security.core.context.SecurityContextHolder.clearContext();
-        }
+        } 
     }
 
     @Override
