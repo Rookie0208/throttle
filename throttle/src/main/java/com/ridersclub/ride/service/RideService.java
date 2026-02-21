@@ -71,8 +71,8 @@ public class RideService {
         participantRepo.save(new RideParticipant(saved.getId(), null,
                 currentUserUUId != null ? currentUserUUId : UserUtility.generateUUID().toString(),
                 LocalDateTime.now()));
-        System.out.println("Ride created with ID: " + saved.getId() + " and Captain ID: " + saved.getCaptainId());
-        System.out.println("full ride details: " + saved);
+        System.out.println("Ride created with ID: " + saved.getRideUid() + " and Captain ID: " + saved.getCaptainId());
+        System.out.println("full ride details: " + ride);
 
         if ("GROUP".equalsIgnoreCase(request.getRideType().name())) {
 

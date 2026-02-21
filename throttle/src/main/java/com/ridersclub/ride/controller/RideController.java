@@ -1,5 +1,6 @@
 package com.ridersclub.ride.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -29,7 +30,9 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/rides")
 @RequiredArgsConstructor
 public class RideController {
-    private final RideService rideService;
+    
+    @Autowired
+    private RideService rideService;
 
     // @PostMapping("/create")
     // public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid @RequestBody CreateRideRequest request,
