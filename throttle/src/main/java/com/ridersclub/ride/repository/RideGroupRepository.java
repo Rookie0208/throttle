@@ -1,9 +1,17 @@
 package com.ridersclub.ride.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.stereotype.Repository;
 
 import com.ridersclub.ride.entity.RideGroup;
 
-public interface RideGroupRepository extends JpaRepository<RideGroup, String> {
+@Repository
+public interface RideGroupRepository extends org.springframework.data.repository.Repository<RideGroup, Long> {
+    Optional<RideGroup> findByRideId(String rideId);
+RideGroup save(RideGroup group);
+    List<RideGroup> findByRideIdIn(List<String> rideIds);
 
+    void deleteByRideId(String rideId);
 }

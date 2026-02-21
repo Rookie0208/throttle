@@ -16,7 +16,7 @@ public class RideGroup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String id;
+    private String id;      // change it to UUID
 
     private String rideId;
 
