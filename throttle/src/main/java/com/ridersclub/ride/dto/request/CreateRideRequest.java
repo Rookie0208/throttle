@@ -3,6 +3,8 @@ package com.ridersclub.ride.dto.request;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+import com.ridersclub.common.enums.Difficulty;
+import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.RouteType;
 import com.ridersclub.common.enums.Visibility;
 
@@ -32,6 +34,9 @@ public class CreateRideRequest {
     private RouteType routeType;
 
     @NotNull
+    private RideType rideType;
+
+    @NotNull
     @Future
     private OffsetDateTime startTime;
 
@@ -44,4 +49,7 @@ public class CreateRideRequest {
 
     @NotEmpty
     private List<@NotBlank String> rules;
+
+    @NotNull
+    private Difficulty difficulty;
 }
