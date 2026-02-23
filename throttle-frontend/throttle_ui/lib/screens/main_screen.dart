@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/clubs_screen.dart';
 import 'package:throttle_ui/screens/group-screen.dart';
 import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/profile_screen.dart';
@@ -18,8 +19,8 @@ class _MainScreenState extends State<MainScreen> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),          // 0 - Dashboard
-    const PlaceholderScreen(label: "Clubs"), // 2 - Clubs (new)
     const GroupsScreen(),             // 1 - Rides (renamed)
+    const ClubsScreen(), // 2 - Clubs (new)
     const PlaceholderScreen(label: "Stats"), // 3 - Stats
     const ProfileScreen(),            // 4 - Profile
   ];

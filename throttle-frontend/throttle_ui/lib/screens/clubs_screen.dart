@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/club_chat_screen.dart';
+import 'package:throttle_ui/screens/club_info_screen.dart';
 
 class ClubsScreen extends StatefulWidget {
   const ClubsScreen({super.key});
@@ -130,11 +132,13 @@ class _ClubsScreenState extends State<ClubsScreen> {
   Widget _clubTile(Map<String, dynamic> club, {required bool isPrivate}) {
     return GestureDetector(
       onTap: () {
-        setState(() {
-          selectedClub = club;
-          _viewIndex = 1;
-        });
-      },
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => ClubChatScreen(club: club),
+    ),
+  );
+},
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(14),

@@ -1,195 +1,147 @@
 import 'package:flutter/material.dart';
 
-class GroupInfoScreen extends StatelessWidget {
-  final Map<String, dynamic> group;
+class RideInfoScreen extends StatelessWidget {
+  final Map<String, dynamic> rideGroup;
 
-  const GroupInfoScreen({super.key, required this.group});
+  const RideInfoScreen({super.key, required this.rideGroup});
 
   @override
   Widget build(BuildContext context) {
-    final String captain = group["createdBy"];
-
-    // If you later pass real members list, use:
-    // final List<String> members = List<String>.from(group["membersList"]);
-
-    // Temporary demo members (safe fallback)
-    final List<String> members = [
-      captain,
-      "Alex R.",
-      "Jordan P.",
-      "Chris M.",
-      "Sarah K.",
-    ];
+    final bool isActive = rideGroup["status"] == "active";
 
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
       appBar: AppBar(
         backgroundColor: const Color(0xff1a1c20),
-        title: const Text("Group Details"),
+        title: const Text("Ride Info"),
       ),
-      body: SingleChildScrollView(
+      body: ListView(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        children: [
 
-            /// ===== Hero Card =====
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xff1a1c20),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    height: 55,
-                    width: 55,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: const Color(0xfffe6603).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      group["avatar"] ?? "",
-                      style: const TextStyle(
-                        color: Color(0xfffe6603),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          group["name"] ?? "",
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "${group["members"]} members",
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          // ========================
+          // HERO SECTION
+          // ========================
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xff1a1c20),
+              borderRadius: BorderRadius.circular(16),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rideGroup["name"],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isActive ? "Upcoming Ride" : "Completed Ride",
+                  style: TextStyle(
+                    color: isActive
+                        ? const Color(0xfffe6603)
+                        : Colors.greenAccent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // ========================
+          // UPCOMING RIDE METRICS
+          // ========================
+          if (isActive) ...[
+            const Text("Ride Plan",
+                style: TextStyle(
+                    color: Color(0xfffe6603),
+                    fontWeight: FontWeight.bold)),
+
+            const SizedBox(height: 12),
+
+            _metricTile("Distance (Planned)", "120 km"),
+            _metricTile("Estimated Duration", "3h 40m"),
+            _metricTile("Difficulty", "Moderate"),
+            _metricTile("Start Location", "Shell Petrol Pump"),
+            _metricTile("Terrain", "Highway + Hills"),
+            _metricTile("Weather Forecast", "22°C Clear"),
 
             const SizedBox(height: 24),
 
-            /// ===== Basic Info =====
-            const Text(
-              "Ride Information",
-              style: TextStyle(
-                color: Color(0xfffe6603),
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            const Text("Participation",
+                style: TextStyle(
+                    color: Color(0xfffe6603),
+                    fontWeight: FontWeight.bold)),
+
             const SizedBox(height: 12),
 
-            _infoTile("Ride Name", group["name"]),
-            _infoTile("Captain", captain),
-            _infoTile("Distance", group["distance"]),
-            _infoTile("Status", group["status"]),
-
-            const SizedBox(height: 24),
-
-            /// ===== Members Section =====
-            const Text(
-              "Members",
-              style: TextStyle(
-                color: Color(0xfffe6603),
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            ...members.map((member) {
-              final bool isCaptain = member == captain;
-
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xff1a1c20),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: Row(
-                  children: [
-                    if (isCaptain)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 8),
-                        child: Icon(
-                          Icons.emoji_events, // crown style
-                          color: Color(0xfffe6603),
-                          size: 18,
-                        ),
-                      ),
-                    Expanded(
-                      child: Text(
-                        member,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    if (isCaptain)
-                      const Text(
-                        "Captain",
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }).toList(),
+            _metricTile("Riders Joined", "12"),
+            _metricTile("Spots Remaining", "3"),
+            _metricTile("Captain", "Vishal 👑"),
+            _metricTile("Fuel Stops Planned", "2"),
+            _metricTile("Route Shared", "Yes"),
           ],
-        ),
+
+          // ========================
+          // COMPLETED RIDE METRICS
+          // ========================
+          if (!isActive) ...[
+            const Text("Ride Summary",
+                style: TextStyle(
+                    color: Color(0xfffe6603),
+                    fontWeight: FontWeight.bold)),
+
+            const SizedBox(height: 12),
+
+            _metricTile("Distance Covered", "118 km"),
+            _metricTile("Total Duration", "3h 55m"),
+            _metricTile("Average Speed", "72 km/h"),
+            _metricTile("Max Speed", "128 km/h"),
+            _metricTile("Total Stops", "3"),
+
+            const SizedBox(height: 24),
+
+            const Text("Participation Stats",
+                style: TextStyle(
+                    color: Color(0xfffe6603),
+                    fontWeight: FontWeight.bold)),
+
+            const SizedBox(height: 12),
+
+            _metricTile("Riders Completed", "10"),
+            _metricTile("Drop-offs", "2"),
+            _metricTile("Top Rider", "Rahul 🏆"),
+            _metricTile("Ride Rating", "4.8 ⭐"),
+            _metricTile("Photos Uploaded", "36"),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _infoTile(String title, String value) {
+  Widget _metricTile(String title, String value) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xff1a1c20),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white24),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          Text(title, style: const TextStyle(color: Colors.white70)),
           Text(
-            "$title: ",
+            value,
             style: const TextStyle(
-              color: Colors.white70,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(color: Colors.white),
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ],

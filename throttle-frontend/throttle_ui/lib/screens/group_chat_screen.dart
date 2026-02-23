@@ -86,7 +86,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => GroupInfoScreen(group: widget.group),
+      builder: (_) => RideInfoScreen(rideGroup: widget.group),
     ),
   );
 }
