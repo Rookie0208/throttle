@@ -4,7 +4,7 @@ import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/profile_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
 import 'dashboard_screen.dart';
-import 'placeholder_screen.dart'; // For other tabs
+import 'placeholder_screen.dart'; 
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,11 +17,11 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const DashboardScreen(),
-    const GroupsScreen(),
-    const PlaceholderScreen(label: "Track"),
-    const PlaceholderScreen(label: "Stats"),
-    const ProfileScreen(),
+    const DashboardScreen(),          // 0 - Dashboard
+    const PlaceholderScreen(label: "Clubs"), // 2 - Clubs (new)
+    const GroupsScreen(),             // 1 - Rides (renamed)
+    const PlaceholderScreen(label: "Stats"), // 3 - Stats
+    const ProfileScreen(),            // 4 - Profile
   ];
 
   void _onTabChanged(int index) {
@@ -45,28 +45,49 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.dashboard),
             label: "Dashboard",
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: "Groups"),
-          BottomNavigationBarItem(icon: Icon(Icons.navigation), label: "Track"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Stats"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+
+          // 🔁 Renamed Groups → Rides
+          BottomNavigationBarItem(
+            icon: Icon(Icons.two_wheeler),
+            label: "Rides",
+          ),
+
+          // ➕ New Clubs button (replaces Track position)
+          BottomNavigationBarItem(
+            icon: Icon(Icons.groups),
+            label: "Clubs",
+          ),
+
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: "Stats",
+          ),
+
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: "Profile",
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.orange,
         child: const Icon(Icons.add),
         onPressed: () async {
-          final token = await AuthService.getToken(); // await the Future
-  if (token == null) {
-    // Handle missing token, maybe ask user to login again
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Token not found. Please login again.")),
-    );
-    return;
-  }
-          // Navigate to PlanRideScreen
+          final token = await AuthService.getToken();
+
+          if (token == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text("Token not found. Please login again.")),
+            );
+            return;
+          }
+
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => PlanRideScreen(token: token)),
+            MaterialPageRoute(
+              builder: (_) => PlanRideScreen(token: token),
+            ),
           );
         },
       ),
