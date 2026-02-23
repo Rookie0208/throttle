@@ -95,16 +95,18 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
     final rideData = {
       "title": titleController.text.trim(),
-      "description": descriptionController.text.trim(),
-      "routeType": rideType,
+      "description": descriptionController.text.replaceAll("\n", " "),
+      "rideType": rideType,
+      "routeType": "HIGHWAY", // hardcoded for now
       "difficulty": difficulty,
-      "startTime": selectedStartTime.toIso8601String(),
+      "startTime": selectedStartTime.toUtc().toIso8601String(),
+      "visibility": "PUBLIC",
       "maxRiders": rideType == "GROUP"
           ? int.parse(maxRidersController.text)
           : 1,
-      "rules": rulesController.text.isNotEmpty
-          ? [rulesController.text.trim()]
-          : ["No rules"],
+       "rules": rulesController.text.isNotEmpty
+      ? [rulesController.text.replaceAll("\n", " ")]
+      : ["No rules"],
       "startLocation": {
         "name": startLocationController.text.trim(),
         "latitude": startLat,
@@ -116,7 +118,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         "longitude": endLng,
       },
     };
-    print("my_token : ${widget.token}");
     final result = await RideService.createRide(rideData,widget.token,
     );
 
