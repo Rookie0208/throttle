@@ -4,6 +4,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.RouteType;
 import com.ridersclub.common.enums.Visibility;
 
@@ -61,6 +62,10 @@ public class Ride {
     @Column(nullable = false)
     private RouteType routeType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private RideType rideType;
+
     @Column(nullable = false)
     private OffsetDateTime startTime;
 
@@ -85,7 +90,7 @@ public class Ride {
 
     private RideStatus status;
 
-    private UUID captainId;
+    private String captainId;
 
     @PrePersist
     void onCreate() {

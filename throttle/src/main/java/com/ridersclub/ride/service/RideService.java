@@ -9,38 +9,48 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
+import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
+import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
 import com.ridersclub.ride.entity.RideStats;
 import com.ridersclub.ride.entity.RideStatus;
+import com.ridersclub.ride.repository.GroupMemberRepository;
+import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.ride.repository.RideParticipantRepository;
 import com.ridersclub.ride.repository.RideRepository;
 import com.ridersclub.ride.repository.RideStatsRepository;
-import com.ridersclub.user.entity.User;
-
 
 @Service
 public class RideService {
 
     @Autowired
     private RideRepository rideRepository;
-    @Autowired private RideParticipantRepository participantRepo;
-    @Autowired private RideStatsRepository statsRepo;
+    @Autowired
+    private RideParticipantRepository participantRepo;
+    @Autowired
+    private RideStatsRepository statsRepo;
+    @Autowired
+    private RideGroupRepository groupRepository;
+    @Autowired
+    private GroupMemberRepository groupMemberRepository;
 
-    public Ride createRide(CreateRideRequest request, User currentUser) throws AccessDeniedException {
+    public Ride createRide(CreateRideRequest request, String currentUserUUId) throws AccessDeniedException {
         Ride ride = new Ride();
         ride.setTitle(request.getTitle());
         ride.setDescription(request.getDescription());
         ride.setRouteType(request.getRouteType());
+        ride.setRideType(request.getRideType());
         ride.setStartTime(request.getStartTime());
         ride.setMaxRiders(request.getMaxRiders());
         ride.setVisibility(request.getVisibility());
         ride.setRules(request.getRules());
         ride.setRideUid(UUID.randomUUID());
-        ride.setCaptainId(currentUser.getUuid());
+        ride.setCaptainId(currentUserUUId != null ? currentUserUUId : UserUtility.generateUUID().toString());
 
         RideLocation start = new RideLocation();
         start.setName(request.getStartLocation().getName());
@@ -55,10 +65,34 @@ public class RideService {
         ride.setEndLocation(end);
 
         // 3. Ownership
-        ride.setCreatedBy(currentUser.getUuid().toString());
+        ride.setCreatedBy(currentUserUUId != null ? currentUserUUId : UserUtility.generateUUID().toString());
 
         Ride saved = rideRepository.save(ride);
-        participantRepo.save(new RideParticipant(saved.getId(), null, currentUser.getUuid().toString(), LocalDateTime.now()));
+        participantRepo.save(new RideParticipant(saved.getId(), null,
+                currentUserUUId != null ? currentUserUUId : UserUtility.generateUUID().toString(),
+                LocalDateTime.now()));
+        System.out.println("Ride created with ID: " + saved.getRideUid() + " and Captain ID: " + saved.getCaptainId());
+        System.out.println("full ride details: " + ride);
+
+        if ("GROUP".equalsIgnoreCase(request.getRideType().name())) {
+
+            RideGroup group = new RideGroup();
+            group.setRideId(ride.getRideUid().toString());
+            group.setCreatedAt(LocalDateTime.now());
+
+            groupRepository.save(group);
+
+            // 3️⃣ Add creator as ADMIN
+            GroupMember admin = new GroupMember();
+            admin.setGroupId(group.getId());
+            admin.setUserId(currentUserUUId);
+            admin.setRole("ADMIN");
+
+            groupMemberRepository.save(admin);
+            System.out.println("Group created with ID: " + group.getId() + " for Ride ID: " + ride.getRideUid());
+            System.out.println("Ride Group : " + group);
+            System.out.println("Group Member : " + admin);
+        }
 
         return saved;
     }
@@ -113,7 +147,6 @@ public class RideService {
         return Map.of(
                 "totalRides", stats.size(),
                 "totalDistance", totalDistance,
-                "totalDuration", totalDuration
-        );
+                "totalDuration", totalDuration);
     }
 }

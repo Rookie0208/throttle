@@ -1,8 +1,10 @@
 package com.ridersclub.ride.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -28,16 +30,36 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/rides")
 @RequiredArgsConstructor
 public class RideController {
-    private final RideService rideService;
+    
+    @Autowired
+    private RideService rideService;
+
+    // @PostMapping("/create")
+    // public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid @RequestBody CreateRideRequest request,
+    //         @AuthenticationPrincipal User currentUser) throws AccessDeniedException {
+    //             RideResponse response = null;
+    //             System.out.println("user: " + currentUser.getFirstName());
+    //     try {
+    //         Ride ride = rideService.createRide(request, currentUser);
+    //         response = new RideResponse(ride.getRideUid());
+    //         System.out.println("Ride created with UID: " + ride.getRideUid());
+    //     } catch (Exception e) {
+    //         System.out.println(e.getMessage());
+    //         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+    //                 .body(ApiResponse.failure(new ApiErrors("RIDE_CREATION_FAILED", e.getMessage(), "/api/v1/rides/create"), "You are not allowed to create rides"));
+    //     }
+    //     return ResponseEntity.ok(ApiResponse.success(response, "Ride created successfully"));
+    // }
 
     @PostMapping("/create")
-    public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid @RequestBody CreateRideRequest request,
-            User currentUser) throws AccessDeniedException {
+public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateRideRequest request, Authentication authentication) throws AccessDeniedException {
                 RideResponse response = null;
+                String userId = (String) authentication.getPrincipal();
         try {
-            Ride ride = rideService.createRide(request, currentUser);
+            System.out.println("current user : " + userId);
+            Ride ride = rideService.createRide(request, userId);
             response = new RideResponse(ride.getRideUid());
-            System.out.println("Ride created with UID: " + ride.getRideUid());
+            System.out.println("Ride created with rideID: " + ride.getRideUid());
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

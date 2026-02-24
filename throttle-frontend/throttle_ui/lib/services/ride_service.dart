@@ -5,6 +5,8 @@ class RideService {
   static const String baseUrl = "http://localhost:8080/api/v1/rides/create";
 
   static Future<Map<String, dynamic>> createRide(Map<String, dynamic> rideData, String token) async {
+    print(JsonCodec().encode(rideData));
+    print("Token: $token");
     try {
       final url = Uri.parse(baseUrl);
 
@@ -28,3 +30,4 @@ class RideService {
     }
   }
 }
+

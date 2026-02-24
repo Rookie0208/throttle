@@ -46,6 +46,10 @@ public class User {
 
     private String city;
 
+    private String bio;
+
+    private String profileImage;
+
     private String bikeType;
 
     @Enumerated(EnumType.STRING)
