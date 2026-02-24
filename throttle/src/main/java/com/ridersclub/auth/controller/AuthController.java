@@ -23,6 +23,7 @@ import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.service.UserService;
 
+@CrossOrigin(origins = { "http://localhost:65380", "http://127.0.0.1:*" })
 @RestController
 @RequestMapping("api/v1/auth")
 public class AuthController {

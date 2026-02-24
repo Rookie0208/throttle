@@ -5,6 +5,7 @@ import java.security.Key;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
@@ -18,9 +19,9 @@ import io.jsonwebtoken.security.Keys;
 public class JwtService {
 private static final String SECRET_KEY = "RidersAppSuperSecretKeyRidersAppSuperSecretKey";
 
- public String generate(String subject, Map<String, Object> claims, long ttlSeconds) {
+public String generate(String subject, Map<String, Object> claims, long ttlSeconds) {
         Instant now = Instant.now();
-        return Jwts.builder().setSubject(subject)       // userId
+    return Jwts.builder().setSubject(subject)       // userId
         .addClaims(claims)                              // contains metadata like roles, etc.
         .setIssuedAt(Date.from(now))
         .setExpiration(Date.from(now.plusSeconds(ttlSeconds)))
