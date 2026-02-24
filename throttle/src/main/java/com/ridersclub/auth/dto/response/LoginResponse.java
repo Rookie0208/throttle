@@ -1,7 +1,9 @@
 package com.ridersclub.auth.dto.response;
 
+import java.util.UUID;
+
 public record LoginResponse(
-        String userId,
-        String token,
-        long expiresIn) {
+                String userId,
+                String token,
+                long expiresIn) {
 }
