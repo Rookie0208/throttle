@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.ridersclub.user.entity.User;
-import com.ridersclub.user.repository.InMemoryUserRepo;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.io.IOException;
