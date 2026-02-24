@@ -36,7 +36,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**", "/localhost:61215/")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/rides/**")
-                        .hasAnyRole("CAPTAIN", "ADMIN")
+                        .hasAnyRole("CAPTAIN", "ADMIN", "RIDER")
                         .anyRequest().authenticated())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
