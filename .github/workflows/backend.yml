@@ -26,4 +26,5 @@ jobs:
           java-version: '17'
 
       - name: Build with Maven
+        working-directory: ./throttle
         run: mvn clean install
