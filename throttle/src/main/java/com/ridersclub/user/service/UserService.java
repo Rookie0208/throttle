@@ -46,6 +46,11 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public User getUserByUuid(UUID uuid) {
+        return userRepository.findByUuid(uuid)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
     private Gender getGenderFromPronoun(String pronoun) {
         if (pronoun == null) {
             return Gender.MALE;
@@ -77,6 +82,14 @@ public class UserService {
     public UserProfileResponse getProfile(String userId) {
 
         User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return new UserProfileResponse(user);
+    }
+
+    public UserProfileResponse getProfileByUUID(String userId) {
+
+        User user = userRepository.findByUuid(UUID.fromString(userId))
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return new UserProfileResponse(user);
