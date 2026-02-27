@@ -29,8 +29,8 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile(
             @AuthenticationPrincipal Authentication user) {
-        UserProfileResponse profile = userService.getProfile((String) user.getPrincipal());
-        return ResponseEntity.status(HttpStatus.FOUND)
+        UserProfileResponse profile = userService.getProfileByUUID((String) user.getPrincipal());
+        return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.success(profile, "Profile Fetched Successfully"));
     }
 
