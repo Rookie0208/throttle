@@ -8,14 +8,15 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     uuid UUID DEFAULT gen_random_uuid() UNIQUE NOT NULL,
-
     first_name VARCHAR(50),
     last_name VARCHAR(50),
     email VARCHAR(150) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     pronoun VARCHAR(20),
-    gender VARCHAR(10),
+    gender VARCHAR(20),
     city VARCHAR(100),
+    bio TEXT,
+    profile_image VARCHAR(255),
     bike_type VARCHAR(100),
     role VARCHAR(20) DEFAULT 'RIDER',
     active BOOLEAN DEFAULT TRUE,

@@ -37,10 +37,12 @@ public class UserService {
         user.setEmail(req.getEmail());
         user.setPassword(encoder.encode(req.getPassword()));
         user.setCity(req.getCity());
+        // user.setBio(req.getBio());
         user.setBikeType(req.getBikeType());
         user.setExperienceYears(req.getExperienceYears());
         user.setUuid(UUID.randomUUID());
         user.setRole(req.getRole() != null ? req.getRole() : Role.RIDER);
+        user.setPronoun(req.getPronoun());
         user.setGender(getGenderFromPronoun(req.getPronoun()));
 
         return userRepository.save(user);
