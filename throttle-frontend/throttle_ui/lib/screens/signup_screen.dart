@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/screens/login_screen.dart';
 import 'package:throttle_ui/screens/main_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
-  const SignupScreen({super.key});
+  final bool isGoogleRegistration;
+  final Map<String, dynamic>? googleData;
+
+  const SignupScreen({
+    super.key,
+    this.isGoogleRegistration = false,
+    this.googleData,
+  });
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -14,6 +20,16 @@ class _SignupScreenState extends State<SignupScreen> {
   final PageController controller = PageController();
 
   int step = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isGoogleRegistration && widget.googleData != null) {
+      emailController.text = widget.googleData!["email"] ?? "";
+      firstNameController.text = widget.googleData!["firstName"] ?? "";
+      surNameController.text = widget.googleData!["lastName"] ?? "";
+    }
+  }
 
   String pronoun = "";
   String bikeType = "";
@@ -49,62 +65,87 @@ class _SignupScreenState extends State<SignupScreen> {
   ];
 
   // ================= NEXT BUTTON =================
- Future<void> next() async {
-  // STEP 1 VALIDATION
-  if (step == 0) {
-    if (firstNameController.text.trim().isEmpty) {
-      showError("First name is required");
-      return;
+  Future<void> next() async {
+    // STEP 1 VALIDATION
+    if (step == 0) {
+      if (firstNameController.text.trim().isEmpty) {
+        showError("First name is required");
+        return;
+      }
+
+      if (emailController.text.trim().isEmpty) {
+        showError("Email is required");
+        return;
+      }
+
+      if (!emailController.text.contains("@")) {
+        showError("Enter a valid email");
+        return;
+      }
+
+      if (!widget.isGoogleRegistration && passwordController.text.length < 6) {
+        showError("Password must be at least 6 characters");
+        return;
+      }
     }
 
-    if (emailController.text.trim().isEmpty) {
-      showError("Email is required");
-      return;
+    // STEP 3 → REGISTER
+    if (step == 2) {
+      Map<String, dynamic> result;
+
+      if (widget.isGoogleRegistration) {
+        result = await AuthService.completeGoogleRegistration(
+          email: emailController.text.trim(),
+          firstName: firstNameController.text.trim(),
+          lastName: surNameController.text.trim(),
+          pronoun: pronoun,
+          bikeType: bikeType,
+        );
+      } else {
+        result = await AuthService.register(
+          firstName: firstNameController.text.trim(),
+          lastName: surNameController.text.trim(),
+          pronoun: pronoun,
+          email: emailController.text.trim(),
+          password: passwordController.text.trim(),
+          bikeType: bikeType,
+          experienceYears: 0,
+        );
+      }
+
+      if (result["success"]) {
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 500),
+            pageBuilder: (_, __, ___) => const MainScreen(),
+            transitionsBuilder: (_, animation, __, child) {
+              final offsetAnimation =
+                  Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                  );
+              return SlideTransition(position: offsetAnimation, child: child);
+            },
+          ),
+        );
+      } else {
+        showError(result["message"]);
+      }
+
+      return; // 🔥 VERY IMPORTANT — stop execution here
     }
 
-    if (!emailController.text.contains("@")) {
-      showError("Enter a valid email");
-      return;
-    }
-
-    if (passwordController.text.length < 6) {
-      showError("Password must be at least 6 characters");
-      return;
-    }
-  }
-
-  // STEP 3 → REGISTER
-  if (step == 2) {
-    final result = await AuthService.register(
-      firstName: firstNameController.text.trim(),
-      lastName: surNameController.text.trim(),
-      pronoun: pronoun,
-      email: emailController.text.trim(),
-      password: passwordController.text.trim(),
-      bikeType: bikeType,
-      experienceYears: 0,
+    // GO TO NEXT STEP
+    controller.nextPage(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOut,
     );
 
-    if (result["success"]) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    } else {
-      showError(result["message"]);
-    }
-
-    return; // 🔥 VERY IMPORTANT — stop execution here
+    setState(() => step++);
   }
-
-  // GO TO NEXT STEP
-  controller.nextPage(
-    duration: const Duration(milliseconds: 400),
-    curve: Curves.easeInOut,
-  );
-
-  setState(() => step++);
-}
 
   void back() {
     if (step > 0) {
@@ -118,10 +159,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -140,8 +178,7 @@ class _SignupScreenState extends State<SignupScreen> {
         return GestureDetector(
           onTap: () => onSelect(e),
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isSelected
                   ? const Color(0xfffe6603)
@@ -151,8 +188,7 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Text(
               e,
               style: TextStyle(
-                color:
-                    isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? Colors.white : Colors.white70,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -172,6 +208,7 @@ class _SignupScreenState extends State<SignupScreen> {
     return TextField(
       controller: controller,
       keyboardType: type,
+      readOnly: hint == "Email" && widget.isGoogleRegistration,
       obscureText: isPassword ? obscurePassword : false,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
@@ -181,15 +218,12 @@ class _SignupScreenState extends State<SignupScreen> {
           borderSide: BorderSide(color: Colors.grey, width: 0.6),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide:
-              BorderSide(color: Color(0xfffe6603), width: 1),
+          borderSide: BorderSide(color: Color(0xfffe6603), width: 1),
         ),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
-                  obscurePassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
+                  obscurePassword ? Icons.visibility_off : Icons.visibility,
                   color: Colors.white54,
                 ),
                 onPressed: () {
@@ -219,22 +253,17 @@ class _SignupScreenState extends State<SignupScreen> {
             Expanded(
               child: PageView(
                 controller: controller,
-                physics:
-                    const NeverScrollableScrollPhysics(),
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
                   // ================= STEP 1 =================
                   buildStep(
                     "Tell us about you",
                     Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        thinInput(
-                            "First Name",
-                            firstNameController),
+                        thinInput("First Name", firstNameController),
                         const SizedBox(height: 20),
-                        thinInput("Last Name",
-                            surNameController),
+                        thinInput("Last Name", surNameController),
                         const SizedBox(height: 20),
                         thinInput(
                           "Email",
@@ -242,26 +271,26 @@ class _SignupScreenState extends State<SignupScreen> {
                           type: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 20),
-                        thinInput(
-                          "Password",
-                          passwordController,
-                          isPassword: true,
-                        ),
-                        const SizedBox(height: 30),
+                        if (!widget.isGoogleRegistration) ...[
+                          thinInput(
+                            "Password",
+                            passwordController,
+                            isPassword: true,
+                          ),
+                          const SizedBox(height: 30),
+                        ],
                         const Text(
                           "Pronoun",
                           style: TextStyle(
                             color: Colors.white70,
-                            fontWeight:
-                                FontWeight.w500,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 15),
                         optionGrid(
                           pronouns,
                           pronoun,
-                          (v) =>
-                              setState(() => pronoun = v),
+                          (v) => setState(() => pronoun = v),
                         ),
                       ],
                     ),
@@ -273,8 +302,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     optionGrid(
                       preferences,
                       preference,
-                      (v) =>
-                          setState(() => preference = v),
+                      (v) => setState(() => preference = v),
                     ),
                   ),
 
@@ -282,34 +310,28 @@ class _SignupScreenState extends State<SignupScreen> {
                   buildStep(
                     "Your Bike",
                     Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           "Bike Type",
                           style: TextStyle(
                             color: Colors.white70,
-                            fontWeight:
-                                FontWeight.w500,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         const SizedBox(height: 15),
                         optionGrid(
                           bikeTypes,
                           bikeType,
-                          (v) =>
-                              setState(() => bikeType = v),
+                          (v) => setState(() => bikeType = v),
                         ),
                         const SizedBox(height: 30),
-                        thinInput(
-                            "Bike Model",
-                            bikeModelController),
+                        thinInput("Bike Model", bikeModelController),
                         const SizedBox(height: 20),
                         thinInput(
                           "Year of Purchase",
                           bikeYearController,
-                          type:
-                              TextInputType.number,
+                          type: TextInputType.number,
                         ),
                       ],
                     ),
@@ -328,17 +350,14 @@ class _SignupScreenState extends State<SignupScreen> {
                     height: 55,
                     child: ElevatedButton(
                       onPressed: next,
-                      style:
-                          ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color(0xfffe6603),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xfffe6603),
                       ),
                       child: const Text(
                         "CONTINUE",
                         style: TextStyle(
                           color: Colors.white,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -349,8 +368,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       onPressed: back,
                       child: const Text(
                         "Back",
-                        style: TextStyle(
-                            color: Colors.white54),
+                        style: TextStyle(color: Colors.white54),
                       ),
                     ),
                 ],
@@ -368,8 +386,7 @@ class _SignupScreenState extends State<SignupScreen> {
       padding: const EdgeInsets.all(24),
       child: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 30),
             Text(

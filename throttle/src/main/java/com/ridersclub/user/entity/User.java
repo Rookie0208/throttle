@@ -42,6 +42,7 @@ public class User {
 
     private String pronoun;
 
+    @Enumerated(EnumType.STRING)
     private Gender gender;
 
     private String city;

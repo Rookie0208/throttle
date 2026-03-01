@@ -3,42 +3,62 @@ package com.ridersclub.auth.service;
 import java.util.Map;
 import java.util.UUID;
 
+import java.util.Collections;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+
+import com.ridersclub.auth.dto.request.GoogleAuthRequest;
+import com.ridersclub.auth.dto.request.GoogleRegisterRequest;
+import com.ridersclub.auth.dto.response.GoogleAuthResponse;
 import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
 import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
 import com.ridersclub.common.enums.Role;
-import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
-import com.ridersclub.common.exception.UserNotFoundException;
 import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.service.UserService;
 
+@Slf4j
 @Service
 public class AuthService {
 
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final OtpService otpService;
+
+    @Value("${google.client.id}")
+    private String googleClientId;
+
+    @Value("${google.auth.require-otp:false}")
+    private boolean requireOtp;
 
     public AuthService(UserService userService,
-                       PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+            PasswordEncoder passwordEncoder,
+            JwtService jwtService,
+            OtpService otpService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.otpService = otpService;
     }
 
     public LoginResponse login(LoginRequest request) {
         User user = userService.findByEmail(request.getEmail())
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        if (user.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
@@ -72,5 +92,83 @@ public class AuthService {
         boolean verificationRequired = true; // adjust logic as needed
         String verificationType = verificationRequired ? "EMAIL" : "NONE";
         return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType);
+    }
+
+    public GoogleAuthResponse verifyGoogleToken(GoogleAuthRequest request) {
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
+                    new GsonFactory())
+                    .setAudience(Collections.singletonList(googleClientId))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(request.getIdToken());
+            if (idToken != null) {
+                GoogleIdToken.Payload payload = idToken.getPayload();
+                String email = payload.getEmail();
+                String firstName = (String) payload.get("given_name");
+                String lastName = (String) payload.get("family_name");
+
+                var userOpt = userService.findByEmail(email);
+                if (userOpt.isPresent()) {
+                    // User exists, just log them in (return JWT)
+                    log.info("Existing user logged in via Google: {}", email);
+                    User user = userOpt.get();
+                    long expiresIn = 864_000L;
+                    String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
+                    String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", roleValue),
+                            expiresIn);
+                    return new GoogleAuthResponse(false, false, email, firstName, lastName, token, expiresIn);
+                } else {
+                    // New User -> Check if OTP is required by config
+                    if (requireOtp) {
+                        log.info("New user initiated Google sign-in. Sending OTP to: {}", email);
+                        otpService.generateAndSendOtp(email);
+                        return new GoogleAuthResponse(true, true, email, firstName, lastName, null, null);
+                    } else {
+                        log.info("New user initiated Google sign-in. OTP disabled. Proceeding to profile setup: {}",
+                                email);
+                        return new GoogleAuthResponse(true, false, email, firstName, lastName, null, null);
+                    }
+                }
+            } else {
+                throw new InvalidCredentialsException("Invalid Google ID token.");
+            }
+        } catch (Exception e) {
+            throw new InvalidCredentialsException("Google authentication failed: " + e.getMessage());
+        }
+    }
+
+    public LoginResponse completeGoogleRegistration(GoogleRegisterRequest request) {
+        if (userService.existsByEmail(request.getEmail())) {
+            log.warn("Attempted to complete Google registration for existing email: {}", request.getEmail());
+            throw new EmailAlreadyExistsException("Email already in use");
+        }
+
+        User user = new User();
+        user.setUuid(UUID.randomUUID());
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // Dummy password for OAuth users to
+                                                                                // satisfy DB constraint
+        user.setCity(request.getCity());
+        user.setBikeType(request.getBikeType());
+        user.setExperienceYears(request.getExperienceYears());
+        user.setRole(request.getRole() != null ? request.getRole() : Role.RIDER);
+        user.setPronoun(request.getPronoun());
+        user.setGender(request.getGender() != null ? request.getGender() : com.ridersclub.common.enums.Gender.MALE);
+        user.setActive(true);
+
+        User saved = userService.save(user);
+        log.info("Completed Google registration for new user: {}", request.getEmail());
+
+        long expiresIn = 864_000L;
+        String roleValue = saved.getRole() != null ? saved.getRole().name() : "RIDER";
+        String token = jwtService.generate(saved.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
+        return new LoginResponse(saved.getUuid().toString(), token, expiresIn);
+    }
+
+    public boolean verifyOtp(String email, String otp) {
+        return otpService.verifyOtp(email, otp);
     }
 }
