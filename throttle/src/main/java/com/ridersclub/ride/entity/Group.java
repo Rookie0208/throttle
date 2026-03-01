@@ -4,40 +4,38 @@ import java.time.LocalDateTime;
 
 import com.ridersclub.user.entity.User;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-
 
 @Entity
-@Table(name = "group_members")
+@Table(name = "groups")
 @Getter
 @Setter
-public class GroupMember {
+public class Group {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "group_id")
-    private Group group;
+    @Column(nullable = false, unique = true)
+    private String uuid;
+
+    private String name;
+    private String description;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
-    @Enumerated(EnumType.STRING)
-    private GroupRole role;
-
-    private LocalDateTime joinedAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

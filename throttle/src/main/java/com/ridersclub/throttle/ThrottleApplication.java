@@ -6,11 +6,9 @@ import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@EnableJpaRepositories(basePackages = "com.ridersclub.user.repository")
-@EntityScan(basePackages = "com.ridersclub.user.entity")
-@SpringBootApplication(
-		// exclude = { DataSourceAutoConfiguration.class },
-		scanBasePackages = "com.ridersclub")
+@EnableJpaRepositories(basePackages = {"com.ridersclub.user.repository", "com.ridersclub.ride.repository"})
+@EntityScan(basePackages = "com.ridersclub.user.entity, com.ridersclub.ride.entity")
+@SpringBootApplication(scanBasePackages = "com.ridersclub")
 public class ThrottleApplication {
 
 	public static void main(String[] args) {

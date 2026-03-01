@@ -58,8 +58,8 @@ public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateR
         try {
             System.out.println("current user : " + userId);
             Ride ride = rideService.createRide(request, userId);
-            response = new RideResponse(ride.getRideUid());
-            System.out.println("Ride created with rideID: " + ride.getRideUid());
+            response = new RideResponse(ride.getUuid());
+            System.out.println("Ride created with rideID: " + ride.getUuid());
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -71,7 +71,6 @@ public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateR
     @PostMapping("/{id}/join")
     public ApiResponse<?> join(@PathVariable String id,
                                @AuthenticationPrincipal UserDetails user) {
-
         rideService.join(id, user.getUsername());
         return ApiResponse.success(null, "Joined ride");
     }
