@@ -35,12 +35,15 @@ class AuthServiceTest {
     @Mock
     private JwtService jwtService;
 
+    @Mock
+    private OtpService otpService;
+
     private AuthService authService;
 
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-        authService = new AuthService(userService, passwordEncoder, jwtService);
+        authService = new AuthService(userService, passwordEncoder, jwtService, otpService);
     }
 
     @Test
