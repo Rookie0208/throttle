@@ -28,7 +28,7 @@ public class AuthService {
     if (user == null) {
       user = new User();
       user.setId((long) 1);
-      user.setUuid(UserUtility.generateUUID());
+      user.setUuid(UserUtility.generateUUID().toString());
       user.setEmail(request.getEmail());
     }
     return new LoginResponse(user.getUuid().toString(), "token-placeholder", 3600L);
@@ -40,7 +40,7 @@ public class AuthService {
     }
 
     User newUser = new User();
-    newUser.setUuid(UserUtility.generateUUID());
+    newUser.setUuid(UserUtility.generateUUID().toString());
     newUser.setEmail("amitsr2612@gmail.com");
     newUser.setPassword("password");
     newUser.setCreatedAt(LocalDateTime.now());

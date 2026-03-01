@@ -1,5 +1,6 @@
 package com.ridersclub.ride.dto.request;
 
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -38,7 +39,7 @@ public class CreateRideRequest {
 
     @NotNull
     @Future
-    private OffsetDateTime startTime;
+    private LocalDateTime startTime;
 
     @NotNull
     @Min(1)

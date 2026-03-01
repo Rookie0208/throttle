@@ -40,7 +40,7 @@ public class UserService {
         // user.setBio(req.getBio());
         user.setBikeType(req.getBikeType());
         user.setExperienceYears(req.getExperienceYears());
-        user.setUuid(UUID.randomUUID());
+        user.setUuid(UUID.randomUUID().toString());
         user.setRole(req.getRole() != null ? req.getRole() : Role.RIDER);
         user.setPronoun(req.getPronoun());
         user.setGender(getGenderFromPronoun(req.getPronoun()));
@@ -48,7 +48,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User getUserByUuid(UUID uuid) {
+    public User getUserByUuid(String uuid) {
         return userRepository.findByUuid(uuid)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
@@ -91,7 +91,7 @@ public class UserService {
 
     public UserProfileResponse getProfileByUUID(String userId) {
 
-        User user = userRepository.findByUuid(UUID.fromString(userId))
+        User user = userRepository.findByUuid(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         return new UserProfileResponse(user);
@@ -99,8 +99,7 @@ public class UserService {
 
     public UserProfileResponse updateProfile(
             String userId,
-            UpdateProfileRequest request
-    ) {
+            UpdateProfileRequest request) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
