@@ -1,62 +1,76 @@
 package com.ridersclub.auth.service;
 
-import java.time.LocalDateTime;
-import org.springframework.security.authentication.BadCredentialsException;
+import java.util.Map;
+import java.util.UUID;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
 import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
-import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.Gender;
+import com.ridersclub.common.exception.EmailAlreadyExistsException;
+import com.ridersclub.common.exception.InvalidCredentialsException;
+import com.ridersclub.common.exception.UserNotFoundException;
+import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.user.entity.User;
-import com.ridersclub.user.repository.UserRepository;
+import com.ridersclub.user.service.UserService;
 
 @Service
 public class AuthService {
-  private final UserRepository userRepository;
 
-  public AuthService(UserRepository userRepository) {
-    this.userRepository = userRepository;
-  }
+    private final UserService userService;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-  public LoginResponse login(LoginRequest request) {
-    User user = userRepository.findByEmail(request.getEmail())
-        .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
-
-    if (user == null) {
-      user = new User();
-      user.setId((long) 1);
-      user.setUuid(UserUtility.generateUUID());
-      user.setEmail(request.getEmail());
-    }
-    return new LoginResponse(user.getUuid().toString(), "token-placeholder", 3600L);
-  }
-
-  public RegisterResponse register(RegisterRequest request) {
-    if (request != null && userRepository.existsByEmail(request.getEmail())) {
-      throw new IllegalArgumentException("Email already in use");
+    public AuthService(UserService userService,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService) {
+        this.userService = userService;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
-    User newUser = new User();
-    newUser.setUuid(UserUtility.generateUUID());
-    newUser.setEmail("amitsr2612@gmail.com");
-    newUser.setPassword("password");
-    newUser.setCreatedAt(LocalDateTime.now());
-    newUser.setBikeType("naked");
-    newUser.setCity("Delhi");
-    newUser.setFirstName("Amit");
-    newUser.setLastName("Rawat");
-    newUser.setRole(Role.ADMIN);
-    newUser.setActive(true);
-    // Set other fields from request as needed
+    public LoginResponse login(LoginRequest request) {
+        User user = userService.findByEmail(request.getEmail())
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
 
-    // Save user to repository (not implemented here)
-    userRepository.save(newUser);
-    boolean verificationRequired = true; // Assume verification is required
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new InvalidCredentialsException("Invalid email or password");
+        }
 
-    return new RegisterResponse(newUser.getUuid().toString(), verificationRequired,
-        verificationRequired ? "EMAIL" : "NONE");
-  }
+        long expiresIn = 864_000L; // 10 days in seconds (example)
+        // store simple role string; JwtAuthFilter will parse comma-separated list
+        String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
+        String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
+        return new LoginResponse(user.getUuid().toString(), token, expiresIn);
+    }
+
+    public RegisterResponse register(RegisterRequest request) {
+        if (userService.existsByEmail(request.getEmail())) {
+            throw new EmailAlreadyExistsException("Email already in use");
+        }
+
+        User user = new User();
+        user.setUuid(UUID.randomUUID());
+        user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setCity(request.getCity());
+        user.setBikeType(request.getBikeType());
+        user.setExperienceYears(request.getExperienceYears());
+        user.setRole(request.getRole() != null ? request.getRole() : Role.RIDER);
+        user.setPronoun(request.getPronoun());
+        user.setGender(request.getGender() != null ? request.getGender() : com.ridersclub.common.enums.Gender.MALE);
+        user.setActive(true);
+
+        User saved = userService.save(user);
+        boolean verificationRequired = true; // adjust logic as needed
+        String verificationType = verificationRequired ? "EMAIL" : "NONE";
+        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType);
+    }
 }
