@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +29,7 @@ import com.ridersclub.ride.repository.RideStatsRepository;
 
 @Service
 public class RideService {
+    private static final Logger logger = LoggerFactory.getLogger(RideService.class);
 
     @Autowired
     private RideRepository rideRepository;
@@ -71,8 +74,8 @@ public class RideService {
         participantRepo.save(new RideParticipant(saved.getId(), null,
                 currentUserUUId != null ? currentUserUUId : UserUtility.generateUUID().toString(),
                 LocalDateTime.now()));
-        System.out.println("Ride created with ID: " + saved.getRideUid() + " and Captain ID: " + saved.getCaptainId());
-        System.out.println("full ride details: " + ride);
+        logger.info("Ride created with ID: {} and Captain ID: {}", saved.getRideUid(), saved.getCaptainId());
+        logger.debug("full ride details: {}", ride);
 
         if ("GROUP".equalsIgnoreCase(request.getRideType().name())) {
 
@@ -89,9 +92,9 @@ public class RideService {
             admin.setRole("ADMIN");
 
             groupMemberRepository.save(admin);
-            System.out.println("Group created with ID: " + group.getId() + " for Ride ID: " + ride.getRideUid());
-            System.out.println("Ride Group : " + group);
-            System.out.println("Group Member : " + admin);
+            logger.info("Group created with ID: {} for Ride ID: {}", group.getId(), ride.getRideUid());
+            logger.debug("Ride Group : {}", group);
+            logger.debug("Group Member : {}", admin);
         }
 
         return saved;
