@@ -244,69 +244,68 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   }
 
   // ================= CREATE RIDE =================
-  Future<void> createRide() async {
-    if (titleController.text.trim().isEmpty) {
-      showError("Title is required");
-      return;
-    }
-    if (descriptionController.text.trim().isEmpty) {
-      showError("Description is required");
-      return;
-    }
-    if (startLocationController.text.trim().isEmpty ||
-        endLocationController.text.trim().isEmpty) {
-      showError("Start and End locations are required");
-      return;
-    }
-    if (rideType == "GROUP" &&
-        (maxRidersController.text.isEmpty ||
-            int.tryParse(maxRidersController.text) == null)) {
-      showError("Max Riders is required for group rides");
-      return;
-    }
-
-    setState(() => isLoading = true);
-
-    final rideData = {
-      "title": titleController.text.trim(),
-      "description": descriptionController.text.replaceAll("\n", " "),
-      "rideType": rideType,
-      "routeType": "HIGHWAY",
-      "difficulty": difficulty,
-      "startTime": selectedStartTime.toUtc().toIso8601String(),
-      "visibility": "PUBLIC",
-      "maxRiders":
-          rideType == "GROUP" ? int.parse(maxRidersController.text) : 1,
-      "rules": rulesController.text.isNotEmpty
-          ? rulesController.text.split(",").map((e) => e.trim()).toList()
-          : [],
-      "invitedFriends": selectedFriends,
-      "startLocation": {
-        "name": startLocationController.text.trim(),
-        "latitude": startLat,
-        "longitude": startLng,
-      },
-      "endLocation": {
-        "name": endLocationController.text.trim(),
-        "latitude": endLat,
-        "longitude": endLng,
-      },
-    };
-
-    final result = await RideService.createRide(
-      rideData,
-      widget.token,
-    );
-
-    setState(() => isLoading = false);
-
-    if (result["success"]) {
-      showSuccess("Ride created successfully!");
-      Navigator.pop(context);
-    } else {
-      showError(result["message"] ?? "Failed to create ride");
-    }
+  // ------------------- CREATE RIDE -------------------
+Future<void> createRide() async {
+  if (titleController.text.trim().isEmpty) {
+    showError("Title is required");
+    return;
   }
+  if (descriptionController.text.trim().isEmpty) {
+    showError("Description is required");
+    return;
+  }
+  if (startLocationController.text.trim().isEmpty ||
+      endLocationController.text.trim().isEmpty) {
+    showError("Start and End locations are required");
+    return;
+  }
+  if (rideType == "GROUP" &&
+      (maxRidersController.text.isEmpty ||
+          int.tryParse(maxRidersController.text) == null)) {
+    showError("Max Riders is required for group rides");
+    return;
+  }
+
+  setState(() => isLoading = true);
+
+  final rideData = {
+    "title": titleController.text.trim(),
+    "description": descriptionController.text.replaceAll("\n", " "),
+    "rideType": rideType,
+    "routeType": "HIGHWAY",
+    "difficulty": difficulty,
+    "startTime": selectedStartTime.toUtc().toIso8601String(),
+    "visibility": "PUBLIC",
+    "maxRiders": rideType == "GROUP"
+        ? int.parse(maxRidersController.text)
+        : 1,
+    "rules": rulesController.text.isNotEmpty
+        ? rulesController.text.split(",").map((e) => e.trim()).toList()
+        : [],
+    "invitedFriends": selectedFriends,
+    "startLocation": {
+      "name": startLocationController.text.trim(),
+      "latitude": startLat,
+      "longitude": startLng,
+    },
+    "endLocation": {
+      "name": endLocationController.text.trim(),
+      "latitude": endLat,
+      "longitude": endLng,
+    },
+  };
+
+  final result = await RideService.createRide(rideData, widget.token);
+
+  setState(() => isLoading = false);
+
+  if (result["success"]) {
+    showSuccess("Ride created successfully!");
+    Navigator.pop(context, rideType == "GROUP");
+  } else {
+    showError(result["message"] ?? "Failed to create ride");
+  }
+}
 
   // ================= BUILD =================
   @override
