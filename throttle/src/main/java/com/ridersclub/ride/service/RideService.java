@@ -4,12 +4,15 @@ import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ridersclub.common.Utils.UserUtility;
+import com.ridersclub.group.repository.GroupMemberRepository;
+import com.ridersclub.group.repository.RideGroupRepository;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.entity.GroupMember;
@@ -19,8 +22,6 @@ import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
 import com.ridersclub.ride.entity.RideStats;
 import com.ridersclub.ride.entity.RideStatus;
-import com.ridersclub.ride.repository.GroupMemberRepository;
-import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.ride.repository.RideParticipantRepository;
 import com.ridersclub.ride.repository.RideRepository;
 import com.ridersclub.ride.repository.RideStatsRepository;
@@ -149,4 +150,8 @@ public class RideService {
                 "totalDistance", totalDistance,
                 "totalDuration", totalDuration);
     }
+
+    public Optional<RideGroup> getGroupsByRideId(String rideId) {
+    return groupRepository.findByRideId(rideId);
+}
 }

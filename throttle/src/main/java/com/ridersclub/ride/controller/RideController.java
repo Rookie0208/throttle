@@ -30,31 +30,36 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/rides")
 @RequiredArgsConstructor
 public class RideController {
-    
+
     @Autowired
     private RideService rideService;
 
     // @PostMapping("/create")
-    // public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid @RequestBody CreateRideRequest request,
-    //         @AuthenticationPrincipal User currentUser) throws AccessDeniedException {
-    //             RideResponse response = null;
-    //             System.out.println("user: " + currentUser.getFirstName());
-    //     try {
-    //         Ride ride = rideService.createRide(request, currentUser);
-    //         response = new RideResponse(ride.getRideUid());
-    //         System.out.println("Ride created with UID: " + ride.getRideUid());
-    //     } catch (Exception e) {
-    //         System.out.println(e.getMessage());
-    //         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-    //                 .body(ApiResponse.failure(new ApiErrors("RIDE_CREATION_FAILED", e.getMessage(), "/api/v1/rides/create"), "You are not allowed to create rides"));
-    //     }
-    //     return ResponseEntity.ok(ApiResponse.success(response, "Ride created successfully"));
+    // public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid
+    // @RequestBody CreateRideRequest request,
+    // @AuthenticationPrincipal User currentUser) throws AccessDeniedException {
+    // RideResponse response = null;
+    // System.out.println("user: " + currentUser.getFirstName());
+    // try {
+    // Ride ride = rideService.createRide(request, currentUser);
+    // response = new RideResponse(ride.getRideUid());
+    // System.out.println("Ride created with UID: " + ride.getRideUid());
+    // } catch (Exception e) {
+    // System.out.println(e.getMessage());
+    // return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+    // .body(ApiResponse.failure(new ApiErrors("RIDE_CREATION_FAILED",
+    // e.getMessage(), "/api/v1/rides/create"), "You are not allowed to create
+    // rides"));
+    // }
+    // return ResponseEntity.ok(ApiResponse.success(response, "Ride created
+    // successfully"));
     // }
 
     @PostMapping("/create")
-public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateRideRequest request, Authentication authentication) throws AccessDeniedException {
-                RideResponse response = null;
-                String userId = (String) authentication.getPrincipal();
+    public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateRideRequest request,
+            Authentication authentication) throws AccessDeniedException {
+        RideResponse response = null;
+        String userId = (String) authentication.getPrincipal();
         try {
             System.out.println("current user : " + userId);
             Ride ride = rideService.createRide(request, userId);
@@ -63,14 +68,16 @@ public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateR
         } catch (Exception e) {
             System.out.println(e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.failure(new ApiErrors("RIDE_CREATION_FAILED", e.getMessage(), "/api/v1/rides/create"), "You are not allowed to create rides"));
+                    .body(ApiResponse.failure(
+                            new ApiErrors("RIDE_CREATION_FAILED", e.getMessage(), "/api/v1/rides/create"),
+                            "You are not allowed to create rides"));
         }
         return ResponseEntity.ok(ApiResponse.success(response, "Ride created successfully"));
     }
 
     @PostMapping("/{id}/join")
     public ApiResponse<?> join(@PathVariable String id,
-                               @AuthenticationPrincipal UserDetails user) {
+            @AuthenticationPrincipal UserDetails user) {
 
         rideService.join(id, user.getUsername());
         return ApiResponse.success(null, "Joined ride");
@@ -94,10 +101,26 @@ public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateR
 
     @PostMapping("/{id}/stats")
     public ApiResponse<?> stats(@PathVariable String id,
-                                @RequestBody RideSummaryRequest req,
-                                @AuthenticationPrincipal UserDetails user) {
+            @RequestBody RideSummaryRequest req,
+            @AuthenticationPrincipal UserDetails user) {
 
         rideService.addStats(id, user.getUsername(), req);
         return ApiResponse.success(null, "Stats saved");
+    }
+
+    @GetMapping("/{id}/groups")
+    public ResponseEntity<ApiResponse<?>> getRideGroups(@PathVariable String id) {
+        try {
+            // Fetch groups associated with the ride
+            var groups = rideService.getGroupsByRideId(id);
+
+            return ResponseEntity.ok(ApiResponse.success(groups, "Groups fetched successfully"));
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.failure(
+                            new ApiErrors("RIDE_GROUP_FETCH_FAILED", e.getMessage(), "/api/v1/rides/" + id + "/groups"),
+                            "Failed to fetch groups for the ride"));
+        }
     }
 }
