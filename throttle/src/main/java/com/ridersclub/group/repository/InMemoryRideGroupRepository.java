@@ -1,4 +1,4 @@
-package com.ridersclub.ride.repository;
+package com.ridersclub.group.repository;
 
 import java.util.ArrayList;
 import java.util.HashMap;
