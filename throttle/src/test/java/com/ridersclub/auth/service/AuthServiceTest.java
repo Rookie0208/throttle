@@ -1,0 +1,116 @@
+package com.ridersclub.auth.service;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
+import com.ridersclub.auth.dto.request.LoginRequest;
+import com.ridersclub.auth.dto.request.RegisterRequest;
+import com.ridersclub.auth.dto.response.LoginResponse;
+import com.ridersclub.auth.dto.response.RegisterResponse;
+import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.exception.EmailAlreadyExistsException;
+import com.ridersclub.common.exception.InvalidCredentialsException;
+import com.ridersclub.auth.security.JwtService;
+import com.ridersclub.user.entity.User;
+import com.ridersclub.user.service.UserService;
+
+class AuthServiceTest {
+
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private JwtService jwtService;
+
+    @Mock
+    private OtpService otpService;
+
+    private AuthService authService;
+
+    @BeforeEach
+    void setup() {
+        MockitoAnnotations.openMocks(this);
+        authService = new AuthService(userService, passwordEncoder, jwtService, otpService);
+    }
+
+    @Test
+    void register_success() {
+        RegisterRequest req = new RegisterRequest();
+        req.setEmail("test@example.com");
+        req.setPassword("secret");
+        req.setFirstName("John");
+        req.setLastName("Doe");
+
+        when(userService.existsByEmail("test@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("secret")).thenReturn("encoded");
+        User saved = new User();
+        saved.setUuid(UUID.randomUUID().toString());
+        when(userService.save(ArgumentMatchers.any(User.class))).thenReturn(saved);
+
+        RegisterResponse resp = authService.register(req);
+        assertNotNull(resp);
+        assertEquals(saved.getUuid().toString(), resp.userId());
+        assertTrue(resp.verificationRequired());
+    }
+
+    @Test
+    void register_duplicateEmail() {
+        RegisterRequest req = new RegisterRequest();
+        req.setEmail("test@example.com");
+        when(userService.existsByEmail("test@example.com")).thenReturn(true);
+        assertThrows(EmailAlreadyExistsException.class, () -> authService.register(req));
+    }
+
+    @Test
+    void login_success() {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("a@b.com");
+        req.setPassword("pwd");
+
+        User user = new User();
+        user.setUuid(UUID.randomUUID().toString());
+        user.setPassword("hash");
+        user.setRole(Role.RIDER);
+        when(userService.findByEmail("a@b.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("pwd", "hash")).thenReturn(true);
+        when(jwtService.generate(anyString(), anyMap(), anyLong())).thenReturn("token123");
+
+        LoginResponse resp = authService.login(req);
+        assertNotNull(resp);
+        assertEquals(user.getUuid().toString(), resp.userId());
+        assertEquals("token123", resp.token());
+    }
+
+    @Test
+    void login_invalidPassword() {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("a@b.com");
+        req.setPassword("pwd");
+        User user = new User();
+        user.setPassword("hash");
+        when(userService.findByEmail("a@b.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("pwd", "hash")).thenReturn(false);
+        assertThrows(InvalidCredentialsException.class, () -> authService.login(req));
+    }
+
+    @Test
+    void login_userNotFound() {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("x@y.com");
+        when(userService.findByEmail("x@y.com")).thenReturn(Optional.empty());
+        assertThrows(InvalidCredentialsException.class, () -> authService.login(req));
+    }
+}
