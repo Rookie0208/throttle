@@ -16,7 +16,9 @@ import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.common.exception.UserNotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -38,41 +40,44 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponse.failure(error, "A runtime error occurred"));
   }
-  
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Void>> generic(Exception ex, HttpServletRequest request) {
     ApiErrors error = new ApiErrors("INTERNAL_SERVER_ERROR", ex.getMessage(), request.getRequestURI());
-    System.out.println(ex);
+    log.error("Unhandled exception: ", ex);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponse.failure(error, "An unexpected error occurred"));
   }
 
   @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleEmailConflict(EmailAlreadyExistsException ex, HttpServletRequest request) {
-        ApiErrors error = new ApiErrors("EMAIL_EXISTS", ex.getMessage(), request.getRequestURI());
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.failure(error, "Email already in use"));
-    }
+  public ResponseEntity<ApiResponse<Void>> handleEmailConflict(EmailAlreadyExistsException ex,
+      HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("EMAIL_EXISTS", ex.getMessage(), request.getRequestURI());
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(ApiResponse.failure(error, "Email already in use"));
+  }
 
-    @ExceptionHandler(InvalidCredentialsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleInvalidCredentials(InvalidCredentialsException ex, HttpServletRequest request) {
-        ApiErrors error = new ApiErrors("AUTH_INVALID_CREDENTIALS", ex.getMessage(), request.getRequestURI());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.failure(error, "Invalid credentials"));
-    }
+  @ExceptionHandler(InvalidCredentialsException.class)
+  public ResponseEntity<ApiResponse<Void>> handleInvalidCredentials(InvalidCredentialsException ex,
+      HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("AUTH_INVALID_CREDENTIALS", ex.getMessage(), request.getRequestURI());
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(ApiResponse.failure(error, "Invalid credentials"));
+  }
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUserNotFound(UserNotFoundException ex, HttpServletRequest request) {
-        ApiErrors error = new ApiErrors("USER_NOT_FOUND", ex.getMessage(), request.getRequestURI());
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.failure(error, "User not found"));
-    }
+  @ExceptionHandler(UserNotFoundException.class)
+  public ResponseEntity<ApiResponse<Void>> handleUserNotFound(UserNotFoundException ex, HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("USER_NOT_FOUND", ex.getMessage(), request.getRequestURI());
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(ApiResponse.failure(error, "User not found"));
+  }
 
   @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex, HttpServletRequest request) {
-        ApiErrors error = new ApiErrors("AUTH_INVALID_CREDENTIALS",ex.getMessage(),request.getRequestURI());
+  public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex,
+      HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("AUTH_INVALID_CREDENTIALS", ex.getMessage(), request.getRequestURI());
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.failure(error, "Login failed"));
-    }
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(ApiResponse.failure(error, "Login failed"));
+  }
 }
