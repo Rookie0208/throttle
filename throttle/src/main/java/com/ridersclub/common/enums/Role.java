@@ -1,5 +1,5 @@
 package com.ridersclub.common.enums;
 
 public enum Role {
-    CAPTAIN, RIDER, ADMIN
+    CAPTAIN, RIDER, ADMIN, LEAD, MARSHAL, SWEEPER, DEVELOPER, ORGANIZER, CLUB_LEADER
 }
