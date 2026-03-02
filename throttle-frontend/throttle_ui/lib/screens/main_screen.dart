@@ -5,7 +5,7 @@ import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/profile_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
 import 'dashboard_screen.dart';
-import 'placeholder_screen.dart'; 
+import 'placeholder_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -16,14 +16,31 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  String? _token;
+  bool _isLoading = true;
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),          // 0 - Dashboard
-    const GroupsScreen(),             // 1 - Rides (renamed)
-    const ClubsScreen(), // 2 - Clubs (new)
-    const PlaceholderScreen(label: "Stats"), // 3 - Stats
-    const ProfileScreen(),            // 4 - Profile
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadToken();
+  }
+
+  Future<void> _loadToken() async {
+    final token = await AuthService.getToken();
+
+    setState(() {
+      _token = token;
+      _isLoading = false;
+    });
+  }
+
+  List<Widget> get _screens => [
+        const DashboardScreen(),
+        GroupsScreen(token: _token!), // pass token here
+        const ClubsScreen(),
+        const PlaceholderScreen(label: "Stats"),
+        const ProfileScreen(),
+      ];
 
   void _onTabChanged(int index) {
     setState(() {
@@ -33,12 +50,38 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 Show loading while fetching token
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xff0f1114),
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.orange),
+        ),
+      );
+    }
+
+    // 🔥 If token missing → force login logic (optional)
+    if (_token == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xff0f1114),
+        body: Center(
+          child: Text(
+            "Session expired. Please login again.",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
+      backgroundColor: const Color(0xff0f1114),
       body: _screens[_currentIndex],
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabChanged,
         type: BottomNavigationBarType.fixed,
+        backgroundColor: const Color(0xff1a1c20),
         selectedItemColor: Colors.orange,
         unselectedItemColor: Colors.grey,
         items: const [
@@ -46,48 +89,33 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.dashboard),
             label: "Dashboard",
           ),
-
-          // 🔁 Renamed Groups → Rides
           BottomNavigationBarItem(
             icon: Icon(Icons.two_wheeler),
             label: "Rides",
           ),
-
-          // ➕ New Clubs button (replaces Track position)
           BottomNavigationBarItem(
             icon: Icon(Icons.groups),
             label: "Clubs",
           ),
-
           BottomNavigationBarItem(
             icon: Icon(Icons.bar_chart),
             label: "Stats",
           ),
-
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: "Profile",
           ),
         ],
       ),
+
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.orange,
         child: const Icon(Icons.add),
-        onPressed: () async {
-          final token = await AuthService.getToken();
-
-          if (token == null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text("Token not found. Please login again.")),
-            );
-            return;
-          }
-
+        onPressed: () {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => PlanRideScreen(token: token),
+              builder: (_) => PlanRideScreen(token: _token!),
             ),
           );
         },
