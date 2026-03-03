@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class GroupService {
   static const String baseUrl =
-      "http://localhost:8080/api/v1/groups/my";
+      "http://localhost:8080/api/v1/rides/my";
 
   static Future<Map<String, dynamic>> fetchMyGroups(String token) async {
     try {

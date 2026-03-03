@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.ridersclub.common.enums.Gender;
 import com.ridersclub.user.dto.request.UpdateProfileRequest;
 import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.entity.User;
@@ -33,6 +34,22 @@ public class UserService {
     public User getUserByUuid(UUID uuid) {
         return userRepository.findByUuid(uuid.toString())
                 .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
+    }
+
+    private Gender getGenderFromPronoun(String pronoun) {
+        if (pronoun == null) {
+            return Gender.MALE;
+        }
+        switch (pronoun.toLowerCase()) {
+            case "he/him":
+            case "he_him":
+                return Gender.MALE;
+            case "she/her":
+            case "she_her":
+                return Gender.FEMALE;
+            default:
+                return Gender.MALE;
+        }
     }
 
     public UserProfileResponse getProfile(Long id) {

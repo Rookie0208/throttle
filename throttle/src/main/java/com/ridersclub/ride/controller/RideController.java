@@ -41,6 +41,7 @@ public class RideController {
             Authentication authentication) throws AccessDeniedException {
         RideResponse response = null;
         String userId = (String) authentication.getPrincipal();
+        System.out.println("Creating ride for user: " + userId);
         try {
             logger.debug("current user : {}", userId);
             Ride ride = rideService.createRide(request, userId);
@@ -56,17 +57,19 @@ public class RideController {
         return ResponseEntity.ok(ApiResponse.success(response, "Ride created successfully"));
     }
 
+     @GetMapping("/my")
+    public ApiResponse<?> my(Authentication authentication) {
+        String userId = (String) authentication.getPrincipal();
+        System.out.println("getting my rides for user : "+userId);
+        return ApiResponse.success(rideService.myRides(userId), "My rides");
+    }
+
     @PostMapping("/{id}/join")
     public ApiResponse<?> join(@PathVariable String id,
             @AuthenticationPrincipal UserDetails user) {
 
         rideService.join(id, user.getUsername());
         return ApiResponse.success(null, "Joined ride");
-    }
-
-    @GetMapping("/my")
-    public ApiResponse<?> my(@AuthenticationPrincipal UserDetails user) {
-        return ApiResponse.success(rideService.myRides(user.getUsername()), "My rides");
     }
 
     @GetMapping("/{id}/participants")
