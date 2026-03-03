@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/string_extensions.dart';
 
 class AppColors {
   static const primary = Color(0xfffe6603);
@@ -10,7 +11,9 @@ class AppColors {
 }
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final Map<String, dynamic>? userData;
+
+  const DashboardScreen({super.key, this.userData});
 
   @override
   Widget build(BuildContext context) {
@@ -22,26 +25,31 @@ class DashboardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               /// HEADER
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 15,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           "Good Morning",
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          "Alex Rider",
+                          userData != null
+                              ? "${(userData!['firstName'] ?? '').toString().toCapitalized()} ${(userData!['lastName'] ?? '').toString().toCapitalized()}"
+                                    .trim()
+                              : "Guest",
                           style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 20,
@@ -54,38 +62,54 @@ class DashboardScreen extends StatelessWidget {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(30),
                           ),
                           child: Row(
-                            children: const [
-                              Icon(Icons.local_fire_department,
-                                  color: AppColors.primary, size: 18),
-                              SizedBox(width: 5),
-                              Text(
+                            children: [
+                              const Icon(
+                                Icons.local_fire_department,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 5),
+                              const Text(
                                 "12",
                                 style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold),
-                              )
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ],
                           ),
                         ),
                         const SizedBox(width: 12),
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 18,
                           backgroundColor: AppColors.card,
                           child: Text(
-                            "AR",
-                            style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.bold),
+                            userData != null &&
+                                    userData!['firstName'] != null &&
+                                    userData!['firstName'].isNotEmpty
+                                ? userData!['firstName'][0].toUpperCase() +
+                                      (userData!['lastName'] != null &&
+                                              userData!['lastName'].isNotEmpty
+                                          ? userData!['lastName'][0]
+                                                .toUpperCase()
+                                          : '')
+                                : "RU",
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        )
+                        ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -106,8 +130,7 @@ class DashboardScreen extends StatelessWidget {
                       children: [
                         Row(
                           children: const [
-                            Icon(Icons.flash_on,
-                                color: Colors.white, size: 26),
+                            Icon(Icons.flash_on, color: Colors.white, size: 26),
                             SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,8 +155,11 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const Icon(Icons.arrow_forward_ios,
-                            color: Colors.white70, size: 18)
+                        const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white70,
+                          size: 18,
+                        ),
                       ],
                     ),
                   ),
@@ -186,16 +212,18 @@ class DashboardScreen extends StatelessWidget {
                       Text(
                         "Upcoming Group Ride",
                         style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600),
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       SizedBox(height: 12),
                       Text(
                         "Sunday Mountain Run",
                         style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500),
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       SizedBox(height: 4),
                       Text(
@@ -227,32 +255,42 @@ class DashboardScreen extends StatelessWidget {
                     children: const [
                       Row(
                         children: [
-                          Icon(Icons.cloud,
-                              color: AppColors.textSecondary, size: 28),
+                          Icon(
+                            Icons.cloud,
+                            color: AppColors.textSecondary,
+                            size: 28,
+                          ),
                           SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Partly Cloudy",
-                                  style: TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontWeight: FontWeight.w500)),
+                              Text(
+                                "Partly Cloudy",
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                               SizedBox(height: 4),
-                              Text("Perfect riding conditions",
-                                  style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 12)),
+                              Text(
+                                "Perfect riding conditions",
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
-                          )
+                          ),
                         ],
                       ),
                       Text(
                         "72°",
                         style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold),
-                      )
+                          color: AppColors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -270,11 +308,7 @@ class StatCard extends StatelessWidget {
   final String title;
   final String value;
 
-  const StatCard({
-    super.key,
-    required this.title,
-    required this.value,
-  });
+  const StatCard({super.key, required this.title, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -291,15 +325,18 @@ class StatCard extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.bold),
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 5),
           Text(
             title,
             style: const TextStyle(
-                color: AppColors.textSecondary, fontSize: 11),
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
           ),
         ],
       ),

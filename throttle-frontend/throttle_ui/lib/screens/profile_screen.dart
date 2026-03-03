@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../utils/string_extensions.dart';
+
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final Map<String, dynamic>? userData;
+  const ProfileScreen({super.key, this.userData});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -212,9 +215,26 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 alignment: Alignment.center,
-                                child: const Text(
-                                  "AR",
-                                  style: TextStyle(
+                                child: Text(
+                                  widget.userData != null &&
+                                          widget.userData!['firstName'] !=
+                                              null &&
+                                          widget
+                                              .userData!['firstName']
+                                              .isNotEmpty
+                                      ? widget.userData!['firstName'][0]
+                                                .toUpperCase() +
+                                            (widget.userData!['lastName'] !=
+                                                        null &&
+                                                    widget
+                                                        .userData!['lastName']
+                                                        .isNotEmpty
+                                                ? widget
+                                                      .userData!['lastName'][0]
+                                                      .toUpperCase()
+                                                : '')
+                                      : "RU",
+                                  style: const TextStyle(
                                     color: Color(0xfffe6603),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 20,
@@ -244,21 +264,25 @@ class _ProfileScreenState extends State<ProfileScreen>
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
+                              children: [
                                 Text(
-                                  "Alex Rider",
-                                  style: TextStyle(
+                                  widget.userData != null
+                                      ? "${(widget.userData!['firstName'] ?? '').toString().toCapitalized()} ${(widget.userData!['lastName'] ?? '').toString().toCapitalized()}"
+                                            .trim()
+                                      : "Guest User",
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 18,
                                   ),
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
-                                  "Weekend warrior. Canyon lover.",
-                                  style: TextStyle(color: Colors.white70),
+                                  widget.userData?['bio'] ??
+                                      "Weekend warrior. Canyon lover.",
+                                  style: const TextStyle(color: Colors.white70),
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Row(
                                   children: [
                                     Text(

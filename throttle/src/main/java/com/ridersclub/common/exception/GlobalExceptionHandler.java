@@ -31,6 +31,7 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ApiResponse<Void>> illegalArg(IllegalArgumentException ex, HttpServletRequest request) {
     ApiErrors error = new ApiErrors("BAD_REQUEST", ex.getMessage(), request.getRequestURI());
+    log.error("Invalid argument: ", ex);
     return ResponseEntity.badRequest().body(ApiResponse.failure(error, "Invalid argument provided"));
   }
 
