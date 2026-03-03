@@ -32,9 +32,8 @@ public class User {
     private String firstName;
     private String lastName;
 
-    @JdbcTypeCode(SqlTypes.UUID)
-    @Column(nullable = false, unique = true, updatable = false)
-    private UUID uuid;
+    @Column(nullable = false, unique = true, updatable = false, length = 100)
+    private String uuid;
     @Column(unique = true, nullable = false)
     private String email;
 
@@ -42,6 +41,7 @@ public class User {
 
     private String pronoun;
 
+    @Enumerated(EnumType.STRING)
     private Gender gender;
 
     private String city;

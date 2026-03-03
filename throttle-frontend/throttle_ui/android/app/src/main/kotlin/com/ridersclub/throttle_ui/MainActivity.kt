@@ -1,4 +1,4 @@
-package com.example.throttle_ui
+package com.ridersclub.throttle_ui
 
 import io.flutter.embedding.android.FlutterActivity
 

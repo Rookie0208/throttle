@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../widgets/web_signin.dart';
 import 'signup_screen.dart';
 import 'main_screen.dart';
+import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,6 +20,88 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
 
   bool isLoading = false;
+
+  StreamSubscription? _googleAuthSubscription;
+  bool _isProcessingGoogle = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb) {
+      _googleAuthSubscription = AuthService.googleSignIn.authenticationEvents.listen((event) async {
+        if (event is GoogleSignInAuthenticationEventSignIn && !_isProcessingGoogle) {
+          final account = event.user;
+          final auth = await account.authentication;
+          if (auth.idToken != null) {
+            _handleWebGoogleAuth(auth.idToken!);
+          }
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    _googleAuthSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _handleWebGoogleAuth(String idToken) async {
+    if (_isProcessingGoogle) return;
+    setState(() {
+      _isProcessingGoogle = true;
+      isLoading = true;
+    });
+
+    try {
+      final result = await AuthService.initiateGoogleAuth(webIdToken: idToken);
+
+      if (result["success"]) {
+        if (result["data"] != null && result["data"]["token"] != null) {
+          if (mounted) {
+             Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 500),
+                pageBuilder: (_, __, ___) => const MainScreen(),
+                transitionsBuilder: (_, animation, __, child) {
+                  final offsetAnimation = Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                  );
+                  return SlideTransition(position: offsetAnimation, child: child);
+                },
+              ),
+            );
+          }
+        } 
+        else if (result["data"] != null && result["data"]["requiresRegistration"] == true) {
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => OtpScreen(googleData: result["data"])),
+            );
+          }
+        }
+      } else {
+        showError(result["message"] ?? "Google Sign-In failed");
+      }
+    } catch (e) {
+      showError("Google Sign-In failed. Please check network.");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingGoogle = false;
+          isLoading = false;
+        });
+      }
+      await AuthService.googleSignIn.disconnect();
+    }
+  }
 
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -73,6 +160,54 @@ class _LoginScreenState extends State<LoginScreen> {
     if (mounted) setState(() => isLoading = false);
   }
 }
+
+  Future<void> googleLogin() async {
+    setState(() => isLoading = true);
+
+    try {
+      final result = await AuthService.initiateGoogleAuth();
+
+      if (mounted) setState(() => isLoading = false);
+
+      if (result["success"]) {
+        // If 'token' exists, it's a returning user login
+        if (result["data"] != null && result["data"]["token"] != null) {
+          if (mounted) {
+             Navigator.pushReplacement(
+              context,
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 500),
+                pageBuilder: (_, __, ___) => const MainScreen(),
+                transitionsBuilder: (_, animation, __, child) {
+                  final offsetAnimation = Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                  );
+                  return SlideTransition(position: offsetAnimation, child: child);
+                },
+              ),
+            );
+          }
+        } 
+        // If no token but requires registration = true, new user OTP flow
+        else if (result["data"] != null && result["data"]["requiresRegistration"] == true) {
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => OtpScreen(googleData: result["data"])),
+            );
+          }
+        }
+      } else {
+        showError(result["message"] ?? "Google Sign-In failed");
+      }
+    } catch (e) {
+      if (mounted) setState(() => isLoading = false);
+      showError("Google Sign-In failed. Please check network.");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,14 +309,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 15),
 
                 // GOOGLE SIGN-IN
-                OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.login),
-                  label: const Text("Sign in with Google"),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 50),
-                  ),
-                ),
+                buildGoogleSignInButton(onPressed: isLoading ? () {} : googleLogin),
                 const SizedBox(height: 12),
 
                 // APPLE SIGN-IN

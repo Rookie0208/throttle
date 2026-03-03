@@ -3,6 +3,7 @@ package com.ridersclub.user.controller;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,8 +38,9 @@ public class UserController {
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateProfile(
             @AuthenticationPrincipal Authentication user,
-            @RequestBody UpdateProfileRequest request) {
-        UserProfileResponse updatedProfile = userService.updateProfile((String) user.getPrincipal(), request);
+            @Valid @RequestBody UpdateProfileRequest request) {
+        String uuid = (String) user.getPrincipal();
+        UserProfileResponse updatedProfile = userService.updateProfile(uuid, request);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(updatedProfile, "Profile updated"));
     }
 }

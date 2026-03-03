@@ -1,6 +1,6 @@
 package com.ridersclub.ride.entity;
 
-public enum RideStatus {
+public enum RsvpStatus {
 PLANNED,
     ONGOING,
     COMPLETED,

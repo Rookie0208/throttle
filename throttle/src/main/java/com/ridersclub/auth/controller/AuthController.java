@@ -1,62 +1,79 @@
 package com.ridersclub.auth.controller;
 
-import java.util.Map;
+import jakarta.validation.Valid;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ridersclub.auth.dto.request.GoogleAuthRequest;
+import com.ridersclub.auth.dto.request.GoogleRegisterRequest;
+import com.ridersclub.auth.dto.request.VerifyOtpRequest;
+import com.ridersclub.auth.dto.response.GoogleAuthResponse;
 import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
 import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
-import com.ridersclub.auth.security.JwtService;
+import com.ridersclub.auth.service.AuthService;
 import com.ridersclub.common.dto.ApiResponse;
-import com.ridersclub.user.entity.User;
-import com.ridersclub.user.service.UserService;
 
-// @CrossOrigin(origins = { "http://localhost:65380", "http://127.0.0.1:*" })
 @RestController
-@RequestMapping("api/v1/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    @Autowired
-    private JwtService jwtService;
+    private final AuthService authService;
 
-    @Autowired
-    private UserService userService;
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
 
     @PostMapping("/register")
-    ResponseEntity<ApiResponse<RegisterResponse>> register(@RequestBody RegisterRequest request) {
-        User user = userService.register(request);
-
-        System.out.println("Encoded Password: " + user.getPassword());
-        RegisterResponse response = new RegisterResponse(user.getUuid().toString(), false, "none");
-        System.out.println("Received registration request: " + request);
+    public ResponseEntity<ApiResponse<RegisterResponse>> register(
+            @Valid @RequestBody RegisterRequest request) {
+        RegisterResponse response = authService.register(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "User registered successfully"));
     }
 
     @PostMapping("/login")
-    ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest request) {
-        User user = userService.authenticate(request);
-        String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", user.getRole()), 864000);
-
-        LoginResponse response = new LoginResponse(user.getUuid().toString(), token, 864000);
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginRequest request) {
+        LoginResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success(response, "User logged in successfully"));
     }
 
-    @GetMapping("/test")
-    public String test() {
-        return "Auth controller working";
+    @PostMapping("/google/initiate")
+    public ResponseEntity<ApiResponse<GoogleAuthResponse>> initiateGoogleAuth(
+            @Valid @RequestBody GoogleAuthRequest request) {
+        GoogleAuthResponse response = authService.verifyGoogleToken(request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Google sign-in initiated"));
     }
 
+    @PostMapping("/google/verify-otp")
+    public ResponseEntity<ApiResponse<Boolean>> verifyOtp(
+            @Valid @RequestBody VerifyOtpRequest request) {
+        boolean isValid = authService.verifyOtp(request.getEmail(), request.getOtp());
+        if (!isValid) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.failure(null, "Invalid or expired OTP"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(true, "OTP verified successfully"));
+    }
+
+    @PostMapping("/google/complete-registration")
+    public ResponseEntity<ApiResponse<LoginResponse>> completeGoogleRegistration(
+            @Valid @RequestBody GoogleRegisterRequest request) {
+        LoginResponse response = authService.completeGoogleRegistration(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "User registered and logged in successfully"));
+    }
+
+    // health-check endpoint can be kept if required
+    @PostMapping("/test")
+    public ResponseEntity<String> test() {
+        return ResponseEntity.ok("Auth controller working");
+    }
 }
