@@ -1,0 +1,44 @@
+time="2026-03-03T12:29:04+05:30" level=warning msg="/Users/amit/Documents/rookie/gitcode/throttle/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+ Container throttle-postgres  Running
+Launching lib/main.dart on Chrome in debug mode...
+Waiting for connection from debug service on Chrome...             17.0s
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+This app is linked to the debug service: ws://127.0.0.1:55426/7X4ygk4MdaA=/ws
+Debug service listening on ws://127.0.0.1:55426/7X4ygk4MdaA=/ws
+A Dart VM Service on Chrome is available at: http://127.0.0.1:55426/7X4ygk4MdaA=
+The Flutter DevTools debugger and profiler on Chrome is available at: http://127.0.0.1:55426/7X4ygk4MdaA=/devtools/?uri=ws://127.0.0.1:55426/7X4ygk4MdaA=/ws
+Starting application from main method in: org-dartlang-app:/web_entrypoint.dart.
+Google Maps JavaScript API warning: InvalidKey https://developers.google.com/maps/documentation/javascript/error-messages#invalid-key
+[GSI_LOGGER]: Experiment enable_itp_optimization set to 0.
+[GSI_LOGGER]: Evaluating FedCM mode support.
+[GSI_LOGGER]: FedCM mode supported.
+Application finished.
+Launching lib/main.dart on Chrome in debug mode...
+Waiting for connection from debug service on Chrome...             16.4s
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+This app is linked to the debug service: ws://127.0.0.1:49268/UBN6xSVltug=/ws
+Debug service listening on ws://127.0.0.1:49268/UBN6xSVltug=/ws
+A Dart VM Service on Chrome is available at: http://127.0.0.1:49268/UBN6xSVltug=
+The Flutter DevTools debugger and profiler on Chrome is available at: http://127.0.0.1:49268/UBN6xSVltug=/devtools/?uri=ws://127.0.0.1:49268/UBN6xSVltug=/ws
+Starting application from main method in: org-dartlang-app:/web_entrypoint.dart.
+Google Maps JavaScript API warning: InvalidKey https://developers.google.com/maps/documentation/javascript/error-messages#invalid-key
+[GSI_LOGGER]: Experiment enable_itp_optimization set to 0.
+[GSI_LOGGER]: Evaluating FedCM mode support.
+[GSI_LOGGER]: FedCM mode supported.
+Application finished.
