@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/services/group_service.dart';
 import 'package:throttle_ui/screens/group_chat_screen.dart';
-import 'group_chat_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
   final String token;
@@ -38,7 +36,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
             {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
             {"id": "u2", "name": "Sara", "role": "RIDER"},
             {"id": "u3", "name": "John", "role": "NAVIGATOR"},
-          ]
+          ],
         },
         {
           "id": "2",
@@ -48,7 +46,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
           "members": [
             {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
             {"id": "u5", "name": "Tom", "role": "RIDER"},
-          ]
+          ],
         },
       ];
       isLoading = false;
@@ -58,9 +56,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(

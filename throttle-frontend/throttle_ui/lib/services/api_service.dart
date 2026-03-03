@@ -1,23 +1,36 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'auth_service.dart';
 
 class ApiService {
-
   static Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString("token");
+    return await AuthService.getToken();
+  }
+
+  static Future<dynamic> get(String endpoint, {bool authorized = false}) async {
+    Map<String, String> headers = {"Content-Type": "application/json"};
+    if (authorized) {
+      final token = await _getToken();
+      if (token != null) {
+        headers["Authorization"] = "Bearer $token";
+      }
+    }
+
+    final response = await http.get(
+      Uri.parse("${AppConstants.baseUrl}$endpoint"),
+      headers: headers,
+    );
+
+    return {"status": response.statusCode, "body": response.body};
   }
 
   static Future<dynamic> post(
-      String endpoint,
-      Map<String, dynamic> body,
-      {bool authorized = false}) async {
-
-    Map<String, String> headers = {
-      "Content-Type": "application/json"
-    };
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool authorized = false,
+  }) async {
+    Map<String, String> headers = {"Content-Type": "application/json"};
 
     if (authorized) {
       final token = await _getToken();
@@ -32,9 +45,6 @@ class ApiService {
       body: jsonEncode(body),
     );
 
-    return {
-      "status": response.statusCode,
-      "body": response.body
-    };
+    return {"status": response.statusCode, "body": response.body};
   }
 }

@@ -1,78 +1,41 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'api_service.dart';
+import 'logger_service.dart';
 
 class UserService {
-  static const String baseUrl = "http://localhost:8080/api/v1/users";
-
-  /// 🔹 GET Logged-in User Profile
-  static Future<Map<String, dynamic>> getProfile(String token) async {
+  static Future<Map<String, dynamic>?> getMe() async {
     try {
-      final url = Uri.parse("$baseUrl/me");
+      final response = await ApiService.get('/users/me', authorized: true);
 
-      final response = await http.get(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return {
-          "success": true,
-          "data": data,
-        };
+      if (response['status'] == 200 || response['status'] == 201) {
+        final decoded = jsonDecode(response['body']);
+        if (decoded['status'] == "SUCCESS" && decoded['data'] != null) {
+          await Logger.info(
+            "User profile successfully loaded for: ${decoded['data']['firstName']}",
+          );
+          return decoded['data'];
+        }
+        await Logger.error(
+          "Failed to parse user profile. Success flag false or data is null.",
+          decoded,
+        );
+        return {"firstName": "ParsingError", "lastName": decoded.toString()};
       } else {
+        await Logger.warn(
+          "Received HTTP ${response['status']} from /users/me endpoint. Body: ${response['body']}",
+        );
         return {
-          "success": false,
-          "message": data["message"] ?? "Failed to fetch profile",
+          "firstName": "HTTP ${response['status']}",
+          "lastName": response['body'].toString(),
         };
       }
-    } catch (e) {
-      return {
-        "success": false,
-        "message": e.toString(),
-      };
-    }
-  }
-
-  /// 🔹 UPDATE Logged-in User Profile
-  static Future<Map<String, dynamic>> updateProfile(
-    Map<String, dynamic> profileData,
-    String token,
-  ) async {
-    try {
-      final url = Uri.parse("$baseUrl/me");
-
-      final response = await http.put(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
-        body: jsonEncode(profileData),
+    } catch (e, stackTrace) {
+      await Logger.error(
+        "Exception thrown while fetching user profile.",
+        e,
+        stackTrace,
       );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return {
-          "success": true,
-          "data": data,
-        };
-      } else {
-        return {
-          "success": false,
-          "message": data["message"] ?? "Failed to update profile",
-        };
-      }
-    } catch (e) {
-      return {
-        "success": false,
-        "message": e.toString(),
-      };
+      return {"firstName": "CatchError", "lastName": e.toString()};
     }
   }
 }
