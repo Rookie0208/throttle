@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/services/group_service.dart';
 import 'package:throttle_ui/screens/group_chat_screen.dart';
+import 'group_chat_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
   final String token;
@@ -12,7 +13,7 @@ class GroupsScreen extends StatefulWidget {
 }
 
 class _GroupsScreenState extends State<GroupsScreen> {
-  List<dynamic> groups = [];
+  List<Map<String, dynamic>> groups = [];
   bool isLoading = true;
 
   @override
@@ -22,18 +23,36 @@ class _GroupsScreenState extends State<GroupsScreen> {
   }
 
   Future<void> fetchGroups() async {
-    final result = await GroupService.fetchMyGroups(widget.token);
+    // Replace this with your real API call
+    // final result = await GroupService.fetchMyGroups(widget.token);
 
-    if (result["success"]) {
-      setState(() {
-        groups = result["data"];
-        isLoading = false;
-      });
-    } else {
-      setState(() {
-        isLoading = false;
-      });
-    }
+    // Dummy data
+    setState(() {
+      groups = [
+        {
+          "id": "1",
+          "name": "Morning Riders",
+          "status": "active",
+          "rideStatus": "CREATED",
+          "members": [
+            {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
+            {"id": "u2", "name": "Sara", "role": "RIDER"},
+            {"id": "u3", "name": "John", "role": "NAVIGATOR"},
+          ]
+        },
+        {
+          "id": "2",
+          "name": "Weekend Warriors",
+          "status": "archive",
+          "rideStatus": "STARTED",
+          "members": [
+            {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
+            {"id": "u5", "name": "Tom", "role": "RIDER"},
+          ]
+        },
+      ];
+      isLoading = false;
+    });
   }
 
   @override
@@ -41,17 +60,6 @@ class _GroupsScreenState extends State<GroupsScreen> {
     if (isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (groups.isEmpty) {
-      return const Scaffold(
-        body: Center(
-          child: Text(
-            "No groups yet",
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
       );
     }
 
@@ -69,10 +77,14 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
           return GestureDetector(
             onTap: () {
+              // Pass the current user role; here assuming "Amit" is logged in
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => GroupChatScreen(group: group),
+                  builder: (_) => GroupChatScreen(
+                    group: group,
+                    // userId: "u1", // Replace with logged-in userId
+                  ),
                 ),
               );
             },
@@ -111,6 +123,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                  ),
+                  Text(
+                    group["rideStatus"], // show ride status
+                    style: const TextStyle(color: Colors.white38),
                   ),
                 ],
               ),

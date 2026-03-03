@@ -14,4 +14,5 @@ public interface RideParticipantRepository extends JpaRepository<RideParticipant
     boolean existsByRide_IdAndUser_Id(Long rideId, Long userId);
 
     List<RideParticipant> findByUser_Id(String userId);
+
 }

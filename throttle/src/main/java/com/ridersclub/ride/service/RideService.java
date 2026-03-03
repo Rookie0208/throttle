@@ -155,6 +155,7 @@ public class RideService {
     public List<Ride> myRides(String userId) {
 
         List<RideParticipant> rideIds = participantRepo.findByUser_Id(userId);
+        // List<RideParticipant> rides = participantRepo.findByUserUUID(userId);
 
         return rideRepository.findAll().stream()
                 .filter(r -> rideIds.contains(r.getId()))
