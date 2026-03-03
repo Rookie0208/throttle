@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideParticipant;
 
 @Repository
@@ -14,5 +15,7 @@ public interface RideParticipantRepository extends JpaRepository<RideParticipant
     boolean existsByRide_IdAndUser_Id(Long rideId, Long userId);
 
     List<RideParticipant> findByUser_Id(String userId);
+
+    List<Ride> findRidesByUserId(String userId);
 
 }
