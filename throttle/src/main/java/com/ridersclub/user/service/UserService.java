@@ -1,17 +1,12 @@
 package com.ridersclub.user.service;
 
-import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
-import com.ridersclub.auth.dto.request.LoginRequest;
-import com.ridersclub.auth.dto.request.RegisterRequest;
 import com.ridersclub.common.enums.Gender;
-import com.ridersclub.common.enums.Role;
 import com.ridersclub.user.dto.request.UpdateProfileRequest;
 import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.entity.User;
@@ -22,35 +17,23 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private PasswordEncoder encoder;
 
-    public User register(RegisterRequest req) {
+    // --- helper methods used by other services ---
+    public java.util.Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
 
-        if (userRepository.findByEmail(req.getEmail()).isPresent()) {
-            throw new RuntimeException("Email already exists");
-        }
+    public boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
+    }
 
-        User user = new User();
-        user.setFirstName(req.getFirstName());
-        user.setLastName(req.getLastName());
-        user.setEmail(req.getEmail());
-        user.setPassword(encoder.encode(req.getPassword()));
-        user.setCity(req.getCity());
-        // user.setBio(req.getBio());
-        user.setBikeType(req.getBikeType());
-        user.setExperienceYears(req.getExperienceYears());
-        user.setUuid(UUID.randomUUID());
-        user.setRole(req.getRole() != null ? req.getRole() : Role.RIDER);
-        user.setPronoun(req.getPronoun());
-        user.setGender(getGenderFromPronoun(req.getPronoun()));
-
+    public User save(User user) {
         return userRepository.save(user);
     }
 
     public User getUserByUuid(UUID uuid) {
-        return userRepository.findByUuid(uuid)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        return userRepository.findByUuid(uuid.toString())
+                .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
     }
 
     private Gender getGenderFromPronoun(String pronoun) {
@@ -69,31 +52,15 @@ public class UserService {
         }
     }
 
-    public User authenticate(LoginRequest req) {
-
-        User user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email"));
-
-        if (!encoder.matches(req.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid password");
-        }
-
-        return user;
-    }
-
-    public UserProfileResponse getProfile(String userId) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    public UserProfileResponse getProfile(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
         return new UserProfileResponse(user);
     }
 
-    public UserProfileResponse getProfileByUUID(String userId) {
-
-        User user = userRepository.findByUuid(UUID.fromString(userId))
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    public UserProfileResponse getProfileByUUID(String uuidStr) {
+        User user = userRepository.findByUuid(uuidStr)
+                .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
         return new UserProfileResponse(user);
     }
 
@@ -102,8 +69,8 @@ public class UserService {
             UpdateProfileRequest request
     ) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findById(Long.valueOf(userId))
+                .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
 
         // Update only non-null fields
         if (request.getFirstName() != null)

@@ -72,8 +72,10 @@ lib/
 
 1. Navigate to project folder:
 -> cd throttle_ui (parallel to pubspec.yaml file)
--> flutter run
+-> flutter run -d chrome --web-port=8081
 
+Frontend will start at:
+http://localhost:8081
 
 ---
 

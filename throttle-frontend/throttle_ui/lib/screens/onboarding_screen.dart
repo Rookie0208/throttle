@@ -15,17 +15,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {
       "title": "PLAN YOUR RIDE",
       "desc": "Schedule, organize and ride smarter.",
-      "icon": Icons.map_outlined
+      "icon": Icons.map_outlined,
     },
     {
       "title": "TRACK PERFORMANCE",
       "desc": "Monitor stats and improve your journey.",
-      "icon": Icons.speed
+      "icon": Icons.speed,
     },
     {
       "title": "LET'S RIDE TOGETHER",
       "desc": "Join riders who share your passion.",
-      "icon": Icons.groups
+      "icon": Icons.groups,
     },
   ];
 
@@ -34,13 +34,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       setState(() => currentIndex++);
     } else {
       Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+        context,
+        MaterialPageRoute(builder: (_) => LoginScreen()),
+      );
     }
   }
 
   void skip() {
     Navigator.pushReplacement(
-        context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+      context,
+      MaterialPageRoute(builder: (_) => LoginScreen()),
+    );
   }
 
   @override
@@ -58,8 +62,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 alignment: Alignment.topRight,
                 child: TextButton(
                   onPressed: skip,
-                  child: const Text("Skip",
-                      style: TextStyle(color: Color.fromARGB(255, 225, 202, 186), fontSize: 12)),
+                  child: const Text(
+                    "Skip",
+                    style: TextStyle(
+                      color: Color.fromARGB(255, 225, 202, 186),
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ),
 
@@ -76,7 +85,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Text(
                 page["title"] as String,
                 style: const TextStyle(
-                    fontSize: 26, fontWeight: FontWeight.bold),
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
 
@@ -118,12 +129,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: ElevatedButton(
                   onPressed: next,
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xfffe6603)),
+                    backgroundColor: const Color(0xfffe6603),
+                  ),
                   child: Text(
-                      currentIndex == pages.length - 1
-                          ? "Get Started"
-                          : "Next  >",
-                      style: const TextStyle(fontSize: 14, color: Colors.white)),
+                    currentIndex == pages.length - 1
+                        ? "Get Started"
+                        : "Next  >",
+                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                  ),
                 ),
               ),
             ],

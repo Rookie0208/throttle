@@ -8,7 +8,7 @@
 PRODUCT_NAME = throttle_ui
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.throttleUi
+PRODUCT_BUNDLE_IDENTIFIER = com.ridersclub.throttleUi
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.ridersclub. All rights reserved.

@@ -17,11 +17,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     {"date": "Feb 9", "name": "Mountain Pass", "miles": 92, "time": "3h 10m"},
   ];
 
-  final achievements = [
-    "Century Rider",
-    "Speed Demon",
-    "Early Bird",
-  ];
+  final achievements = ["Century Rider", "Speed Demon", "Early Bird"];
 
   @override
   void initState() {
@@ -48,12 +44,18 @@ class _ProfileScreenState extends State<ProfileScreen>
           children: [
             Icon(icon, color: const Color(0xfffe6603), size: 24),
             const SizedBox(height: 6),
-            Text(value,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold)),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(label,
-                style: const TextStyle(color: Colors.white70, fontSize: 10)),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white70, fontSize: 10),
+            ),
           ],
         ),
       ),
@@ -85,21 +87,34 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(ride["name"],
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w500)),
-                Text(ride["date"], style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(
+                  ride["name"],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  ride["date"],
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text("${ride["miles"]} mi",
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
-              Text(ride["time"],
-                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              Text(
+                "${ride["miles"]} mi",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                ride["time"],
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
             ],
           ),
         ],
@@ -121,12 +136,15 @@ class _ProfileScreenState extends State<ProfileScreen>
         children: [
           Icon(Icons.emoji_events, color: const Color(0xfffe6603), size: 24),
           const SizedBox(height: 6),
-          Text(name,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center),
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
         ],
       ),
     );
@@ -145,9 +163,14 @@ class _ProfileScreenState extends State<ProfileScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Profile",
-                      style:
-                          TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "Profile",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   Container(
                     height: 36,
                     width: 36,
@@ -156,7 +179,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Icon(Icons.settings, color: Colors.white),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -183,15 +206,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 height: 64,
                                 width: 64,
                                 decoration: BoxDecoration(
-                                    color: const Color(0xfffe6603).withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(16)),
+                                  color: const Color(
+                                    0xfffe6603,
+                                  ).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
                                 alignment: Alignment.center,
                                 child: const Text(
                                   "AR",
                                   style: TextStyle(
-                                      color: Color(0xfffe6603),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20),
+                                    color: Color(0xfffe6603),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
                                 ),
                               ),
                               Positioned(
@@ -204,10 +231,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     color: const Color(0xfffe6603),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(Icons.edit,
-                                      color: Colors.white, size: 12),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: Colors.white,
+                                    size: 12,
+                                  ),
                                 ),
-                              )
+                              ),
                             ],
                           ),
                           const SizedBox(width: 16),
@@ -215,27 +245,42 @@ class _ProfileScreenState extends State<ProfileScreen>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: const [
-                                Text("Alex Rider",
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18)),
+                                Text(
+                                  "Alex Rider",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                ),
                                 SizedBox(height: 4),
-                                Text("Weekend warrior. Canyon lover.",
-                                    style: TextStyle(color: Colors.white70)),
+                                Text(
+                                  "Weekend warrior. Canyon lover.",
+                                  style: TextStyle(color: Colors.white70),
+                                ),
                                 SizedBox(height: 8),
                                 Row(
                                   children: [
-                                    Text("124 Followers",
-                                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                    Text(
+                                      "124 Followers",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                     SizedBox(width: 12),
-                                    Text("89 Following",
-                                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                    Text(
+                                      "89 Following",
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                      ),
+                                    ),
                                   ],
-                                )
+                                ),
                               ],
                             ),
-                          )
+                          ),
                         ],
                       ),
                     ),
@@ -258,25 +303,37 @@ class _ProfileScreenState extends State<ProfileScreen>
                               color: const Color(0xff1a1c20),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.directions_bike,
-                                color: Color(0xfffe6603)),
+                            child: const Icon(
+                              Icons.directions_bike,
+                              color: Color(0xfffe6603),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: const [
-                                Text("2024 Ducati Panigale V4",
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold)),
-                                Text("Supersport · 1,103cc",
-                                    style: TextStyle(
-                                        color: Colors.white70, fontSize: 12)),
+                                Text(
+                                  "2024 Ducati Panigale V4",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  "Supersport · 1,103cc",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                          const Icon(Icons.chevron_right, color: Colors.white70),
+                          const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white70,
+                          ),
                         ],
                       ),
                     ),
@@ -284,9 +341,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                     // Stats Summary
                     Row(
                       children: [
-                        _buildStatCard(Icons.directions, "8,420", "Total Miles"),
+                        _buildStatCard(
+                          Icons.directions,
+                          "8,420",
+                          "Total Miles",
+                        ),
                         const SizedBox(width: 8),
-                        _buildStatCard(Icons.calendar_today, "142", "Total Rides"),
+                        _buildStatCard(
+                          Icons.calendar_today,
+                          "142",
+                          "Total Rides",
+                        ),
                         const SizedBox(width: 8),
                         _buildStatCard(Icons.emoji_events, "12", "Badges"),
                       ],
@@ -308,38 +373,48 @@ class _ProfileScreenState extends State<ProfileScreen>
                     const SizedBox(height: 12),
 
                     SizedBox(
-                     height: MediaQuery.of(context).size.height * 0.45,
+                      height: MediaQuery.of(context).size.height * 0.45,
                       child: TabBarView(
                         controller: _tabController,
                         children: [
                           // Overview
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text("Achievements",
+                          SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Achievements",
                                   style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                height: 80,
-                                child: ListView(
-                                  scrollDirection: Axis.horizontal,
-                                  children:
-                                      achievements.map(_buildAchievementCard).toList(),
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text("Recent Rides",
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 80,
+                                  child: ListView(
+                                    scrollDirection: Axis.horizontal,
+                                    children: achievements
+                                        .map(_buildAchievementCard)
+                                        .toList(),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  "Recent Rides",
                                   style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 8),
-                              Column(
-                                children:
-                                    rideHistory.map(_buildRideCard).toList(),
-                              )
-                            ],
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Column(
+                                  children: rideHistory
+                                      .map(_buildRideCard)
+                                      .toList(),
+                                ),
+                              ],
+                            ),
                           ),
 
                           // Rides Tab
@@ -351,44 +426,89 @@ class _ProfileScreenState extends State<ProfileScreen>
                           Column(
                             children: [
                               ListTile(
-                                leading: const Icon(Icons.notifications,
-                                    color: Colors.white),
-                                title: const Text("Notifications",
-                                    style: TextStyle(color: Colors.white)),
-                                subtitle: const Text("Manage alerts",
-                                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                leading: const Icon(
+                                  Icons.notifications,
+                                  color: Colors.white,
+                                ),
+                                title: const Text(
+                                  "Notifications",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                subtitle: const Text(
+                                  "Manage alerts",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                               ListTile(
-                                leading: const Icon(Icons.message,
-                                    color: Colors.white),
-                                title: const Text("Messages",
-                                    style: TextStyle(color: Colors.white)),
-                                subtitle: const Text("Chat settings",
-                                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                leading: const Icon(
+                                  Icons.message,
+                                  color: Colors.white,
+                                ),
+                                title: const Text(
+                                  "Messages",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                subtitle: const Text(
+                                  "Chat settings",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                               ListTile(
-                                leading: const Icon(Icons.people,
-                                    color: Colors.white),
-                                title: const Text("Followers",
-                                    style: TextStyle(color: Colors.white)),
-                                subtitle: const Text("Manage connections",
-                                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                leading: const Icon(
+                                  Icons.people,
+                                  color: Colors.white,
+                                ),
+                                title: const Text(
+                                  "Followers",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                subtitle: const Text(
+                                  "Manage connections",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                               ListTile(
-                                leading: const Icon(Icons.directions_bike,
-                                    color: Colors.white),
-                                title: const Text("My Bikes",
-                                    style: TextStyle(color: Colors.white)),
-                                subtitle: const Text("Add or edit bikes",
-                                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                leading: const Icon(
+                                  Icons.directions_bike,
+                                  color: Colors.white,
+                                ),
+                                title: const Text(
+                                  "My Bikes",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                subtitle: const Text(
+                                  "Add or edit bikes",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                               ListTile(
-                                leading: const Icon(Icons.shield,
-                                    color: Colors.white),
-                                title: const Text("Privacy",
-                                    style: TextStyle(color: Colors.white)),
-                                subtitle: const Text("Data & security",
-                                    style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                leading: const Icon(
+                                  Icons.shield,
+                                  color: Colors.white,
+                                ),
+                                title: const Text(
+                                  "Privacy",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                                subtitle: const Text(
+                                  "Data & security",
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
                               const SizedBox(height: 16),
                               ElevatedButton.icon(
@@ -400,16 +520,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   foregroundColor: Colors.white,
                                   minimumSize: const Size.fromHeight(50),
                                 ),
-                              )
+                              ),
                             ],
                           ),
                         ],
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),

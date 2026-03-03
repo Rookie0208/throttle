@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
-  static const String baseUrl = "http://localhost:8080/api/v1/auth";
+  static String get baseUrl =>
+      "${dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1'}/auth";
   static const String _tokenKey = "jwt_token";
 
   // ================= REGISTER =================
@@ -47,54 +50,183 @@ class AuthService {
 
   // ================= LOGIN =================
   static Future<Map<String, dynamic>> login({
-  required String email,
-  required String password,
-}) async {
-  try {
-    final url = Uri.parse("$baseUrl/login");
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final url = Uri.parse("$baseUrl/login");
 
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "email": email,
-        "password": password,
-      }),
-    );
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "password": password}),
+      );
 
-    final decoded = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      // 🔥 Extract token from nested data object
-      final token = decoded["data"]?["token"];
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // 🔥 Extract token from nested data object
+        final token = decoded["data"]?["token"];
 
-      if (token == null) {
+        if (token == null) {
+          return {"success": false, "message": "Token not found in response"};
+        }
+
+        await saveToken(token);
+
+        return {"success": true, "data": decoded["data"]};
+      } else {
         return {
           "success": false,
-          "message": "Token not found in response"
+          "message": decoded["message"] ?? "Login failed",
+        };
+      }
+    } catch (e) {
+      return {"success": false, "message": "Network error: $e"};
+    }
+  }
+
+  // ================= GOOGLE AUTH =================
+  static final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+
+  static bool _isGoogleSignInInitialized = false;
+
+  static Future<void> initGoogleSignIn() async {
+    if (!_isGoogleSignInInitialized) {
+      await googleSignIn.initialize(
+        clientId: dotenv.env['GOOGLE_CLIENT_ID'] ?? "",
+      );
+      _isGoogleSignInInitialized = true;
+    }
+  }
+
+  static Future<Map<String, dynamic>> initiateGoogleAuth({
+    String? webIdToken,
+  }) async {
+    try {
+      String? idToken = webIdToken;
+
+      if (idToken == null) {
+        final GoogleSignInAccount? account = await googleSignIn.authenticate();
+        if (account == null) {
+          return {"success": false, "message": "Google Sign-In aborted"};
+        }
+        final GoogleSignInAuthentication auth = await account.authentication;
+        idToken = auth.idToken;
+      }
+
+      if (idToken == null) {
+        return {
+          "success": false,
+          "message": "Failed to retrieve Google ID Token",
         };
       }
 
-      await saveToken(token);
+      final url = Uri.parse("$baseUrl/google/initiate");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"idToken": idToken}),
+      );
 
-      return {
-        "success": true,
-        "data": decoded["data"],
-      };
-    } else {
+      final decoded = jsonDecode(response.body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = decoded["data"];
+
+        // If it's a login, save the token
+        if (data["token"] != null) {
+          await saveToken(data["token"]);
+        }
+
+        return {"success": true, "data": data};
+      } else {
+        return {
+          "success": false,
+          "message": decoded["message"] ?? "Google verification failed",
+        };
+      }
+    } catch (e) {
+      return {"success": false, "message": "Error signing in with Google: $e"};
+    }
+  }
+
+  static Future<Map<String, dynamic>> verifyOtp({
+    required String email,
+    required String otp,
+  }) async {
+    try {
+      final url = Uri.parse("$baseUrl/google/verify-otp");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "otp": otp}),
+      );
+
+      final decoded = jsonDecode(response.body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return {"success": true, "data": decoded["data"]};
+      } else {
+        return {
+          "success": false,
+          "message": decoded["message"] ?? "Invalid OTP",
+        };
+      }
+    } catch (e) {
       return {
         "success": false,
-        "message": decoded["message"] ?? "Login failed"
+        "message": "Network error verification failed: $e",
       };
     }
-  } catch (e) {
-    return {
-      "success": false,
-      "message": "Network error: $e"
-    };
   }
-}
 
+  static Future<Map<String, dynamic>> completeGoogleRegistration({
+    required String email,
+    required String firstName,
+    required String lastName,
+    required String pronoun,
+    required String bikeType,
+  }) async {
+    try {
+      final url = Uri.parse("$baseUrl/google/complete-registration");
+
+      final body = {
+        "email": email,
+        "firstName": firstName,
+        "lastName": lastName,
+        "gender": _getGenderFromPronoun(pronoun),
+        "pronoun": pronoun,
+        "bikeType": bikeType,
+        "role": "RIDER",
+        "city": null,
+        "experienceYears": 0,
+      };
+
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
+
+      final decoded = jsonDecode(response.body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final token = decoded["data"]?["token"];
+        if (token != null) {
+          await saveToken(token);
+        }
+        return {"success": true, "data": decoded["data"]};
+      } else {
+        return {
+          "success": false,
+          "message": decoded["message"] ?? "Registration failed",
+        };
+      }
+    } catch (e) {
+      return {"success": false, "message": "Network error: $e"};
+    }
+  }
 
   // ================= SAVE TOKEN =================
   static Future<void> saveToken(String token) async {
@@ -119,10 +251,7 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return {
-        "success": true,
-        "data": data,
-      };
+      return {"success": true, "data": data};
     } else {
       return {
         "success": false,
