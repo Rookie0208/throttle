@@ -12,10 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ridersclub.common.Utils.UserUtility;
+import com.ridersclub.common.enums.Status;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.GroupRole;
+import com.ridersclub.ride.entity.ParticipantRole;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.Group;
 import com.ridersclub.ride.entity.RideLocation;
@@ -76,7 +78,7 @@ public class RideService {
         ride.setStartLng(request.getStartLocation().getLongitude());
         ride.setEndLat(request.getEndLocation().getLatitude());
         ride.setEndLng(request.getEndLocation().getLongitude());
-        
+
         User currentUser = userRepository.findByUuid(currentUserUUId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -143,6 +145,16 @@ public class RideService {
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
+        if (ride.getStatus() != RsvpStatus.CREATED) {
+            throw new RuntimeException("Ride already started. Cannot join.");
+        }
+
+        long currentCount = participantRepo.countByRide_Id(ride.getId());
+
+        if (currentCount >= ride.getMaxRiders()) {
+            throw new RuntimeException("Ride is full");
+        }
+
         User user = userRepository.findByUuid(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -153,23 +165,25 @@ public class RideService {
     }
 
     public List<Ride> myRides(String userId) {
-
-        List<RideParticipant> rideIds = participantRepo.findByUser_Id(userId);
-        // List<RideParticipant> rides = participantRepo.findByUserUUID(userId);
-
-        return rideRepository.findAll().stream()
-                .filter(r -> rideIds.contains(r.getId()))
-                .toList();
+        return rideRepository.findMyRides(userId);
     }
 
     public List<RideParticipant> participants(String rideId) {
         return participantRepo.findByRide_Id(rideId);
     }
 
-    public void complete(String rideId) {
+    public void complete(String rideId, String userId) {
 
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+        RideParticipant participant = participantRepo
+                .findByRide_IdAndUser_Uuid(rideId, userId)
+                .orElseThrow(() -> new RuntimeException("Not part of ride"));
+
+        if (participant.getRole() != ParticipantRole.CAPTAIN) {
+            throw new RuntimeException("Only captain can complete ride");
+        }
 
         ride.setStatus(RsvpStatus.COMPLETED);
         rideRepository.save(ride);
@@ -181,6 +195,7 @@ public class RideService {
                 req.getDistanceKm(), req.getDurationMinutes(), req.getAvgSpeed()));
     }
 
+    // ------------- DASHBOARD ------------------
     public Map<String, Object> dashboard(String userId) {
 
         List<RideStats> stats = statsRepo.findByUser_Id(userId);

@@ -57,10 +57,10 @@ public class RideController {
         return ResponseEntity.ok(ApiResponse.success(response, "Ride created successfully"));
     }
 
-     @GetMapping("/my")
+    @GetMapping("/my")
     public ApiResponse<?> my(Authentication authentication) {
         String userId = (String) authentication.getPrincipal();
-        System.out.println("getting my rides for user : "+userId);
+        System.out.println("getting my rides for user : " + userId);
         return ApiResponse.success(rideService.myRides(userId), "My rides");
     }
 
@@ -78,9 +78,13 @@ public class RideController {
     }
 
     @PostMapping("/{id}/complete")
-    public ApiResponse<?> complete(@PathVariable String id) {
-        rideService.complete(id);
-        return ApiResponse.success(null, "Ride completed");
+    public ApiResponse<?> complete(@PathVariable String id,
+            Authentication authentication) {
+
+        String userUuid = authentication.getName();
+
+        rideService.complete(id, userUuid);
+        return ApiResponse.success(null, "Ride completed successfully");
     }
 
     @PostMapping("/{id}/stats")
