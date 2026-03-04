@@ -4,5 +4,7 @@ public enum RsvpStatus {
 PLANNED,
     ONGOING,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    STARTED,
+    CREATED
 }
