@@ -2,11 +2,15 @@ package com.ridersclub.ride.entity;
 
 import java.time.LocalDateTime;
 
+import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.Status;
 import com.ridersclub.user.entity.User;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -31,31 +35,39 @@ public class RideParticipant {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "ride_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "ride_id", nullable = false)
     private Ride ride;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Enumerated(EnumType.STRING)
-    private ParticipantRole role;
+    @Column(nullable = false)
+    private Role role;
 
     @Enumerated(EnumType.STRING)
-    private RsvpStatus rsvpStatus;
+    @Column(nullable = false)
+    private Status rsvpStatus;
 
+    @Column(nullable = false)
     private LocalDateTime joinedAt;
 
     public RideParticipant(Ride ride, User user) {
         this.ride = ride;
         this.user = user;
-        this.role = ParticipantRole.ADMIN;
-        this.rsvpStatus = RsvpStatus.PLANNED;  // creator joined
+        this.role = Role.ADMIN;
+        this.rsvpStatus = Status.CREATED;
         this.joinedAt = LocalDateTime.now();
     }
 
-    public RideParticipant(Object object, Long rideId, Long userId, LocalDateTime now) {
-        //TODO Auto-generated constructor stub
+    // ✅ Generic participant constructor
+    public RideParticipant(Ride ride, User user, Role role, Status status) {
+        this.ride = ride;
+        this.user = user;
+        this.role = role;
+        this.rsvpStatus = status;
+        this.joinedAt = LocalDateTime.now();
     }
 }

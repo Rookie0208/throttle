@@ -1,5 +1,4 @@
 package com.ridersclub.ride.repository;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -19,4 +18,5 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
     @Query("SELECT rp.ride FROM RideParticipant rp WHERE rp.user.uuid = :userUuid")
     List<Ride> findMyRides(@Param("userUuid") String userUuid);
 
+    List<Ride> findByCreatedBy_Id(Long userId);
 }
