@@ -18,6 +18,7 @@ import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
+import com.ridersclub.ride.dto.response.MyRidesResp;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
@@ -67,7 +68,7 @@ public class RideService {
             rideRules.add(rule);
         }
         ride.setRules(rideRules);
-        
+
         ride.setUuid(UUID.randomUUID().toString());
         ride.setCaptain(currentUser);
 
@@ -121,8 +122,43 @@ public class RideService {
         participantRepo.save(new RideParticipant(ride, user));
     }
 
-    public List<Ride> myRides(String userId) {
-        return rideRepository.findMyRides(userId);
+    public List<MyRidesResp> myRides(String userId) {
+
+        User currUser = userRepository.findByUuid(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<Ride> rides = participantRepo
+                .findByUser_Id(currUser.getId())
+                .stream()
+                .map(RideParticipant::getRide)
+                .toList();
+
+        List<MyRidesResp> myRides = rides.stream()
+                .map(r -> MyRidesResp.builder()
+                        .uuid(r.getUuid())
+                        .title(r.getTitle())
+                        .description(r.getDescription())
+                        .rideType(r.getRideType())
+                        .routeType(r.getRouteType())
+                        .startTime(r.getStartTime())
+                        .endTime(r.getEndTime())
+                        .startLocation(r.getStartLocation())
+                        .endLocation(r.getEndLocation())
+                        .startLat(r.getStartLat())
+                        .startLng(r.getStartLng())
+                        .endLat(r.getEndLat())
+                        .endLng(r.getEndLng())
+                        .maxRiders(r.getMaxRiders())
+                        .createdByUuid(r.getCreatedBy().getUuid())
+                        .captainUuid(r.getCaptain() != null ? r.getCaptain().getUuid() : null)
+                        .visibility(r.getVisibility())
+                        .status(r.getStatus())
+                        .createdAt(r.getCreatedAt().toLocalDateTime())
+                        .updatedAt(r.getUpdatedAt().toLocalDateTime())
+                        .build())
+                .toList();
+
+        return myRides;
     }
 
     public List<RideParticipant> participants(String rideId) {
