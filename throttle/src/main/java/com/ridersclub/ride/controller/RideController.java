@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
@@ -27,7 +28,7 @@ import com.ridersclub.ride.service.RideService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-@Controller
+@RestController
 @RequestMapping("/api/v1/rides")
 @RequiredArgsConstructor
 public class RideController {
@@ -57,10 +58,10 @@ public class RideController {
         return ResponseEntity.ok(ApiResponse.success(response, "Ride created successfully"));
     }
 
-     @GetMapping("/my")
+    @GetMapping("/my")
     public ApiResponse<?> my(Authentication authentication) {
         String userId = (String) authentication.getPrincipal();
-        System.out.println("getting my rides for user : "+userId);
+        System.out.println("getting my rides for user : " + userId);
         return ApiResponse.success(rideService.myRides(userId), "My rides");
     }
 
