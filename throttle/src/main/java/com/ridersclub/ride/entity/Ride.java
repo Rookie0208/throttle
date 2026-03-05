@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.RouteType;
 import com.ridersclub.common.enums.Status;
@@ -51,20 +52,16 @@ public class Ride {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RideType rideType;   // SOLO / GROUP
+    private RideType rideType; // SOLO / GROUP
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RouteType routeType;   // ROAD / MOUNTAIN / HYBRID
+    private RouteType routeType; // ROAD / MOUNTAIN / HYBRID
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @OneToMany(
-        mappedBy = "ride",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true
-    )
+    @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ruleOrder ASC")
     private List<RideRule> rules = new ArrayList<>();
 
@@ -99,11 +96,11 @@ public class Ride {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Visibility visibility;   // PUBLIC / PRIVATE
+    private Visibility visibility; // PUBLIC / PRIVATE
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status;   // UPCOMING / COMPLETED / CANCELLED
+    private Status status; // UPCOMING / COMPLETED / CANCELLED
 
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
