@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
@@ -27,7 +28,7 @@ import com.ridersclub.ride.service.RideService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-@Controller
+@RestController
 @RequestMapping("/api/v1/rides")
 @RequiredArgsConstructor
 public class RideController {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/subscription_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -377,7 +378,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       child: TabBarView(
                         controller: _tabController,
                         children: [
-                          // Overview
+                          // Overview Tab
                           SingleChildScrollView(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,105 +424,152 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
 
                           // Settings Tab
-                          Column(
-                            children: [
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.notifications,
-                                  color: Colors.white,
-                                ),
-                                title: const Text(
-                                  "Notifications",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                subtitle: const Text(
-                                  "Manage alerts",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                          SingleChildScrollView(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              children: [
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.notifications,
+                                    color: Colors.white,
+                                  ),
+                                  title: const Text(
+                                    "Notifications",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  subtitle: const Text(
+                                    "Manage alerts",
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.message,
-                                  color: Colors.white,
-                                ),
-                                title: const Text(
-                                  "Messages",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                subtitle: const Text(
-                                  "Chat settings",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.message,
+                                    color: Colors.white,
+                                  ),
+                                  title: const Text(
+                                    "Messages",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  subtitle: const Text(
+                                    "Chat settings",
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.people,
-                                  color: Colors.white,
-                                ),
-                                title: const Text(
-                                  "Followers",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                subtitle: const Text(
-                                  "Manage connections",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.people,
+                                    color: Colors.white,
+                                  ),
+                                  title: const Text(
+                                    "Followers",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  subtitle: const Text(
+                                    "Manage connections",
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.directions_bike,
-                                  color: Colors.white,
-                                ),
-                                title: const Text(
-                                  "My Bikes",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                subtitle: const Text(
-                                  "Add or edit bikes",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.directions_bike,
+                                    color: Colors.white,
+                                  ),
+                                  title: const Text(
+                                    "My Bikes",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  subtitle: const Text(
+                                    "Add or edit bikes",
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.shield,
-                                  color: Colors.white,
-                                ),
-                                title: const Text(
-                                  "Privacy",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                subtitle: const Text(
-                                  "Data & security",
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.shield,
+                                    color: Colors.white,
+                                  ),
+                                  title: const Text(
+                                    "Privacy",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  subtitle: const Text(
+                                    "Data & security",
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.logout),
-                                label: const Text("Log Out"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xfffe6603),
-                                  foregroundColor: Colors.white,
-                                  minimumSize: const Size.fromHeight(50),
+
+                                // Subscription Section
+                                const SizedBox(height: 16),
+                                ListTile(
+                                  leading: const Icon(
+                                    Icons.workspace_premium,
+                                    color: Color(0xfffe6603),
+                                  ),
+                                  title: const Text(
+                                    "Subscription",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  subtitle: const Text(
+                                    "Manage your subscription plan",
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  trailing: ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => SubscriptionScreen(
+                                            onClose: () {
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xfffe6603),
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size(80, 36),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    child: const Text("Manage"),
+                                  ),
                                 ),
-                              ),
-                            ],
+
+                                const SizedBox(height: 16),
+                                ElevatedButton.icon(
+                                  onPressed: () {},
+                                  icon: const Icon(Icons.logout),
+                                  label: const Text("Log Out"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xfffe6603),
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size.fromHeight(50),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),

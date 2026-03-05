@@ -60,8 +60,7 @@ CREATE TABLE rides (
     visibility VARCHAR(20) DEFAULT 'PUBLIC'
         CHECK (visibility IN ('PUBLIC', 'PRIVATE')),
 
-    status VARCHAR(20) DEFAULT 'UPCOMING'
-        CHECK (status IN ('UPCOMING', 'COMPLETED', 'CANCELLED')),
+    status VARCHAR(20) DEFAULT 'UPCOMING',
 
     created_at TIMESTAMP DEFAULT now(),
     updated_at TIMESTAMP DEFAULT now(),
