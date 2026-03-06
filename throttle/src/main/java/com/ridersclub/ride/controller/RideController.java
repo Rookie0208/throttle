@@ -95,4 +95,6 @@ public class RideController {
         rideService.addStats(id, user.getUsername(), req);
         return ApiResponse.success(null, "Stats saved");
     }
+
+    
 }

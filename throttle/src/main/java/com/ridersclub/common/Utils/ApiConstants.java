@@ -35,6 +35,19 @@ public static final String API_VERSION = "/api/v1";
         public static final String STATS = "/{id}/stats";
     }
 
+    public static final class RideCaptain {
+
+        public static final String ASSIGN_ROLE = "/{rideId}/assign-role";
+        public static final String REMOVE_RIDER = "/{rideId}/remove-rider";
+    }
+
+    public static final class RideParticipant {
+
+        public static final String JOIN = "/{rideId}/join";
+        public static final String LEAVE = "/{rideId}/leave";
+        public static final String LIST = "/{rideId}/participants";
+    }
+
     public static final class Participants {
 
         public static final String JOIN = "/{id}/join";
