@@ -17,6 +17,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -27,13 +28,17 @@ import jakarta.persistence.Table;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
 @Table(name = "rides")
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Ride {
 
     @Id
@@ -43,24 +48,30 @@ public class Ride {
     @Column(nullable = false, unique = true, length = 100)
     private String uuid;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
+
+    // Club reference
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "club_id")
+    private Club club;
 
     @Column(nullable = false, length = 150)
     private String title;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RideType rideType; // SOLO / GROUP
+    private RideType rideType;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private RouteType routeType; // ROAD / MOUNTAIN / HYBRID
+    private RouteType routeType;
 
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // Ride Rules
     @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ruleOrder ASC")
     private List<RideRule> rules = new ArrayList<>();
@@ -70,37 +81,27 @@ public class Ride {
 
     private LocalDateTime endTime;
 
-    @Column(nullable = false)
-    private String startLocation;
-
-    @Column(nullable = false)
-    private String endLocation;
-
-    @Column(nullable = false)
-    private Double startLat;
-
-    @Column(nullable = false)
-    private Double startLng;
-
-    @Column(nullable = false)
-    private Double endLat;
-
-    @Column(nullable = false)
-    private Double endLng;
+    // Ride Locations (START / CHECKPOINT / END)
+    @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sequence ASC")
+    private List<RideLocation> locations = new ArrayList<>();
 
     private Integer maxRiders;
 
-    @ManyToOne
+    @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RideGroup> groups = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "captain_id")
     private User captain;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Visibility visibility; // PUBLIC / PRIVATE
+    private Visibility visibility;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status; // UPCOMING / COMPLETED / CANCELLED
+    private Status status;
 
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -117,5 +118,10 @@ public class Ride {
     @PreUpdate
     public void onUpdate() {
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    public void addLocation(RideLocation location) {
+        locations.add(location);
+        location.setRide(this);
     }
 }
