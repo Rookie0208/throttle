@@ -1,11 +1,13 @@
 package com.ridersclub.ride.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.RouteType;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.common.enums.Visibility;
+import com.ridersclub.ride.entity.RideLocation;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,23 +30,17 @@ public class MyRidesResp {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
 
-    private String startLocation;
-    private String endLocation;
-
-    private Double startLat;
-    private Double startLng;
-    private Double endLat;
-    private Double endLng;
+    // route locations
+    private List<RideLocationResp> locations;
 
     private Integer maxRiders;
 
-    private String createdByUuid; // only user UUID, not full User object
-    private String captainUuid;   // only user UUID if assigned
+    private String createdByUuid;
+    private String captainUuid;
 
     private Visibility visibility;
     private Status status;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
 }

@@ -80,29 +80,6 @@ CREATE TABLE club_members (
 CREATE INDEX idx_club_members_club ON club_members(club_id);
 
 --------------------------------------------------
--- RIDE LOCATIONS
---------------------------------------------------
-
-CREATE TABLE ride_locations (
-    id BIGSERIAL PRIMARY KEY,
-
-    location_type VARCHAR(20)
-        CHECK (location_type IN ('START','END','CHECKPOINT','LIVE')),
-
-    latitude DOUBLE PRECISION NOT NULL,
-    longitude DOUBLE PRECISION NOT NULL,
-
-    name VARCHAR(255),
-    user_id BIGINT,
-
-    recorded_at TIMESTAMP DEFAULT now(),
-
-    FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-);
-
---------------------------------------------------
 -- RIDES 
 --------------------------------------------------
 
@@ -122,9 +99,6 @@ CREATE TABLE rides (
 
     start_time TIMESTAMP NOT NULL,
     end_time TIMESTAMP,
-
-    start_location_id BIGINT,
-    end_location_id BIGINT,
 
     max_riders INT CHECK (max_riders > 0),
 
@@ -148,19 +122,38 @@ CREATE TABLE rides (
 
     FOREIGN KEY (club_id)
         REFERENCES clubs(id)
-        ON DELETE SET NULL,
-
-    FOREIGN KEY (start_location_id)
-        REFERENCES ride_locations(id)
-        ON DELETE SET NULL,
-
-    FOREIGN KEY (end_location_id)
-        REFERENCES ride_locations(id)
         ON DELETE SET NULL
+
 );
 
 CREATE INDEX idx_rides_status ON rides(status);
 CREATE INDEX idx_rides_start_time ON rides(start_time);
+
+--------------------------------------------------
+-- RIDE LOCATIONS
+--------------------------------------------------
+
+CREATE TABLE ride_locations (
+    id BIGSERIAL PRIMARY KEY,
+
+    ride_id BIGINT NOT NULL,
+
+    location_type VARCHAR(20)
+        CHECK (location_type IN ('START','END','CHECKPOINT')),
+
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+
+    name VARCHAR(255),
+
+    sequence INT,
+
+    recorded_at TIMESTAMP DEFAULT now(),
+
+    FOREIGN KEY (ride_id)
+        REFERENCES rides(id)
+        ON DELETE CASCADE
+);
 
 --------------------------------------------------
 -- RIDE INVITES
@@ -331,6 +324,34 @@ CREATE TABLE ride_rules (
 
 CREATE INDEX idx_rr_ride ON ride_rules(ride_id);
 CREATE INDEX idx_rr_created_by ON ride_rules(created_by);
+
+------------------------------------------------
+-- RIDE LIVE LOCATIONS
+------------------------------------------------
+
+CREATE TABLE ride_live_locations (
+    id BIGSERIAL PRIMARY KEY,
+
+    ride_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+
+    recorded_at TIMESTAMP DEFAULT now(),
+
+    FOREIGN KEY (ride_id)
+        REFERENCES rides(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_live_location_ride ON ride_live_locations(ride_id);
+CREATE INDEX idx_live_location_user ON ride_live_locations(user_id);
+CREATE INDEX idx_live_location_time ON ride_live_locations(recorded_at);
 
 --------------------------------------------------
 -- NOTIFICATIONS

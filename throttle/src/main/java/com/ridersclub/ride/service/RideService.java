@@ -14,18 +14,25 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ridersclub.common.Utils.UserUtility;
+import com.ridersclub.common.enums.LocationType;
 import com.ridersclub.common.enums.NotificationType;
+import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.MyRidesResp;
+import com.ridersclub.ride.dto.response.RideLocationResp;
+import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
+import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
 import com.ridersclub.ride.entity.RideRule;
 import com.ridersclub.ride.entity.RideStats;
+import com.ridersclub.ride.repository.GroupMemberRepository;
+import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.ride.repository.RideParticipantRepository;
 import com.ridersclub.ride.repository.RideRepository;
 import com.ridersclub.ride.repository.RideStatsRepository;
@@ -45,7 +52,11 @@ public class RideService {
     @Autowired
     private UserRepository userRepository;
     @Autowired
-private NotificationService notificationService;
+    private NotificationService notificationService;
+    @Autowired
+    private RideGroupRepository rideGroupRepository;
+    @Autowired
+    private GroupMemberRepository groupMemberRepository;
 
     public Ride createRide(CreateRideRequest request, String currentUserUUId) throws AccessDeniedException {
         User currentUser = userRepository.findByUuid(currentUserUUId)
@@ -80,18 +91,22 @@ private NotificationService notificationService;
         start.setName(request.getStartLocation().getName());
         start.setLatitude(request.getStartLocation().getLatitude());
         start.setLongitude(request.getStartLocation().getLongitude());
+        start.setLocationType(LocationType.START);
+        start.setSequence(1);
+        start.setRide(ride);
+
+        ride.addLocation(start);
 
         RideLocation end = new RideLocation();
         end.setName(request.getEndLocation().getName());
         end.setLatitude(request.getEndLocation().getLatitude());
         end.setLongitude(request.getEndLocation().getLongitude());
-        ride.setStartLocation(start.toString());
-        ride.setEndLocation(end.toString());
+        end.setLocationType(LocationType.END);
+        end.setSequence(2);
+        end.setRide(ride);
 
-        ride.setStartLat(request.getStartLocation().getLatitude());
-        ride.setStartLng(request.getStartLocation().getLongitude());
-        ride.setEndLat(request.getEndLocation().getLatitude());
-        ride.setEndLng(request.getEndLocation().getLongitude());
+        ride.addLocation(end);
+
         ride.setCreatedBy(currentUser);
 
         Ride saved = rideRepository.save(ride);
@@ -99,13 +114,30 @@ private NotificationService notificationService;
         logger.debug("Ride created with ID: " + saved.getUuid() + " and Captain ID: " + saved.getCaptain().getId());
         logger.debug("full ride details: " + ride);
 
+        if (saved.getRideType() == RideType.GROUP) {
+
+            RideGroup mainGroup = new RideGroup();
+            mainGroup.setUuid(UUID.randomUUID().toString());
+            mainGroup.setRide(saved);
+            mainGroup.setName(saved.getTitle() + " - Main Group");
+            mainGroup.setCreatedBy(currentUser);
+
+            RideGroup savedGroup = rideGroupRepository.save(mainGroup);
+
+            GroupMember captainMember = new GroupMember();
+            captainMember.setGroup(savedGroup);
+            captainMember.setUser(currentUser);
+            captainMember.setRole("ADMIN");
+
+            groupMemberRepository.save(captainMember);
+        }
+
         notificationService.publishNotification(
-        currentUser,
-        "Ride Created",
-        "Your ride \"" + saved.getTitle() + "\" has been created successfully.",
-        NotificationType.RIDE_CREATED
-);
-logger.debug("notification published");
+                currentUser,
+                "Ride Created",
+                "Your ride \"" + saved.getTitle() + "\" has been created successfully.",
+                NotificationType.RIDE_CREATED);
+        logger.debug("notification published");
 
         return saved;
     }
@@ -134,12 +166,11 @@ logger.debug("notification published");
         participantRepo.save(new RideParticipant(ride, user));
 
         // Notify captain that someone joined
-    notificationService.publishNotification(
-            ride.getCreatedBy(),
-            "New Rider Joined",
-            user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\"",
-            NotificationType.RIDE_JOINED
-    );
+        notificationService.publishNotification(
+                ride.getCreatedBy(),
+                "New Rider Joined",
+                user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\"",
+                NotificationType.RIDE_JOINED);
     }
 
     public List<MyRidesResp> myRides(String userId) {
@@ -162,12 +193,15 @@ logger.debug("notification published");
                         .routeType(r.getRouteType())
                         .startTime(r.getStartTime())
                         .endTime(r.getEndTime())
-                        .startLocation(r.getStartLocation())
-                        .endLocation(r.getEndLocation())
-                        .startLat(r.getStartLat())
-                        .startLng(r.getStartLng())
-                        .endLat(r.getEndLat())
-                        .endLng(r.getEndLng())
+                        .locations(r.getLocations().stream()
+                                .map(loc -> RideLocationResp.builder()
+                                        .name(loc.getName())
+                                        .latitude(loc.getLatitude())
+                                        .longitude(loc.getLongitude())
+                                        .locationType(loc.getLocationType())
+                                        .sequence(loc.getSequence())
+                                        .build())
+                                .toList())
                         .maxRiders(r.getMaxRiders())
                         .createdByUuid(r.getCreatedBy().getUuid())
                         .captainUuid(r.getCaptain() != null ? r.getCaptain().getUuid() : null)
