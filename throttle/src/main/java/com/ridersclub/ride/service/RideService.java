@@ -14,8 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ridersclub.common.Utils.UserUtility;
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
+import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.MyRidesResp;
@@ -42,6 +44,8 @@ public class RideService {
     private RideStatsRepository statsRepo;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+private NotificationService notificationService;
 
     public Ride createRide(CreateRideRequest request, String currentUserUUId) throws AccessDeniedException {
         User currentUser = userRepository.findByUuid(currentUserUUId)
@@ -95,6 +99,14 @@ public class RideService {
         logger.debug("Ride created with ID: " + saved.getUuid() + " and Captain ID: " + saved.getCaptain().getId());
         logger.debug("full ride details: " + ride);
 
+        notificationService.publishNotification(
+        currentUser,
+        "Ride Created",
+        "Your ride \"" + saved.getTitle() + "\" has been created successfully.",
+        NotificationType.RIDE_CREATED
+);
+logger.debug("notification published");
+
         return saved;
     }
 
@@ -120,6 +132,14 @@ public class RideService {
             throw new RuntimeException("Already joined");
 
         participantRepo.save(new RideParticipant(ride, user));
+
+        // Notify captain that someone joined
+    notificationService.publishNotification(
+            ride.getCreatedBy(),
+            "New Rider Joined",
+            user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\"",
+            NotificationType.RIDE_JOINED
+    );
     }
 
     public List<MyRidesResp> myRides(String userId) {
