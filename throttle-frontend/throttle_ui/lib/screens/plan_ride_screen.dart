@@ -43,7 +43,8 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   double endLng = 0.0;
 
   // ================= MAPBOX CONFIG =================
-  final String mapboxToken = "<YOUR_MAPBOX_ACCESS_TOKEN>"; // add your token here
+  final String mapboxToken =
+      "sk.eyJ1IjoiYW1pdHJhd2F0MjYxMiIsImEiOiJjbW1jNmZhZjQwMnNnMnJxdzJzNjJ0amk2In0.7524zGVXx4-Qq41E_LKOTg"; // add your token here
 
   // ================= UI HELPERS =================
   Widget sectionTitle(String text) {
@@ -52,7 +53,9 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       child: Text(
         text,
         style: const TextStyle(
-            color: Colors.white70, fontWeight: FontWeight.bold),
+          color: Colors.white70,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }
@@ -115,8 +118,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   }
 
   Future<void> pickTime() async {
-    final picked =
-        await showTimePicker(context: context, initialTime: selectedTime);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+    );
 
     if (picked != null) {
       setState(() => selectedTime = picked);
@@ -133,7 +138,13 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       ),
       isScrollControlled: true,
       builder: (_) {
-        List<String> clubMembers = ["Rahul", "Amit", "Sneha", "Karan", "Vikram"];
+        List<String> clubMembers = [
+          "Rahul",
+          "Amit",
+          "Sneha",
+          "Karan",
+          "Vikram",
+        ];
 
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -147,9 +158,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     const Text(
                       "Invite Club Members",
                       style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Expanded(
@@ -160,8 +172,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                           final isSelected = selectedFriends.contains(member);
 
                           return ListTile(
-                            title:
-                                Text(member, style: const TextStyle(color: Colors.white)),
+                            title: Text(
+                              member,
+                              style: const TextStyle(color: Colors.white),
+                            ),
                             trailing: Checkbox(
                               value: isSelected,
                               activeColor: primaryColor,
@@ -187,7 +201,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       ),
                       onPressed: () => Navigator.pop(context),
                       child: const Text("Done"),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -245,67 +259,67 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
   // ================= CREATE RIDE =================
   // ------------------- CREATE RIDE -------------------
-Future<void> createRide() async {
-  if (titleController.text.trim().isEmpty) {
-    showError("Title is required");
-    return;
-  }
-  if (descriptionController.text.trim().isEmpty) {
-    showError("Description is required");
-    return;
-  }
-  if (startLocationController.text.trim().isEmpty ||
-      endLocationController.text.trim().isEmpty) {
-    showError("Start and End locations are required");
-    return;
-  }
-  if (rideType == "GROUP" &&
-      (maxRidersController.text.isEmpty ||
-          int.tryParse(maxRidersController.text) == null)) {
-    showError("Max Riders is required for group rides");
-    return;
-  }
+  Future<void> createRide() async {
+    if (titleController.text.trim().isEmpty) {
+      showError("Title is required");
+      return;
+    }
+    if (descriptionController.text.trim().isEmpty) {
+      showError("Description is required");
+      return;
+    }
+    if (startLocationController.text.trim().isEmpty ||
+        endLocationController.text.trim().isEmpty) {
+      showError("Start and End locations are required");
+      return;
+    }
+    if (rideType == "GROUP" &&
+        (maxRidersController.text.isEmpty ||
+            int.tryParse(maxRidersController.text) == null)) {
+      showError("Max Riders is required for group rides");
+      return;
+    }
 
-  setState(() => isLoading = true);
+    setState(() => isLoading = true);
 
-  final rideData = {
-    "title": titleController.text.trim(),
-    "description": descriptionController.text.replaceAll("\n", " "),
-    "rideType": rideType,
-    "routeType": "HIGHWAY",
-    "difficulty": difficulty,
-    "startTime": selectedStartTime.toUtc().toIso8601String(),
-    "visibility": "PUBLIC",
-    "maxRiders": rideType == "GROUP"
-        ? int.parse(maxRidersController.text)
-        : 1,
-    "rules": rulesController.text.isNotEmpty
-        ? rulesController.text.split(",").map((e) => e.trim()).toList()
-        : [],
-    "invitedFriends": selectedFriends,
-    "startLocation": {
-      "name": startLocationController.text.trim(),
-      "latitude": startLat,
-      "longitude": startLng,
-    },
-    "endLocation": {
-      "name": endLocationController.text.trim(),
-      "latitude": endLat,
-      "longitude": endLng,
-    },
-  };
+    final rideData = {
+      "title": titleController.text.trim(),
+      "description": descriptionController.text.replaceAll("\n", " "),
+      "rideType": rideType,
+      "routeType": "HIGHWAY",
+      "difficulty": difficulty,
+      "startTime": selectedStartTime.toUtc().toIso8601String(),
+      "visibility": "PUBLIC",
+      "maxRiders": rideType == "GROUP"
+          ? int.parse(maxRidersController.text)
+          : 1,
+      "rules": rulesController.text.isNotEmpty
+          ? rulesController.text.split(",").map((e) => e.trim()).toList()
+          : [],
+      "invitedFriends": selectedFriends,
+      "startLocation": {
+        "name": startLocationController.text.trim(),
+        "latitude": startLat,
+        "longitude": startLng,
+      },
+      "endLocation": {
+        "name": endLocationController.text.trim(),
+        "latitude": endLat,
+        "longitude": endLng,
+      },
+    };
 
-  final result = await RideService.createRide(rideData, widget.token);
+    final result = await RideService.createRide(rideData, widget.token);
 
-  setState(() => isLoading = false);
+    setState(() => isLoading = false);
 
-  if (result["success"]) {
-    showSuccess("Ride created successfully!");
-    Navigator.pop(context, rideType == "GROUP");
-  } else {
-    showError(result["message"] ?? "Failed to create ride");
+    if (result["success"]) {
+      showSuccess("Ride created successfully!");
+      Navigator.pop(context, rideType == "GROUP");
+    } else {
+      showError(result["message"] ?? "Failed to create ride");
+    }
   }
-}
 
   // ================= BUILD =================
   @override
@@ -338,10 +352,13 @@ Future<void> createRide() async {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
-                          child: Text(type,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
+                          child: Text(
+                            type,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -360,8 +377,10 @@ Future<void> createRide() async {
                   border: Border.all(color: Colors.white24),
                 ),
                 child: const Center(
-                  child: Text("Map goes here",
-                      style: TextStyle(color: Colors.white38)),
+                  child: Text(
+                    "Map goes here",
+                    style: TextStyle(color: Colors.white38),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -387,22 +406,26 @@ Future<void> createRide() async {
               // TITLE
               sectionTitle("Title"),
               modernField(
-                  controller: titleController, hint: "Sunday Morning Ride"),
+                controller: titleController,
+                hint: "Sunday Morning Ride",
+              ),
               const SizedBox(height: 16),
 
               // DESCRIPTION
               sectionTitle("Description"),
               modernField(
-                  controller: descriptionController,
-                  hint: "Describe the ride...",
-                  maxLines: 3),
+                controller: descriptionController,
+                hint: "Describe the ride...",
+                maxLines: 3,
+              ),
               const SizedBox(height: 16),
 
               // RULES
               sectionTitle("Rules (comma separated)"),
               modernField(
-                  controller: rulesController,
-                  hint: "Helmet required, No rash riding"),
+                controller: rulesController,
+                hint: "Helmet required, No rash riding",
+              ),
               const SizedBox(height: 16),
 
               // DATE & TIME
@@ -452,10 +475,13 @@ Future<void> createRide() async {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Center(
-                          child: Text(level,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold)),
+                          child: Text(
+                            level,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -487,10 +513,16 @@ Future<void> createRide() async {
                         selectedFriends.isEmpty
                             ? "Select club members"
                             : "${selectedFriends.length} selected",
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                       ),
-                      const Icon(Icons.chevron_right,
-                          color: Colors.white54, size: 18),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Colors.white54,
+                        size: 18,
+                      ),
                     ],
                   ),
                 ),
@@ -522,9 +554,10 @@ Future<void> createRide() async {
                       : const Text(
                           "Create Ride",
                           style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                 ),
               ),

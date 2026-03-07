@@ -14,8 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.ridersclub.common.Utils.UserUtility;
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
+import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.MyRidesResp;
@@ -42,6 +44,8 @@ public class RideService {
     private RideStatsRepository statsRepo;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+private NotificationService notificationService;
 
     public Ride createRide(CreateRideRequest request, String currentUserUUId) throws AccessDeniedException {
         User currentUser = userRepository.findByUuid(currentUserUUId)
@@ -88,13 +92,20 @@ public class RideService {
         ride.setStartLng(request.getStartLocation().getLongitude());
         ride.setEndLat(request.getEndLocation().getLatitude());
         ride.setEndLng(request.getEndLocation().getLongitude());
-
         ride.setCreatedBy(currentUser);
 
         Ride saved = rideRepository.save(ride);
         participantRepo.save(new RideParticipant(saved, currentUser));
         logger.debug("Ride created with ID: " + saved.getUuid() + " and Captain ID: " + saved.getCaptain().getId());
         logger.debug("full ride details: " + ride);
+
+        notificationService.publishNotification(
+        currentUser,
+        "Ride Created",
+        "Your ride \"" + saved.getTitle() + "\" has been created successfully.",
+        NotificationType.RIDE_CREATED
+);
+logger.debug("notification published");
 
         return saved;
     }
@@ -104,6 +115,16 @@ public class RideService {
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
+        if (ride.getStatus() != Status.CREATED) {
+            throw new RuntimeException("Ride already started. Cannot join.");
+        }
+
+        long currentCount = participantRepo.countByRide_Id(ride.getId());
+
+        if (currentCount >= ride.getMaxRiders()) {
+            throw new RuntimeException("Ride is full");
+        }
+
         User user = userRepository.findByUuid(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -111,6 +132,14 @@ public class RideService {
             throw new RuntimeException("Already joined");
 
         participantRepo.save(new RideParticipant(ride, user));
+
+        // Notify captain that someone joined
+    notificationService.publishNotification(
+            ride.getCreatedBy(),
+            "New Rider Joined",
+            user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\"",
+            NotificationType.RIDE_JOINED
+    );
     }
 
     public List<MyRidesResp> myRides(String userId) {
@@ -156,10 +185,18 @@ public class RideService {
         return participantRepo.findByRide_Id(rideId);
     }
 
-    public void complete(String rideId) {
+    public void complete(String rideId, String userId) {
 
         Ride ride = rideRepository.findById(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+        RideParticipant participant = participantRepo
+                .findByRide_IdAndUser_Uuid(rideId, userId)
+                .orElseThrow(() -> new RuntimeException("Not part of ride"));
+
+        if (participant.getRole() != Role.CAPTAIN) {
+            throw new RuntimeException("Only captain can complete ride");
+        }
 
         ride.setStatus(Status.COMPLETED);
         rideRepository.save(ride);
@@ -171,6 +208,7 @@ public class RideService {
                 req.getDistanceKm(), req.getDurationMinutes(), req.getAvgSpeed()));
     }
 
+    // ------------- DASHBOARD ------------------
     public Map<String, Object> dashboard(String userId) {
 
         List<RideStats> stats = statsRepo.findByUser_Id(userId);
