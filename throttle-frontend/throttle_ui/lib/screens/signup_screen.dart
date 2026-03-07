@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/login_screen.dart';
 import 'package:throttle_ui/screens/main_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
 
@@ -118,7 +119,7 @@ class _SignupScreenState extends State<SignupScreen> {
           context,
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const MainScreen(),
+            pageBuilder: (_, __, ___) => const LoginScreen(),
             transitionsBuilder: (_, animation, __, child) {
               final offsetAnimation =
                   Tween<Offset>(

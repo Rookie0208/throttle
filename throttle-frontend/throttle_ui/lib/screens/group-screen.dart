@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/services/group_service.dart';
-import 'package:throttle_ui/screens/group_chat_screen.dart';
 import 'group_chat_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
@@ -12,13 +10,16 @@ class GroupsScreen extends StatefulWidget {
   State<GroupsScreen> createState() => _GroupsScreenState();
 }
 
-class _GroupsScreenState extends State<GroupsScreen> {
+class _GroupsScreenState extends State<GroupsScreen>
+    with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> groups = [];
   bool isLoading = true;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     fetchGroups();
   }
 
@@ -55,6 +56,64 @@ class _GroupsScreenState extends State<GroupsScreen> {
     });
   }
 
+  Widget _buildGroupCard(Map<String, dynamic> group) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GroupChatScreen(
+              group: group,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xff1a1c20),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 45,
+              width: 45,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xfffe6603).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                group["name"][0], // first letter
+                style: const TextStyle(
+                  color: Color(0xfffe6603),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                group["name"],
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Text(
+              group["rideStatus"], // show ride status
+              style: const TextStyle(color: Colors.white38),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -63,76 +122,47 @@ class _GroupsScreenState extends State<GroupsScreen> {
       );
     }
 
+    // Separate active and completed groups
+    final activeGroups = groups.where((g) => g["status"] == "active").toList();
+    final completedGroups = groups.where((g) => g["status"] == "archive").toList();
+
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
       appBar: AppBar(
         backgroundColor: const Color(0xff0f1114),
         title: const Text("Rides"),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: const Color(0xfffe6603),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(text: "Active"),
+            Tab(text: "Completed"),
+          ],
+        ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: groups.length,
-        itemBuilder: (context, index) {
-          final group = groups[index];
-
-          return GestureDetector(
-            onTap: () {
-              // Pass the current user role; here assuming "Amit" is logged in
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GroupChatScreen(
-                    group: group,
-                    // userId: "u1", // Replace with logged-in userId
-                  ),
-                ),
-              );
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Active Groups Tab
+          ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: activeGroups.length,
+            itemBuilder: (context, index) {
+              return _buildGroupCard(activeGroups[index]);
             },
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xff1a1c20),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    height: 45,
-                    width: 45,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: const Color(0xfffe6603).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      group["name"][0], // first letter
-                      style: const TextStyle(
-                        color: Color(0xfffe6603),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      group["name"],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    group["rideStatus"], // show ride status
-                    style: const TextStyle(color: Colors.white38),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+          ),
+
+          // Completed Groups Tab
+          ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: completedGroups.length,
+            itemBuilder: (context, index) {
+              return _buildGroupCard(completedGroups[index]);
+            },
+          ),
+        ],
       ),
     );
   }
