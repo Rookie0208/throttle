@@ -1,21 +1,16 @@
 package com.ridersclub.notification.repository;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import com.ridersclub.notification.entity.Notification;
+import com.ridersclub.notification.entity.Notifications;
 
-public interface NotificationRepository {
+@Repository
+public interface NotificationRepository extends JpaRepository<Notifications, Long> {
 
-    Notification save(Notification notification);
-
-    Optional<Notification> findById(Long id);
-
-    List<Notification> findByUserUuidOrderByCreatedAtDesc(String userUuid);
-
-    List<Notification> findAll();
+List<Notifications> findByUserIdOrderByCreatedAtDesc(Long userId);
+    // List<Notification> findByUserUuidOrderByCreatedAtDesc(String userUuid);
 
 }
