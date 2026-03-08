@@ -7,8 +7,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 @EnableAsync
-@EnableJpaRepositories(basePackages = {"com.ridersclub.user.repository", "com.ridersclub.ride.repository"})
-@EntityScan(basePackages = "com.ridersclub.user.entity, com.ridersclub.ride.entity")
+@EnableJpaRepositories(basePackages = {"com.ridersclub.user.repository", "com.ridersclub.ride.repository", "com.ridersclub.notification.repository"})
+@EntityScan(basePackages = "com.ridersclub.user.entity, com.ridersclub.ride.entity, com.ridersclub.notification.entity")
 @SpringBootApplication(scanBasePackages = "com.ridersclub")
 public class ThrottleApplication {
 

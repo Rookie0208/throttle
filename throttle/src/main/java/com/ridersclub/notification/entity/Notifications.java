@@ -14,6 +14,7 @@ import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.user.entity.User;
 
 @Entity
+@Table(name = "notifications")
 @Getter
 @Setter
 @NoArgsConstructor
