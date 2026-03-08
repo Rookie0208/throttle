@@ -133,11 +133,11 @@ public class RideService {
         }
 
         notificationService.publishNotification(
-                currentUser,
+                currentUser.getId(),
                 "Ride Created",
                 "Your ride \"" + saved.getTitle() + "\" has been created successfully.",
                 NotificationType.RIDE_CREATED);
-        logger.debug("notification published");
+        System.out.println("notification published");
 
         return saved;
     }
@@ -167,7 +167,7 @@ public class RideService {
 
         // Notify captain that someone joined
         notificationService.publishNotification(
-                ride.getCreatedBy(),
+                ride.getCreatedBy().getId(),
                 "New Rider Joined",
                 user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\"",
                 NotificationType.RIDE_JOINED);

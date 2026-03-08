@@ -68,4 +68,11 @@ public static final String API_VERSION = "/api/v1";
         public static final String ADD = "/{id}/stats";
         public static final String GET = "/{id}/stats";
     }
+
+    public static final class Notifications {
+
+        public static final String BASE = API_VERSION + "/notifications";
+        public static final String MY = "/my";
+        public static final String MARK_AS_READ = "/{id}/read";
+    }
 }
