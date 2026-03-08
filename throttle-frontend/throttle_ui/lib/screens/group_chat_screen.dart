@@ -3,8 +3,9 @@ import 'package:throttle_ui/screens/group_info_sheet.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
+  final String token;
 
-  const GroupChatScreen({super.key, required this.group});
+  const GroupChatScreen({super.key, required this.group, required this.token});
 
   @override
   State<GroupChatScreen> createState() => _GroupChatScreenState();
@@ -86,7 +87,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RideInfoScreen(rideGroup: widget.group),
+        builder: (_) => RideInfoScreen(rideGroup: widget.group, token: widget.token),
       ),
     );
   }
