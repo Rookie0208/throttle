@@ -1,13 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/services/group_service.dart';
 
 class RideInfoScreen extends StatelessWidget {
   final Map<String, dynamic> rideGroup;
+  final String token; // <-- you need to pass token from previous screen
 
-  const RideInfoScreen({super.key, required this.rideGroup});
+  const RideInfoScreen({super.key, required this.rideGroup, required this.token});
+
+  // Fetch members from backend
+  Future<List<dynamic>> fetchMembers() async {
+    final result = await GroupService.fetchRideMembers(
+      token,
+      rideGroup["uuid"], // ride id
+    );
+    return result["data"] ?? [];
+  }
 
   @override
   Widget build(BuildContext context) {
+    print("Ride Group Data: $rideGroup");
     final bool isActive = rideGroup["status"] == "active";
+
+    // Backend fields
+    final String title = rideGroup["title"] ?? "";
+    final String description = rideGroup["description"] ?? "";
+    final String routeType = rideGroup["routeType"] ?? "";
+    final String rideType = rideGroup["rideType"] ?? "";
+    final String startTime = rideGroup["startTime"] ?? "";
+    final String endTime = rideGroup["endTime"] ?? "";
+    final int maxRiders = rideGroup["maxRiders"] ?? 0;
+
+    // locations
+    List locations = rideGroup["locations"] ?? [];
+    String startLocation = "";
+    for (var loc in locations) {
+      if (loc["locationType"] == "START") {
+        startLocation = loc["name"] ?? "";
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
@@ -19,9 +49,7 @@ class RideInfoScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
 
-          // ========================
-          // HERO SECTION
-          // ========================
+          // HERO
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -32,7 +60,7 @@ class RideInfoScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  rideGroup["name"],
+                  title,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -48,6 +76,11 @@ class RideInfoScreen extends StatelessWidget {
                         : Colors.greenAccent,
                   ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  description,
+                  style: const TextStyle(color: Colors.white70),
+                ),
               ],
             ),
           ),
@@ -55,71 +88,58 @@ class RideInfoScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // ========================
-          // UPCOMING RIDE METRICS
+          // RIDE PLAN
           // ========================
-          if (isActive) ...[
-            const Text("Ride Plan",
-                style: TextStyle(
-                    color: Color(0xfffe6603),
-                    fontWeight: FontWeight.bold)),
+          const Text(
+            "Ride Plan",
+            style: TextStyle(
+                color: Color(0xfffe6603),
+                fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          _metricTile("Ride Type", rideType),
+          _metricTile("Route Type", routeType),
+          _metricTile("Start Location", startLocation),
+          _metricTile("Start Time", startTime),
+          _metricTile("End Time", endTime),
+          _metricTile("Max Riders", maxRiders == 0 ? "" : maxRiders.toString()),
 
-            const SizedBox(height: 12),
-
-            _metricTile("Distance (Planned)", "120 km"),
-            _metricTile("Estimated Duration", "3h 40m"),
-            _metricTile("Difficulty", "Moderate"),
-            _metricTile("Start Location", "Shell Petrol Pump"),
-            _metricTile("Terrain", "Highway + Hills"),
-            _metricTile("Weather Forecast", "22°C Clear"),
-
-            const SizedBox(height: 24),
-
-            const Text("Participation",
-                style: TextStyle(
-                    color: Color(0xfffe6603),
-                    fontWeight: FontWeight.bold)),
-
-            const SizedBox(height: 12),
-
-            _metricTile("Riders Joined", "12"),
-            _metricTile("Spots Remaining", "3"),
-            _metricTile("Captain", "Vishal 👑"),
-            _metricTile("Fuel Stops Planned", "2"),
-            _metricTile("Route Shared", "Yes"),
-          ],
+          const SizedBox(height: 24),
 
           // ========================
-          // COMPLETED RIDE METRICS
+          // PARTICIPANTS
           // ========================
-          if (!isActive) ...[
-            const Text("Ride Summary",
-                style: TextStyle(
-                    color: Color(0xfffe6603),
-                    fontWeight: FontWeight.bold)),
+          const Text(
+            "Participants",
+            style: TextStyle(
+                color: Color(0xfffe6603),
+                fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
 
-            const SizedBox(height: 12),
+          // Use FutureBuilder to load members dynamically
+          FutureBuilder<List<dynamic>>(
+            future: fetchMembers(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(); // or CircularProgressIndicator()
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const SizedBox(); // show empty if no members
+              }
 
-            _metricTile("Distance Covered", "118 km"),
-            _metricTile("Total Duration", "3h 55m"),
-            _metricTile("Average Speed", "72 km/h"),
-            _metricTile("Max Speed", "128 km/h"),
-            _metricTile("Total Stops", "3"),
+              List members = snapshot.data!;
 
-            const SizedBox(height: 24),
-
-            const Text("Participation Stats",
-                style: TextStyle(
-                    color: Color(0xfffe6603),
-                    fontWeight: FontWeight.bold)),
-
-            const SizedBox(height: 12),
-
-            _metricTile("Riders Completed", "10"),
-            _metricTile("Drop-offs", "2"),
-            _metricTile("Top Rider", "Rahul 🏆"),
-            _metricTile("Ride Rating", "4.8 ⭐"),
-            _metricTile("Photos Uploaded", "36"),
-          ],
+              return Column(
+                children: members.map((m) {
+                  return _metricTile(
+                    m["name"] ?? "",
+                    m["role"] ?? "",
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
