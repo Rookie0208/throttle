@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/group_info_sheet.dart';
+import 'package:throttle_ui/screens/ride_start_screen.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
@@ -15,7 +16,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
 
-  // Demo messages (Old functionality preserved)
   List<Map<String, dynamic>> messages = [
     {"sender": "Mike T.", "message": "Hey everyone!", "time": "08:00 AM"},
     {"sender": "Alex R.", "message": "Morning! Ready for the ride?", "time": "08:05 AM"},
@@ -35,7 +35,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       messageController.clear();
     });
 
-    // Auto scroll to bottom
     Future.delayed(const Duration(milliseconds: 100), () {
       if (scrollController.hasClients) {
         scrollController.jumpTo(scrollController.position.maxScrollExtent);
@@ -87,13 +86,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => RideInfoScreen(rideGroup: widget.group, token: widget.token),
+        builder: (_) => RideInfoScreen(
+          rideGroup: widget.group,
+          token: widget.token,
+        ),
       ),
     );
   }
 
   void _openSubGroupCreation() {
-    // Placeholder for sub-group creation logic
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -122,36 +123,60 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         _openGroupInfo();
         break;
       case 'leave':
-        // Implement leave group logic here
         break;
       case 'subgroup':
         _openSubGroupCreation();
         break;
       case 'manage':
-        // Implement manage groups logic here
         break;
     }
+  }
+
+  /// 🚀 START RIDE NAVIGATION
+  void _startRide() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RideStartScreen(
+          groupName: widget.group["name"] ?? "Ride",
+          rideDate: "Sunday",
+          rideTime: "9:00 AM",
+          location: "Start Point",
+          memberCount: widget.group["members"]?.length ?? 0,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     bool isActive = widget.group["status"] == "active";
 
-    // Check if current user is the captain
     bool isCaptain = widget.group["members"]
-            .any((m) => m["role"] == "CAPTAIN" && m["id"] == "u1") // Replace u1 with current userId
-        ? true
-        : false;
+            .any((m) => m["role"] == "CAPTAIN" && m["id"] == "u1");
 
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
       appBar: AppBar(
         backgroundColor: const Color(0xff1a1c20),
+
+        /// ✅ FORCE TITLE LEFT
+        centerTitle: false,
+
         title: Text(
           widget.group["name"],
           style: const TextStyle(color: Colors.white),
         ),
+
         actions: [
+          /// 🚀 START RIDE BUTTON
+          // if (isCaptain)
+            IconButton(
+              icon: const Icon(Icons.play_arrow, color: Color(0xfffe6603)),
+              tooltip: "Start Ride",
+              onPressed: _startRide,
+            ),
+
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             color: const Color(0xff1a1c20),
@@ -180,7 +205,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
       body: Column(
         children: [
-          // Archived Banner
           if (!isActive)
             Container(
               width: double.infinity,
@@ -193,17 +217,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
             ),
 
-          // Chat messages
           Expanded(
             child: ListView.builder(
               controller: scrollController,
               padding: const EdgeInsets.symmetric(vertical: 12),
               itemCount: messages.length,
-              itemBuilder: (context, index) => _buildMessage(messages[index]),
+              itemBuilder: (context, index) =>
+                  _buildMessage(messages[index]),
             ),
           ),
 
-          // Input field (disabled if archived)
           if (isActive)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
