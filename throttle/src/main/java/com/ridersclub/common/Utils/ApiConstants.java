@@ -1,9 +1,9 @@
 package com.ridersclub.common.Utils;
 
 public class ApiConstants {
-public static final String API_VERSION = "/api/v1";
+    public static final String API_VERSION = "/api/v1";
 
-// ================= AUTH MODULE =================
+    // ================= AUTH MODULE =================
     public static final class Auth {
 
         public static final String BASE = API_VERSION + "/auth";
@@ -42,10 +42,10 @@ public static final String API_VERSION = "/api/v1";
     }
 
     public static final class RideParticipant {
-
+        public static final String BASE = API_VERSION + "/participants";
         public static final String JOIN = "/{rideId}/join";
         public static final String LEAVE = "/{rideId}/leave";
-        public static final String LIST = "/{rideId}/participants";
+        public static final String LIST = "/{rideId}";
     }
 
     public static final class Participants {
