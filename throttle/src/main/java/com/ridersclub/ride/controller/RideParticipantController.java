@@ -10,7 +10,7 @@ import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.ride.service.RideParticipantService;
 
 @RestController
-@RequestMapping(ApiConstants.Rides.BASE)
+@RequestMapping(ApiConstants.RideParticipant.BASE)
 public class RideParticipantController {
 
     private final RideParticipantService participantService;
@@ -33,7 +33,6 @@ public class RideParticipantController {
 
     @GetMapping(ApiConstants.RideParticipant.LIST)
     public ApiResponse<?> getParticipants(@PathVariable String rideId) {
-        // return ApiResponse.success(participantService.getParticipants(rideId),"Participants fetched");
-        return ApiResponse.success(null, "Participants fetched");
+        return ApiResponse.success(participantService.getRideParticipants(rideId),"Participants fetched");
     }
 }
