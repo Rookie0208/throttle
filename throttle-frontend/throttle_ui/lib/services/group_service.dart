@@ -37,7 +37,7 @@ class GroupService {
         "Content-Type": "application/json"
       },
     );
-    print("url : "+"$baseUrl/$rideUuid/participants");
+    print("url : $baseUrl/$rideUuid/participants");
 
     if (response.statusCode == 200) {
       print("Fetch Ride Members Response: ${response.body}");
