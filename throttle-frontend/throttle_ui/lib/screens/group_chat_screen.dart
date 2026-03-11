@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/assign_role_screen.dart';
 import 'package:throttle_ui/screens/group_info_sheet.dart';
+import 'package:throttle_ui/screens/invite_member_screen.dart';
+import 'package:throttle_ui/screens/manage_member_screen.dart';
 import 'package:throttle_ui/screens/ride_start_screen.dart';
 
 class GroupChatScreen extends StatefulWidget {
@@ -118,19 +121,53 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _handleMenuSelection(String value) {
-    switch (value) {
-      case 'info':
-        _openGroupInfo();
-        break;
-      case 'leave':
-        break;
-      case 'subgroup':
-        _openSubGroupCreation();
-        break;
-      case 'manage':
-        break;
-    }
+  switch (value) {
+
+    case 'info':
+      _openGroupInfo();
+      break;
+
+    case 'manage_members':
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ManageMembersScreen(
+            group: widget.group,
+            token: widget.token,
+          ),
+        ),
+      );
+      break;
+
+    case 'invite':
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => InviteMemberScreen(
+            groupId: widget.group["uuid"],
+            token: widget.token,
+          ),
+        ),
+      );
+      break;
+
+    case 'roles':
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AssignRoleScreen(
+            groupId: widget.group["uuid"],
+            token: widget.token,
+          ),
+        ),
+      );
+      break;
+
+    case 'subgroup':
+      _openSubGroupCreation();
+      break;
   }
+}
 
   /// 🚀 START RIDE NAVIGATION
   void _startRide() {
@@ -190,6 +227,18 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 child: Text("Leave Group", style: TextStyle(color: Colors.white)),
               ),
               if (isCaptain)
+              const PopupMenuItem(
+    value: 'manage_members',
+    child: Text("Manage Members", style: TextStyle(color: Colors.white)),
+  ),
+  const PopupMenuItem(
+    value: 'invite',
+    child: Text("Invite Riders", style: TextStyle(color: Colors.white)),
+  ),
+  const PopupMenuItem(
+    value: 'roles',
+    child: Text("Assign Roles", style: TextStyle(color: Colors.white)),
+  ),
                 const PopupMenuItem(
                   value: 'subgroup',
                   child: Text("Create Subgroup", style: TextStyle(color: Colors.white)),
