@@ -5,7 +5,11 @@ class RideInfoScreen extends StatelessWidget {
   final Map<String, dynamic> rideGroup;
   final String token; // <-- you need to pass token from previous screen
 
-  const RideInfoScreen({super.key, required this.rideGroup, required this.token});
+  const RideInfoScreen({
+    super.key,
+    required this.rideGroup,
+    required this.token,
+  });
 
   // Fetch members from backend
   Future<List<dynamic>> fetchMembers() async {
@@ -48,7 +52,6 @@ class RideInfoScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-
           // HERO
           Container(
             padding: const EdgeInsets.all(16),
@@ -93,8 +96,9 @@ class RideInfoScreen extends StatelessWidget {
           const Text(
             "Ride Plan",
             style: TextStyle(
-                color: Color(0xfffe6603),
-                fontWeight: FontWeight.bold),
+              color: Color(0xfffe6603),
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           _metricTile("Ride Type", rideType),
@@ -112,8 +116,9 @@ class RideInfoScreen extends StatelessWidget {
           const Text(
             "Participants",
             style: TextStyle(
-                color: Color(0xfffe6603),
-                fontWeight: FontWeight.bold),
+              color: Color(0xfffe6603),
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -132,9 +137,9 @@ class RideInfoScreen extends StatelessWidget {
 
               return Column(
                 children: members.map((m) {
-                  return _metricTile(
-                    m["name"] ?? "",
-                    m["role"] ?? "",
+                  return GestureDetector(
+                    onTap: () => _openMemberSheet(context, m),
+                    child: _metricTile(m["name"] ?? "", m["role"] ?? ""),
                   );
                 }).toList(),
               );
@@ -142,6 +147,112 @@ class RideInfoScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  void _openMemberSheet(BuildContext context, Map member) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xff1a1c20),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        final String name = member["name"] ?? "";
+        final String role = member["role"] ?? "MEMBER";
+
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              /// MEMBER BASIC INFO
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: const Color(0xfffe6603),
+                    child: Text(
+                      member["name"][0],
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(role, style: const TextStyle(color: Colors.white70)),
+                    ],
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              /// VIEW PROFILE
+              ListTile(
+                leading: const Icon(Icons.info_outline, color: Colors.white),
+                title: const Text(
+                  "View Profile",
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Navigate to full profile screen
+                },
+              ),
+
+              /// PROMOTE
+              ListTile(
+                leading: const Icon(Icons.arrow_upward, color: Colors.green),
+                title: const Text(
+                  "Promote to Navigator",
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // call promote API
+                },
+              ),
+
+              /// DEMOTE
+              ListTile(
+                leading: const Icon(Icons.arrow_downward, color: Colors.orange),
+                title: const Text(
+                  "Demote to Member",
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // call demote API
+                },
+              ),
+
+              /// REMOVE
+              ListTile(
+                leading: const Icon(Icons.remove_circle, color: Colors.red),
+                title: const Text(
+                  "Remove from Ride",
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  // call remove API
+                },
+              ),
+
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
     );
   }
 
