@@ -21,6 +21,7 @@ import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
+import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.MyRidesResp;
 import com.ridersclub.ride.dto.response.RideLocationResp;
@@ -140,6 +141,25 @@ public class RideService {
         System.out.println("notification published");
 
         return saved;
+    }
+
+    public RideGroup createSubGroup(CreateSubGroupRequest request, User currentUser) {
+
+        RideGroup parentGroup = rideGroupRepository
+                .findByUuid(request.getParentGroupUuid())
+                .orElseThrow(() -> new RuntimeException("Parent group not found"));
+
+        RideGroup subGroup = new RideGroup();
+
+        subGroup.setUuid(UUID.randomUUID().toString());
+        subGroup.setName(request.getName());
+        subGroup.setParentGroup(parentGroup);
+        subGroup.setRide(parentGroup.getRide());
+        subGroup.setCreatedBy(currentUser);
+
+        rideGroupRepository.save(subGroup);
+
+        return subGroup;
     }
 
     public void join(String rideId, String userId) {
