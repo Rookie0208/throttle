@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/assign_role_screen.dart';
+import 'package:throttle_ui/screens/create_subgroup_screen.dart';
 import 'package:throttle_ui/screens/group_info_sheet.dart';
 import 'package:throttle_ui/screens/invite_member_screen.dart';
 import 'package:throttle_ui/screens/manage_member_screen.dart';
@@ -101,24 +102,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _openSubGroupCreation() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xff1a1c20),
-        title: const Text(
-          "Create Subgroup",
-          style: TextStyle(color: Colors.white),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateSubGroupScreen(
+          groupId: widget.group["uuid"],
+          token: widget.token,
         ),
-        content: const Text(
-          "Here you can implement subgroup creation UI.",
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Close"),
-          ),
-        ],
       ),
     );
   }
@@ -261,6 +251,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
       body: Column(
         children: [
+          /// SUBGROUP BAR
+          _subGroupBar(),
+
           if (!isActive)
             Container(
               width: double.infinity,
@@ -273,6 +266,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               ),
             ),
 
+          /// CHAT
           Expanded(
             child: ListView.builder(
               controller: scrollController,
@@ -282,31 +276,88 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
           ),
 
-          if (isActive)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: const Color(0xff1a1c20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: messageController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: "Type a message...",
-                        hintStyle: TextStyle(color: Colors.white38),
-                        border: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.send, color: Color(0xfffe6603)),
-                    onPressed: sendMessage,
-                  ),
-                ],
+          /// MESSAGE INPUT
+          if (isActive) _messageInput(),
+        ],
+      ),
+    );
+  }
+
+  Widget _messageInput() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: const Color(0xff1a1c20),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: messageController,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: "Type a message...",
+                hintStyle: TextStyle(color: Colors.white38),
+                border: InputBorder.none,
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.send, color: Color(0xfffe6603)),
+            onPressed: sendMessage,
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _subGroupBar() {
+    final subGroups = widget.group["subgroups"] ?? [];
+
+    if (subGroups.isEmpty) return const SizedBox();
+
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: const BoxDecoration(
+        color: Color(0xff1a1c20),
+        border: Border(bottom: BorderSide(color: Colors.white10)),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: subGroups.length,
+        itemBuilder: (context, index) {
+          final g = subGroups[index];
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            child: GestureDetector(
+              onTap: () {
+                /// open subgroup chat
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        GroupChatScreen(group: g, token: widget.token),
+                  ),
+                );
+              },
+
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xff0f1114),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white24),
+                ),
+                child: Center(
+                  child: Text(
+                    g["name"],
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
