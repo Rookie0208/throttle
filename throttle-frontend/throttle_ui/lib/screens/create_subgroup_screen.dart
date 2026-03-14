@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:throttle_ui/services/sub_groups_service.dart';
+
 class CreateSubGroupScreen extends StatefulWidget {
 
   final String groupId;
@@ -31,23 +33,50 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
     // Navigate to member picker screen
   }
 
-  void _createSubGroup() {
+  Future<void> _createSubGroup() async {
 
-    final payload = {
-      "name": nameController.text,
-      "visibility": visibility,
-      "permissions": {
-        "membersCanSendMessages": membersCanMessage,
-        "membersCanAddMembers": membersCanAddMembers,
-        "adminsApproveMembers": adminApprovalRequired
-      },
-      "members": selectedMembers
-    };
-
-    print(payload);
-
-    // TODO: call API
+  if (nameController.text.trim().isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Subgroup name is required")),
+    );
+    return;
   }
+
+  final payload = {
+    "parentGroupUuid": widget.groupId,   // ✅ ADDED
+    "name": nameController.text.trim(),
+    "visibility": visibility,
+    "permissions": {
+      "membersCanSendMessages": membersCanMessage,
+      "membersCanAddMembers": membersCanAddMembers,
+      "adminsApproveMembers": adminApprovalRequired
+    },
+    "members": selectedMembers
+  };
+
+  try {
+
+    final result = await SubGroupService.createSubGroup(
+      widget.token,
+      payload,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Subgroup created successfully")),
+    );
+
+    Navigator.pop(context, result);
+
+  } catch (e) {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Failed to create subgroup")),
+    );
+
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -209,8 +238,8 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xfffe6603),
             ),
-            icon: const Icon(Icons.group_add),
-            label: const Text("Add Members"),
+            icon: const Icon(Icons.group_add, color: Colors.white),
+            label: const Text("Add Members",style: TextStyle(color: Colors.white),),
             onPressed: _selectMembers,
           ),
 
@@ -225,7 +254,7 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
             onPressed: _createSubGroup,
             child: const Text(
               "Create Subgroup",
-              style: TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16, color: Colors.white),
             ),
           ),
         ],
