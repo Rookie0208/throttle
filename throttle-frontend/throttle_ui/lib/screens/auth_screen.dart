@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/screens/main_screen.dart';
 import '../services/api_service.dart';
-import 'create_ride_screen.dart';
 
 enum ViewType { user, admin, login }
 
@@ -43,8 +42,12 @@ class _AuthScreenState extends State<AuthScreen> {
   final Duration animDuration = const Duration(milliseconds: 400);
 
   // INPUT WIDGET
-  Widget input(String label, TextEditingController c,
-      {bool isPassword = false, TextInputType type = TextInputType.text}) {
+  Widget input(
+    String label,
+    TextEditingController c, {
+    bool isPassword = false,
+    TextInputType type = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextFormField(
@@ -67,7 +70,7 @@ class _AuthScreenState extends State<AuthScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: DropdownButtonFormField<String>(
-        value: c.text.isEmpty ? null : c.text,
+        initialValue: c.text.isEmpty ? null : c.text,
         decoration: InputDecoration(
           labelText: label,
           floatingLabelBehavior: FloatingLabelBehavior.auto,
@@ -102,15 +105,19 @@ class _AuthScreenState extends State<AuthScreen> {
       "role": role.text,
       "email": email.text,
       "password": password.text,
-      "experienceYears":
-          experienceYears.text.isEmpty ? 0 : int.parse(experienceYears.text),
-      "emergencyContact":
-          emergencyContact.text.isEmpty ? null : emergencyContact.text,
+      "experienceYears": experienceYears.text.isEmpty
+          ? 0
+          : int.parse(experienceYears.text),
+      "emergencyContact": emergencyContact.text.isEmpty
+          ? null
+          : emergencyContact.text,
     });
 
     try {
       final body = jsonDecode(res["body"]);
-      setState(() => message = body["message"] ?? "User registered successfully");
+      setState(
+        () => message = body["message"] ?? "User registered successfully",
+      );
     } catch (e) {
       setState(() => message = res["body"]);
     }
@@ -133,7 +140,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       final body = jsonDecode(res["body"]);
-      setState(() => message = body["message"] ?? "Admin registered successfully");
+      setState(
+        () => message = body["message"] ?? "Admin registered successfully",
+      );
     } catch (e) {
       setState(() => message = res["body"]);
     }
@@ -158,7 +167,9 @@ class _AuthScreenState extends State<AuthScreen> {
         await prefs.setString("token", body["data"]["token"]);
 
         Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const MainScreen()));
+          context,
+          MaterialPageRoute(builder: (_) => const MainScreen()),
+        );
       } else {
         setState(() => message = body["message"] ?? "Login failed");
       }
@@ -180,7 +191,11 @@ class _AuthScreenState extends State<AuthScreen> {
             dropdown("Role", role, roleOptions),
             input("Email", email, type: TextInputType.emailAddress),
             input("Password", password, isPassword: true),
-            input("Experience Years", experienceYears, type: TextInputType.number),
+            input(
+              "Experience Years",
+              experienceYears,
+              type: TextInputType.number,
+            ),
             input("Emergency Contact", emergencyContact),
             const SizedBox(height: 10),
             AnimatedButton(text: "Register", onPressed: registerUser),
@@ -222,8 +237,8 @@ class _AuthScreenState extends State<AuthScreen> {
             colors: current == ViewType.user
                 ? [Colors.blue.shade800, Colors.blue.shade600]
                 : current == ViewType.admin
-                    ? [Colors.purple.shade800, Colors.purple.shade600]
-                    : [Colors.teal.shade800, Colors.teal.shade600],
+                ? [Colors.purple.shade800, Colors.purple.shade600]
+                : [Colors.teal.shade800, Colors.teal.shade600],
           ),
         ),
         child: SingleChildScrollView(
@@ -239,7 +254,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 Text(
                   current.name.toUpperCase(),
                   style: const TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 // ANIMATED SWITCHER FOR FORMS
@@ -249,8 +267,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     opacity: animation,
                     child: SlideTransition(
                       position: Tween<Offset>(
-                              begin: const Offset(0, 0.2), end: Offset.zero)
-                          .animate(animation),
+                        begin: const Offset(0, 0.2),
+                        end: Offset.zero,
+                      ).animate(animation),
                       child: child,
                     ),
                   ),
@@ -264,9 +283,10 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Text(
                     message,
                     style: TextStyle(
-                        color: message.toLowerCase().contains("fail")
-                            ? Colors.red
-                            : Colors.green),
+                      color: message.toLowerCase().contains("fail")
+                          ? Colors.red
+                          : Colors.green,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -275,16 +295,19 @@ class _AuthScreenState extends State<AuthScreen> {
                   spacing: 8,
                   children: [
                     TextButton(
-                        onPressed: () => setState(() => current = ViewType.user),
-                        child: const Text("User Register")),
+                      onPressed: () => setState(() => current = ViewType.user),
+                      child: const Text("User Register"),
+                    ),
                     TextButton(
-                        onPressed: () => setState(() => current = ViewType.admin),
-                        child: const Text("Admin Register")),
+                      onPressed: () => setState(() => current = ViewType.admin),
+                      child: const Text("Admin Register"),
+                    ),
                     TextButton(
-                        onPressed: () => setState(() => current = ViewType.login),
-                        child: const Text("Login")),
+                      onPressed: () => setState(() => current = ViewType.login),
+                      child: const Text("Login"),
+                    ),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -298,7 +321,11 @@ class _AuthScreenState extends State<AuthScreen> {
 class AnimatedButton extends StatefulWidget {
   final String text;
   final VoidCallback onPressed;
-  const AnimatedButton({super.key, required this.text, required this.onPressed});
+  const AnimatedButton({
+    super.key,
+    required this.text,
+    required this.onPressed,
+  });
 
   @override
   State<AnimatedButton> createState() => _AnimatedButtonState();
@@ -324,9 +351,14 @@ class _AnimatedButtonState extends State<AnimatedButton> {
           color: isPressed ? Colors.blue.shade700 : Colors.blue.shade500,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(widget.text,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        child: Text(
+          widget.text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
       ),
     );
   }

@@ -10,11 +10,11 @@ import com.ridersclub.ride.entity.RideParticipant;
 
 @Repository
 public interface RideParticipantRepository extends JpaRepository<RideParticipant, Long> {
-    List<RideParticipant> findByRide_Id(String rideId);
+    List<RideParticipant> findByRide_Id(Long rideId);
 
     boolean existsByRide_IdAndUser_Id(Long rideId, Long userId);
 
-    List<RideParticipant> findByUser_Id(String userId);
+    List<RideParticipant> findByUser_Id(Long userId);
 
     List<Ride> findRidesByUserId(String userId);
 
