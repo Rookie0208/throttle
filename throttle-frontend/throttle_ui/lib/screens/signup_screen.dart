@@ -119,8 +119,8 @@ class _SignupScreenState extends State<SignupScreen> {
           context,
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 500),
-            pageBuilder: (_, __, ___) => const LoginScreen(),
-            transitionsBuilder: (_, animation, __, child) {
+            pageBuilder: (_, _, _) => const MainScreen(),
+            transitionsBuilder: (_, animation, _, child) {
               final offsetAnimation =
                   Tween<Offset>(
                     begin: const Offset(1.0, 0.0),

@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../widgets/web_signin.dart';
 import 'signup_screen.dart';
 import 'main_screen.dart';
+import '../services/logger_service.dart';
 import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -28,15 +29,17 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     if (kIsWeb) {
-      _googleAuthSubscription = AuthService.googleSignIn.authenticationEvents.listen((event) async {
-        if (event is GoogleSignInAuthenticationEventSignIn && !_isProcessingGoogle) {
-          final account = event.user;
-          final auth = await account.authentication;
-          if (auth.idToken != null) {
-            _handleWebGoogleAuth(auth.idToken!);
-          }
-        }
-      });
+      _googleAuthSubscription = AuthService.googleSignIn.authenticationEvents
+          .listen((event) async {
+            if (event is GoogleSignInAuthenticationEventSignIn &&
+                !_isProcessingGoogle) {
+              final account = event.user;
+              final auth = account.authentication;
+              if (auth.idToken != null) {
+                _handleWebGoogleAuth(auth.idToken!);
+              }
+            }
+          });
     }
   }
 
@@ -61,29 +64,38 @@ class _LoginScreenState extends State<LoginScreen> {
       if (result["success"]) {
         if (result["data"] != null && result["data"]["token"] != null) {
           if (mounted) {
-             Navigator.pushReplacement(
+            Navigator.pushReplacement(
               context,
               PageRouteBuilder(
                 transitionDuration: const Duration(milliseconds: 500),
-                pageBuilder: (_, __, ___) => const MainScreen(),
-                transitionsBuilder: (_, animation, __, child) {
-                  final offsetAnimation = Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                pageBuilder: (_, _, _) => const MainScreen(),
+                transitionsBuilder: (_, animation, _, child) {
+                  final offsetAnimation =
+                      Tween<Offset>(
+                        begin: const Offset(1.0, 0.0),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeInOut,
+                        ),
+                      );
+                  return SlideTransition(
+                    position: offsetAnimation,
+                    child: child,
                   );
-                  return SlideTransition(position: offsetAnimation, child: child);
                 },
               ),
             );
           }
-        } 
-        else if (result["data"] != null && result["data"]["requiresRegistration"] == true) {
+        } else if (result["data"] != null &&
+            result["data"]["requiresRegistration"] == true) {
           if (mounted) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => OtpScreen(googleData: result["data"])),
+              MaterialPageRoute(
+                builder: (_) => OtpScreen(googleData: result["data"]),
+              ),
             );
           }
         }
@@ -105,61 +117,59 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
- Future<void> login() async {
-  if (emailController.text.trim().isEmpty) {
-    showError("Email is required");
-    return;
-  }
-
-  if (passwordController.text.isEmpty) {
-    showError("Password is required");
-    return;
-  }
-
-  setState(() => isLoading = true);
-
-  try {
-    final result = await AuthService.login(
-      email: emailController.text.trim(),
-      password: passwordController.text.trim(),
-    );
-
-    if (result["success"]) {
-      // Smooth slide transition
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 500),
-          pageBuilder: (_, __, ___) => const MainScreen(),
-          transitionsBuilder: (_, animation, __, child) {
-            final offsetAnimation = Tween<Offset>(
-              begin: const Offset(1.0, 0.0),
-              end: Offset.zero,
-            ).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-            );
-            return SlideTransition(position: offsetAnimation, child: child);
-          },
-        ),
-      );
-    } else {
-      showError(result["message"] ?? "Login failed");
+  Future<void> login() async {
+    if (emailController.text.trim().isEmpty) {
+      showError("Email is required");
+      return;
     }
-  } catch (e) {
-    // Any network or unexpected error
-    showError("Login failed. Please check your credentials or network.");
-  } finally {
-    // ✅ Make sure spinner always stops
-    if (mounted) setState(() => isLoading = false);
+
+    if (passwordController.text.isEmpty) {
+      showError("Password is required");
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      final result = await AuthService.login(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+      await Logger.warn("This is the second data : "+result.toString());
+      if (result["success"]) {
+        // Smooth slide transition
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 500),
+            pageBuilder: (_, _, _) => const MainScreen(),
+            transitionsBuilder: (_, animation, _, child) {
+              final offsetAnimation =
+                  Tween<Offset>(
+                    begin: const Offset(1.0, 0.0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                  );
+              return SlideTransition(position: offsetAnimation, child: child);
+            },
+          ),
+        );
+      } else {
+        showError(result["message"] ?? "Login failed");
+      }
+    } catch (e) {
+      // Any network or unexpected error
+      showError("Login failed. Please check your credentials or network.");
+    } finally {
+      // ✅ Make sure spinner always stops
+      if (mounted) setState(() => isLoading = false);
+    }
   }
-}
 
   Future<void> googleLogin() async {
     setState(() => isLoading = true);
@@ -173,30 +183,40 @@ class _LoginScreenState extends State<LoginScreen> {
         // If 'token' exists, it's a returning user login
         if (result["data"] != null && result["data"]["token"] != null) {
           if (mounted) {
-             Navigator.pushReplacement(
+            Navigator.pushReplacement(
               context,
               PageRouteBuilder(
                 transitionDuration: const Duration(milliseconds: 500),
-                pageBuilder: (_, __, ___) => const MainScreen(),
-                transitionsBuilder: (_, animation, __, child) {
-                  final offsetAnimation = Tween<Offset>(
-                    begin: const Offset(1.0, 0.0),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+                pageBuilder: (_, _, _) => const MainScreen(),
+                transitionsBuilder: (_, animation, _, child) {
+                  final offsetAnimation =
+                      Tween<Offset>(
+                        begin: const Offset(1.0, 0.0),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeInOut,
+                        ),
+                      );
+                  return SlideTransition(
+                    position: offsetAnimation,
+                    child: child,
                   );
-                  return SlideTransition(position: offsetAnimation, child: child);
                 },
               ),
             );
           }
-        } 
+        }
         // If no token but requires registration = true, new user OTP flow
-        else if (result["data"] != null && result["data"]["requiresRegistration"] == true) {
+        else if (result["data"] != null &&
+            result["data"]["requiresRegistration"] == true) {
           if (mounted) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => OtpScreen(googleData: result["data"])),
+              MaterialPageRoute(
+                builder: (_) => OtpScreen(googleData: result["data"]),
+              ),
             );
           }
         }
@@ -226,11 +246,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(width: 50, height: 6, color: const Color(0xfffe6603)),
+                    Container(
+                      width: 50,
+                      height: 6,
+                      color: const Color(0xfffe6603),
+                    ),
                     const SizedBox(width: 8),
                     const Icon(Icons.speed, color: Color(0xfffe6603), size: 30),
                     const SizedBox(width: 8),
-                    Container(width: 50, height: 6, color: const Color(0xfffe6603)),
+                    Container(
+                      width: 50,
+                      height: 6,
+                      color: const Color(0xfffe6603),
+                    ),
                   ],
                 ),
 
@@ -301,15 +329,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // OR separator
                 const Center(
-                  child: Text(
-                    "OR",
-                    style: TextStyle(color: Colors.white70),
-                  ),
+                  child: Text("OR", style: TextStyle(color: Colors.white70)),
                 ),
                 const SizedBox(height: 15),
 
                 // GOOGLE SIGN-IN
-                buildGoogleSignInButton(onPressed: isLoading ? () {} : googleLogin),
+                buildGoogleSignInButton(
+                  onPressed: isLoading ? () {} : googleLogin,
+                ),
                 const SizedBox(height: 12),
 
                 // APPLE SIGN-IN

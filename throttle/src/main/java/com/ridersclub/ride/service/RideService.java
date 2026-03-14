@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.LocationType;
 import com.ridersclub.common.enums.NotificationType;
@@ -41,6 +42,7 @@ import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
 @Service
+@Transactional
 public class RideService {
     private static final Logger logger = LoggerFactory.getLogger(RideService.class);
 
@@ -164,7 +166,7 @@ public class RideService {
 
     public void join(String rideId, String userId) {
 
-        Ride ride = rideRepository.findById(rideId)
+        Ride ride = rideRepository.findByUuid(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         if (ride.getStatus() != Status.CREATED) {
@@ -235,13 +237,19 @@ public class RideService {
         return myRides;
     }
 
+    @Transactional(readOnly = true)
+    public Ride getRideById(String id) {
+        return rideRepository.findByUuid(id).orElseThrow(() -> new RuntimeException("Ride not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<RideParticipant> participants(String rideId) {
         return participantRepo.findByRide_Id(rideId);
     }
 
     public void complete(String rideId, String userId) {
 
-        Ride ride = rideRepository.findById(rideId)
+        Ride ride = rideRepository.findByUuid(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         RideParticipant participant = participantRepo
@@ -262,10 +270,10 @@ public class RideService {
                 req.getDistanceKm(), req.getDurationMinutes(), req.getAvgSpeed()));
     }
 
-    // ------------- DASHBOARD ------------------
+    @Transactional(readOnly = true)
     public Map<String, Object> dashboard(String userId) {
 
-        List<RideStats> stats = statsRepo.findByUser_Id(userId);
+        List<RideStats> stats = statsRepo.findByUserId(userId);
 
         double totalDistance = stats.stream().mapToDouble(RideStats::getDistanceKm).sum();
         long totalDuration = stats.stream().mapToLong(RideStats::getDurationMinutes).sum();

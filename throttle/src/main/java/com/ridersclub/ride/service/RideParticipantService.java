@@ -24,8 +24,7 @@ public class RideParticipantService {
     // Ride ride = rideRepository.findById(rideId)
     //         .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-    List<RideParticipant> participants =
-            participantRepository.findByRide_Id(rideId);
+    List<RideParticipant> participants = participantRepository.findByRide_Id(rideId);
 
     return participants.stream()
             .map(rp -> RideParticipantDto.builder()
