@@ -157,7 +157,8 @@ public class UserService {
         // Recent completed rides (last 3) pushed down to DB
         List<Long> joinedRideIds = participants.stream().map(p -> p.getRide().getId()).toList();
         List<com.ridersclub.ride.entity.Ride> recentRidesEntities = rideRepository
-            .findTop3ByIdInAndStatusOrderByStartTimeDesc(joinedRideIds, com.ridersclub.common.enums.Status.COMPLETED);
+                .findTop3ByIdInAndStatusOrderByStartTimeDesc(joinedRideIds,
+                        com.ridersclub.common.enums.Status.COMPLETED);
 
         List<UserProfileResponse.RideSummaryDto> recentRides = recentRidesEntities.stream()
                 .map(r -> {
