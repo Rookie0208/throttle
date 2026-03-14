@@ -37,13 +37,13 @@ public class UserController {
             log.error("Authentication object is null or has no principal!");
         } else {
             log.info("Fetching profile for user UUID: {}", user.getPrincipal());
+            UserProfileResponse profile = userService.getProfileByUUID((String) user.getPrincipal());
+            log.info("Returning profile data for: {} {}", profile.getFirstName(), profile.getLastName());
+    
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(ApiResponse.success(profile, "Profile Fetched Successfully"));
         }
-
-        UserProfileResponse profile = userService.getProfileByUUID((String) user.getPrincipal());
-        log.info("Returning profile data for: {} {}", profile.getFirstName(), profile.getLastName());
-
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(ApiResponse.success(profile, "Profile Fetched Successfully"));
+        return null;
     }
 
     @PutMapping("/me")

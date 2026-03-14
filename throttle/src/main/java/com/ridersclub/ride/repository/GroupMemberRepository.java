@@ -11,10 +11,10 @@ import com.ridersclub.ride.entity.GroupMember;
 @Repository
 public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> {
 // Find all members in a group
-    List<GroupMember> findById(String groupId);
+    List<GroupMember> findByGroup_Id(Long groupId);
     // Find specific member in a group
-    Optional<GroupMember> findByGroup_IdAndUser_Id(String groupId, String userId);
+    Optional<GroupMember> findByGroup_IdAndUser_Id(Long groupId, Long userId);
 
     // Find all groups a user belongs to
-    List<GroupMember> findByUser_Id(String userId);
+    List<GroupMember> findByUser_Id(Long userId);
 }
