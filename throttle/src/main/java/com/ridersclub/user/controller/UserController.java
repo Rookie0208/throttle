@@ -11,12 +11,14 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import lombok.extern.slf4j.Slf4j;
 
 import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.user.dto.request.UpdateProfileRequest;
 import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.service.UserService;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/users")
 public class UserController {
@@ -29,15 +31,24 @@ public class UserController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile(
-            @AuthenticationPrincipal Authentication user) {
-        UserProfileResponse profile = userService.getProfileByUUID((String) user.getPrincipal());
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(ApiResponse.success(profile, "Profile Fetched Successfully"));
+            Authentication user) {
+        log.info("Received request for /api/v1/users/me");
+        if (user == null || user.getPrincipal() == null) {
+            log.error("Authentication object is null or has no principal!");
+        } else {
+            log.info("Fetching profile for user UUID: {}", user.getPrincipal());
+            UserProfileResponse profile = userService.getProfileByUUID((String) user.getPrincipal());
+            log.info("Returning profile data for: {} {}", profile.getFirstName(), profile.getLastName());
+    
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(ApiResponse.success(profile, "Profile Fetched Successfully"));
+        }
+        return null;
     }
 
     @PutMapping("/me")
     public ResponseEntity<ApiResponse<UserProfileResponse>> updateProfile(
-            @AuthenticationPrincipal Authentication user,
+            Authentication user,
             @Valid @RequestBody UpdateProfileRequest request) {
         String uuid = (String) user.getPrincipal();
         UserProfileResponse updatedProfile = userService.updateProfile(uuid, request);

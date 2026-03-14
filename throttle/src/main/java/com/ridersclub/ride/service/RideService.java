@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
@@ -30,6 +31,7 @@ import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
 @Service
+@Transactional
 public class RideService {
     private static final Logger logger = LoggerFactory.getLogger(RideService.class);
 
@@ -87,20 +89,18 @@ public class RideService {
         ride.setStartLng(request.getStartLocation().getLongitude());
         ride.setEndLat(request.getEndLocation().getLatitude());
         ride.setEndLng(request.getEndLocation().getLongitude());
-
         ride.setCreatedBy(currentUser);
 
         Ride saved = rideRepository.save(ride);
         participantRepo.save(new RideParticipant(saved, currentUser));
         logger.debug("Ride created with ID: " + saved.getUuid() + " and Captain ID: " + saved.getCaptain().getId());
         logger.debug("full ride details: " + ride);
-
         return saved;
     }
 
     public void join(String rideId, String userId) {
 
-        Ride ride = rideRepository.findById(rideId)
+        Ride ride = rideRepository.findByUuid(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         User user = userRepository.findByUuid(userId)
@@ -112,23 +112,31 @@ public class RideService {
         participantRepo.save(new RideParticipant(ride, user));
     }
 
+    @Transactional(readOnly = true)
     public List<Ride> myRides(String userId) {
 
-        List<Ride> rideIds = participantRepo.findRidesByUserId(userId);
-        // List<RideParticipant> rides = participantRepo.findByUserUUID(userId);
+        User user = userRepository.findByUuid(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        List<RideParticipant> participants = participantRepo.findByUser_Id(user.getId());
 
-        return rideRepository.findAll().stream()
-                .filter(r -> rideIds.contains(r.getId()))
-                .toList();
+        List<Long> joinedRideIds = participants.stream().map(p -> p.getRide().getId()).toList();
+
+        return rideRepository.findAllById(joinedRideIds);
     }
 
+    @Transactional(readOnly = true)
+    public Ride getRideById(String id) {
+        return rideRepository.findByUuid(id).orElseThrow(() -> new RuntimeException("Ride not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<RideParticipant> participants(String rideId) {
-        return participantRepo.findByRide_Id(rideId);
+        Ride ride = rideRepository.findByUuid(rideId).orElseThrow(() -> new RuntimeException("Ride not found"));
+        return participantRepo.findByRide_Id(ride.getId());
     }
 
     public void complete(String rideId) {
 
-        Ride ride = rideRepository.findById(rideId)
+        Ride ride = rideRepository.findByUuid(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         ride.setStatus(Status.COMPLETED);
@@ -141,9 +149,10 @@ public class RideService {
                 req.getDistanceKm(), req.getDurationMinutes(), req.getAvgSpeed()));
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> dashboard(String userId) {
 
-        List<RideStats> stats = statsRepo.findByUser_Id(userId);
+        List<RideStats> stats = statsRepo.findByUserId(userId);
 
         double totalDistance = stats.stream().mapToDouble(RideStats::getDistanceKm).sum();
         long totalDuration = stats.stream().mapToLong(RideStats::getDurationMinutes).sum();

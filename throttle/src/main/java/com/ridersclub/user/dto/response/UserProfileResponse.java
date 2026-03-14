@@ -1,17 +1,40 @@
 package com.ridersclub.user.dto.response;
 
+import java.util.List;
+
 import com.ridersclub.user.entity.User;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Data
+@NoArgsConstructor
 public class UserProfileResponse {
-private String id;
+    private String id;
     private String firstName;
     private String lastName;
     private String email;
     private String bio;
     private String profileImage;
+
+    // Follows
+    private long followersCount;
+    private long followingCount;
+
+    // Stats
+    private int totalRides;
+    private double totalMiles;
+    private long totalDuration;
+    private int weeklyMiles;
+    private double weeklyAvgMph;
+    private long weeklyDuration;
+
+    // Lists
+    private List<UserBikeDto> bikes;
+    private List<UserAchievementDto> achievements;
+    private List<RideSummaryDto> recentRides;
+    private UpcomingRideDto upcomingRide;
 
     public UserProfileResponse(User user) {
         this.id = user.getUuid().toString();
@@ -20,5 +43,45 @@ private String id;
         this.email = user.getEmail();
         this.bio = user.getBio();
         this.profileImage = user.getProfileImage();
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserBikeDto {
+        private String make;
+        private String model;
+        private Integer year;
+        private String type;
+        private Integer engineCc;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserAchievementDto {
+        private String title;
+        private String description;
+        private String iconName;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RideSummaryDto {
+        private String id;
+        private String title;
+        private String date; // formatted date short, e.g. "Feb 13"
+        private double miles;
+        private String duration; // formatted duration, e.g. "2h 15m"
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UpcomingRideDto {
+        private String id;
+        private String title;
+        private String subtitle; // e.g. "8 Riders • Feb 15 • 7:30 AM"
     }
 }

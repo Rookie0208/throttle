@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../services/logger_service.dart';
 
 class AuthService {
   static String get baseUrl =>
@@ -107,11 +108,8 @@ class AuthService {
       String? idToken = webIdToken;
 
       if (idToken == null) {
-        final GoogleSignInAccount? account = await googleSignIn.authenticate();
-        if (account == null) {
-          return {"success": false, "message": "Google Sign-In aborted"};
-        }
-        final GoogleSignInAuthentication auth = await account.authentication;
+        final GoogleSignInAccount account = await googleSignIn.authenticate();
+        final GoogleSignInAuthentication auth = account.authentication;
         idToken = auth.idToken;
       }
 
@@ -228,7 +226,7 @@ class AuthService {
     }
   }
 
-  // ================= SAVE TOKEN =================
+  // ================= SAVE TOKEN & DATA =================
   static Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
