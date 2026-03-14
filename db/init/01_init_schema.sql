@@ -175,3 +175,72 @@ CREATE TABLE ride_locations (
 
 CREATE INDEX idx_rl_ride ON ride_locations(ride_id);
 CREATE INDEX idx_rl_time ON ride_locations(recorded_at);
+
+--------------------------------------------------
+-- USER FOLLOWS
+--------------------------------------------------
+
+CREATE TABLE user_follows (
+    id BIGSERIAL PRIMARY KEY,
+    follower_id BIGINT NOT NULL,
+    following_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT now(),
+    UNIQUE (follower_id, following_id),
+    FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_uf_follower ON user_follows(follower_id);
+CREATE INDEX idx_uf_following ON user_follows(following_id);
+
+--------------------------------------------------
+-- USER BIKES
+--------------------------------------------------
+
+CREATE TABLE user_bikes (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    make VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    year INT,
+    type VARCHAR(100),
+    engine_cc INT,
+    is_primary BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_ub_user ON user_bikes(user_id);
+
+--------------------------------------------------
+-- USER ACHIEVEMENTS (Badges)
+--------------------------------------------------
+
+CREATE TABLE user_achievements (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    title VARCHAR(100) NOT NULL,
+    description TEXT,
+    icon_name VARCHAR(50),
+    earned_at TIMESTAMP DEFAULT now(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_ua_user ON user_achievements(user_id);
+
+--------------------------------------------------
+-- RIDE STATS
+--------------------------------------------------
+
+CREATE TABLE ride_stats (
+    id BIGSERIAL PRIMARY KEY,
+    ride_id VARCHAR(100) NOT NULL,
+    user_id VARCHAR(100) NOT NULL,
+    distance_km DOUBLE PRECISION NOT NULL,
+    duration_minutes BIGINT NOT NULL,
+    avg_speed DOUBLE PRECISION NOT NULL,
+    created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE INDEX idx_rs_ride ON ride_stats(ride_id);
+CREATE INDEX idx_rs_user ON ride_stats(user_id);

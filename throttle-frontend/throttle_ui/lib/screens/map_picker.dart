@@ -25,8 +25,10 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
 
   Future<void> _getAddress(LatLng position) async {
     try {
-      final placemarks =
-          await placemarkFromCoordinates(position.latitude, position.longitude);
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
       if (placemarks.isNotEmpty) {
         final place = placemarks.first;
         setState(() {
@@ -57,9 +59,8 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 });
               }
             },
-            child: const Text("Select",
-                style: TextStyle(color: Colors.white)),
-          )
+            child: const Text("Select", style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
       body: GoogleMap(
@@ -75,8 +76,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
         markers: selectedLocation != null
             ? {
                 Marker(
-                    markerId: const MarkerId("selected"),
-                    position: selectedLocation!)
+                  markerId: const MarkerId("selected"),
+                  position: selectedLocation!,
+                ),
               }
             : {},
       ),

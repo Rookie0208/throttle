@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
@@ -31,6 +32,7 @@ import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
 @Service
+@Transactional
 public class RideService {
     private static final Logger logger = LoggerFactory.getLogger(RideService.class);
 
@@ -76,7 +78,7 @@ public class RideService {
         ride.setStartLng(request.getStartLocation().getLongitude());
         ride.setEndLat(request.getEndLocation().getLatitude());
         ride.setEndLng(request.getEndLocation().getLongitude());
-        
+
         User currentUser = userRepository.findByUuid(currentUserUUId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -102,9 +104,10 @@ public class RideService {
             admin.setRole(GroupRole.ADMIN);
 
             groupMemberRepository.save(admin);
-            System.out.println("Group created with ID: " + group.getId() + " for Ride ID: " + ride.getUuid());
-            System.out.println("Ride Group : " + group);
-            System.out.println("Group Member : " + admin);
+            groupMemberRepository.save(admin);
+            logger.info("Group created with ID: {} for Ride UUID: {}", group.getId(), ride.getUuid());
+            logger.debug("Ride Group : {}", group);
+            logger.debug("Group Member : {}", admin);
 
             ride.setGroup(group);
         } else { // solo ride
@@ -125,22 +128,23 @@ public class RideService {
             admin.setRole(GroupRole.ADMIN);
 
             groupMemberRepository.save(admin);
-            System.out.println("SOLO created with ID: " + group.getId() + " for Ride ID: " + ride.getUuid());
-            System.out.println("Ride Group : " + group);
-            System.out.println("Group Member : " + admin);
+            groupMemberRepository.save(admin);
+            logger.info("SOLO created with ID: {} for Ride UUID: {}", group.getId(), ride.getUuid());
+            logger.debug("Ride Group : {}", group);
+            logger.debug("Group Member : {}", admin);
         }
 
         Ride saved = rideRepository.save(ride);
         participantRepo.save(new RideParticipant(saved, currentUser));
-        System.out.println("Ride created with ID: " + saved.getUuid() + " and Captain ID: " + saved.getCaptainId());
-        System.out.println("full ride details: " + ride);
+        logger.info("Ride created with UUID: {} and Captain ID: {}", saved.getUuid(), saved.getCaptainId());
+        logger.debug("full ride details: {}", ride);
 
         return saved;
     }
 
     public void join(String rideId, String userId) {
 
-        Ride ride = rideRepository.findById(rideId)
+        Ride ride = rideRepository.findByUuid(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         User user = userRepository.findByUuid(userId)
@@ -152,23 +156,31 @@ public class RideService {
         participantRepo.save(new RideParticipant(null, ride.getId(), user.getId(), LocalDateTime.now()));
     }
 
+    @Transactional(readOnly = true)
     public List<Ride> myRides(String userId) {
 
-        List<RideParticipant> rideIds = participantRepo.findByUser_Id(userId);
-        // List<RideParticipant> rides = participantRepo.findByUserUUID(userId);
+        User user = userRepository.findByUuid(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        List<RideParticipant> participants = participantRepo.findByUser_Id(user.getId());
 
-        return rideRepository.findAll().stream()
-                .filter(r -> rideIds.contains(r.getId()))
-                .toList();
+        List<Long> joinedRideIds = participants.stream().map(p -> p.getRide().getId()).toList();
+
+        return rideRepository.findAllById(joinedRideIds);
     }
 
+    @Transactional(readOnly = true)
+    public Ride getRideById(String id) {
+        return rideRepository.findByUuid(id).orElseThrow(() -> new RuntimeException("Ride not found"));
+    }
+
+    @Transactional(readOnly = true)
     public List<RideParticipant> participants(String rideId) {
-        return participantRepo.findByRide_Id(rideId);
+        Ride ride = rideRepository.findByUuid(rideId).orElseThrow(() -> new RuntimeException("Ride not found"));
+        return participantRepo.findByRide_Id(ride.getId());
     }
 
     public void complete(String rideId) {
 
-        Ride ride = rideRepository.findById(rideId)
+        Ride ride = rideRepository.findByUuid(rideId)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
         ride.setStatus(RsvpStatus.COMPLETED);
@@ -181,9 +193,10 @@ public class RideService {
                 req.getDistanceKm(), req.getDurationMinutes(), req.getAvgSpeed()));
     }
 
+    @Transactional(readOnly = true)
     public Map<String, Object> dashboard(String userId) {
 
-        List<RideStats> stats = statsRepo.findByUser_Id(userId);
+        List<RideStats> stats = statsRepo.findByUserId(userId);
 
         double totalDistance = stats.stream().mapToDouble(RideStats::getDistanceKm).sum();
         long totalDuration = stats.stream().mapToLong(RideStats::getDurationMinutes).sum();

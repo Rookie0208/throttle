@@ -24,7 +24,6 @@ import com.ridersclub.ride.dto.response.RideResponse;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.service.RideService;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @Controller

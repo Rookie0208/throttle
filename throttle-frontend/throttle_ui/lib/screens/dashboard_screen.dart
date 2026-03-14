@@ -186,10 +186,25 @@ class DashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    StatCard(title: "Miles", value: "248"),
-                    StatCard(title: "Avg MPH", value: "54"),
-                    StatCard(title: "Duration", value: "6.5h"),
+                  children: [
+                    StatCard(
+                      title: "Miles",
+                      value: userData != null
+                          ? "${userData!['weeklyMiles'] ?? 0}"
+                          : "0",
+                    ),
+                    StatCard(
+                      title: "Avg MPH",
+                      value: userData != null
+                          ? "${userData!['weeklyAvgMph'] ?? 0}"
+                          : "0",
+                    ),
+                    StatCard(
+                      title: "Duration",
+                      value: userData != null
+                          ? "${userData!['weeklyDuration'] ?? 0}h"
+                          : "0h",
+                    ),
                   ],
                 ),
               ),
@@ -197,46 +212,49 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 30),
 
               /// UPCOMING RIDE CARD
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        "Upcoming Group Ride",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
+              if (userData != null && userData!['upcomingRide'] != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Upcoming Ride",
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        "Sunday Mountain Run",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                        const SizedBox(height: 12),
+                        Text(
+                          userData!['upcomingRide']['title']?.toString() ??
+                              "Upcoming Ride",
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        "8 Riders • Feb 15 • 7:30 AM",
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
+                        const SizedBox(height: 4),
+                        Text(
+                          userData!['upcomingRide']['subtitle']?.toString() ??
+                              "",
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
               const SizedBox(height: 25),
 

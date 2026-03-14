@@ -14,13 +14,20 @@ class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  final rideHistory = [
-    {"date": "Feb 13", "name": "Canyon Loop", "miles": 68, "time": "2h 15m"},
-    {"date": "Feb 11", "name": "Coastal Run", "miles": 45, "time": "1h 30m"},
-    {"date": "Feb 9", "name": "Mountain Pass", "miles": 92, "time": "3h 10m"},
-  ];
+  List<Map<String, dynamic>> get rideHistory =>
+      widget.userData != null && widget.userData!['recentRides'] != null
+      ? List<Map<String, dynamic>>.from(widget.userData!['recentRides'])
+      : [];
 
-  final achievements = ["Century Rider", "Speed Demon", "Early Bird"];
+  List<Map<String, dynamic>> get achievements =>
+      widget.userData != null && widget.userData!['achievements'] != null
+      ? List<Map<String, dynamic>>.from(widget.userData!['achievements'])
+      : [];
+
+  List<Map<String, dynamic>> get bikes =>
+      widget.userData != null && widget.userData!['bikes'] != null
+      ? List<Map<String, dynamic>>.from(widget.userData!['bikes'])
+      : [];
 
   @override
   void initState() {
@@ -91,14 +98,14 @@ class _ProfileScreenState extends State<ProfileScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  ride["name"],
+                  ride["title"] ?? ride["name"] ?? "Ride",
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
-                  ride["date"],
+                  ride["date"]?.toString() ?? "",
                   style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
               ],
@@ -108,14 +115,14 @@ class _ProfileScreenState extends State<ProfileScreen>
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "${ride["miles"]} mi",
+                "${ride["miles"] ?? 0} mi",
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                ride["time"],
+                ride["duration"] ?? ride["time"] ?? "",
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             ],
@@ -125,7 +132,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildAchievementCard(String name) {
+  Widget _buildAchievementCard(dynamic achievement) {
+    String name = achievement is String
+        ? achievement
+        : (achievement["title"] ?? "Badge");
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(right: 8),
@@ -286,7 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 Row(
                                   children: [
                                     Text(
-                                      "124 Followers",
+                                      "${widget.userData != null ? (widget.userData!['followersCount'] ?? 0) : 0} Followers",
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 12,
@@ -294,7 +304,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     ),
                                     SizedBox(width: 12),
                                     Text(
-                                      "89 Following",
+                                      "${widget.userData != null ? (widget.userData!['followingCount'] ?? 0) : 0} Following",
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 12,
@@ -336,17 +346,21 @@ class _ProfileScreenState extends State<ProfileScreen>
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: const [
+                              children: [
                                 Text(
-                                  "2024 Ducati Panigale V4",
-                                  style: TextStyle(
+                                  bikes.isNotEmpty
+                                      ? "${bikes.first['year']} ${bikes.first['make']} ${bikes.first['model']}"
+                                      : "No Bike Registered",
+                                  style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 Text(
-                                  "Supersport · 1,103cc",
-                                  style: TextStyle(
+                                  bikes.isNotEmpty
+                                      ? "${bikes.first['type']} · ${bikes.first['engineCc']}cc"
+                                      : "Add your bike in settings",
+                                  style: const TextStyle(
                                     color: Colors.white70,
                                     fontSize: 12,
                                   ),
@@ -367,17 +381,21 @@ class _ProfileScreenState extends State<ProfileScreen>
                       children: [
                         _buildStatCard(
                           Icons.directions,
-                          "8,420",
+                          "${widget.userData != null ? (widget.userData!['totalMiles'] ?? 0) : 0}",
                           "Total Miles",
                         ),
                         const SizedBox(width: 8),
                         _buildStatCard(
                           Icons.calendar_today,
-                          "142",
+                          "${widget.userData != null ? (widget.userData!['totalRides'] ?? 0) : 0}",
                           "Total Rides",
                         ),
                         const SizedBox(width: 8),
-                        _buildStatCard(Icons.emoji_events, "12", "Badges"),
+                        _buildStatCard(
+                          Icons.emoji_events,
+                          "${achievements.length}",
+                          "Badges",
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -419,7 +437,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   child: ListView(
                                     scrollDirection: Axis.horizontal,
                                     children: achievements
-                                        .map(_buildAchievementCard)
+                                        .map<Widget>(
+                                          (a) => _buildAchievementCard(a),
+                                        )
                                         .toList(),
                                   ),
                                 ),
@@ -434,7 +454,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 const SizedBox(height: 8),
                                 Column(
                                   children: rideHistory
-                                      .map(_buildRideCard)
+                                      .map((r) => _buildRideCard(r))
                                       .toList(),
                                 ),
                               ],
@@ -443,7 +463,9 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                           // Rides Tab
                           ListView(
-                            children: rideHistory.map(_buildRideCard).toList(),
+                            children: rideHistory
+                                .map<Widget>((r) => _buildRideCard(r))
+                                .toList(),
                           ),
 
                           // Settings Tab
