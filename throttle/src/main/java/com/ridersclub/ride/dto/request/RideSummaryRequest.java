@@ -5,6 +5,6 @@ import lombok.Data;
 @Data
 public class RideSummaryRequest {
 private double distanceKm;
-    private int durationMinutes;
+    private long durationMinutes;
     private double avgSpeed;
 }

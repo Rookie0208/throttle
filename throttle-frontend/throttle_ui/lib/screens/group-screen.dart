@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/services/group_service.dart';
 import 'group_chat_screen.dart';
+import 'package:throttle_ui/screens/group_chat_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
   final String token;
@@ -158,9 +159,7 @@ void _loadDummyData() {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Separate active and completed groups

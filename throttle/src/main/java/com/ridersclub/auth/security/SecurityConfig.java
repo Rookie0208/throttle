@@ -33,7 +33,7 @@ public class SecurityConfig {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**")
+                        .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**", "/api/v1/logs/**")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/rides/**")
                         .hasAnyRole("CAPTAIN", "ADMIN", "RIDER")
@@ -47,7 +47,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:*","http://127.0.0.1:*"));
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
