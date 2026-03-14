@@ -1,0 +1,50 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class SubGroupService {
+
+  static const String baseUrl = "https://localhost:8080/api/v1";
+
+  static Future<Map<String, dynamic>> fetchSubGroups(
+      String token,
+      String groupUuid,
+      ) async {
+
+    final response = await http.get(
+      Uri.parse("$baseUrl/rides/$groupUuid/subgroups"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to load subgroups");
+    }
+  }
+
+   /// CREATE SUBGROUP
+  static Future<Map<String, dynamic>> createSubGroup(
+      String token,
+      Map<String, dynamic> payload,
+      ) async {
+
+    final response = await http.post(
+      Uri.parse("$baseUrl/rides/subgroups"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(payload),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to create subgroup");
+    }
+  }
+  
+}

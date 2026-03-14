@@ -3,12 +3,12 @@ import 'package:http/http.dart' as http;
 
 class GroupService {
   static const String baseUrl =
-      "http://localhost:8080/api/v1/rides";
+      "http://localhost:8080/api/v1";
 
   static Future<Map<String, dynamic>> fetchMyGroups(String token) async {
     try {
       final response = await http.get(
-        Uri.parse("$baseUrl/my"),
+        Uri.parse("$baseUrl/rides/my"),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
@@ -31,13 +31,13 @@ class GroupService {
       String token, String rideUuid) async {
 
     final response = await http.get(
-      Uri.parse("$baseUrl/$rideUuid/participants"),
+      Uri.parse("$baseUrl/participants/$rideUuid"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json"
       },
     );
-    print("url : $baseUrl/$rideUuid/participants");
+    print("url : $baseUrl/participants/$rideUuid");
 
     if (response.statusCode == 200) {
       print("Fetch Ride Members Response: ${response.body}");
