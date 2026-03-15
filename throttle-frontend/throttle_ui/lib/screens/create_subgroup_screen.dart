@@ -4,12 +4,12 @@ import 'package:throttle_ui/services/sub_groups_service.dart';
 
 class CreateSubGroupScreen extends StatefulWidget {
 
-  final String groupId;
+  final String rideId;
   final String token;
 
   const CreateSubGroupScreen({
     super.key,
-    required this.groupId,
+    required this.rideId,
     required this.token,
   });
 
@@ -43,7 +43,7 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
   }
 
   final payload = {
-    "parentGroupUuid": widget.groupId,   // ✅ ADDED
+    "rideUuid": widget.rideId,   // ✅ ADDED
     "name": nameController.text.trim(),
     "visibility": visibility,
     "permissions": {

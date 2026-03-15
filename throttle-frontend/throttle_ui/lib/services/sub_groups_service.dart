@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 
 class SubGroupService {
 
-  static const String baseUrl = "https://localhost:8080/api/v1";
+  static const String baseUrl = "http://localhost:8080/api/v1";
 
   static Future<Map<String, dynamic>> fetchSubGroups(
       String token,
@@ -32,7 +32,7 @@ class SubGroupService {
       ) async {
 
     final response = await http.post(
-      Uri.parse("$baseUrl/rides/subgroups"),
+      Uri.parse("$baseUrl/rides/subgroup"),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",

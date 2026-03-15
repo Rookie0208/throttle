@@ -116,10 +116,11 @@ public class RideController {
      */
     @PostMapping("/subgroup")
     public ResponseEntity<?> createSubGroup(
-            @RequestBody CreateSubGroupRequest request,
-            @AuthenticationPrincipal User user) {
+            @RequestBody CreateSubGroupRequest request, Authentication authentication) {
 
-        RideGroup group = rideService.createSubGroup(request, user);
+        String userUuid = authentication.getPrincipal().toString();
+
+        RideGroup group = rideService.createSubGroup(request, userUuid);
 
         return ResponseEntity.ok(group.getUuid());
     }
