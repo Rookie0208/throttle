@@ -88,12 +88,6 @@ public class UserService {
 
         UserProfileResponse response = new UserProfileResponse(user);
 
-        // Fetch follows
-        long followers = userFollowRepository.countByFollowingId(user.getId());
-        long following = userFollowRepository.countByFollowerId(user.getId());
-        response.setFollowersCount(followers);
-        response.setFollowingCount(following);
-
         // Fetch bikes
         List<com.ridersclub.user.entity.UserBike> bikes = userBikeRepository.findByUserId(user.getId());
         response.setBikes(bikes.stream().map(b -> new UserProfileResponse.UserBikeDto(

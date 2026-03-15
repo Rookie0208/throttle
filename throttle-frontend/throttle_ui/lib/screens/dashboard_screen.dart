@@ -62,34 +62,6 @@ class DashboardScreen extends StatelessWidget {
                     /// RIGHT SIDE ICONS
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.local_fire_department,
-                                color: AppColors.primary,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                "12",
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
                         CircleAvatar(
                           radius: 18,
                           backgroundColor: AppColors.card,
