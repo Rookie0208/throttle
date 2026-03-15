@@ -58,6 +58,8 @@ class DashboardScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+
+                    /// RIGHT SIDE ICONS
                     Row(
                       children: [
                         Container(

@@ -3,9 +3,9 @@ import 'package:throttle_ui/screens/clubs_screen.dart';
 import 'package:throttle_ui/screens/group-screen.dart';
 import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/profile_screen.dart';
+import 'package:throttle_ui/screens/stats_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
 import 'dashboard_screen.dart';
-import 'placeholder_screen.dart';
 import 'package:throttle_ui/services/user_service.dart';
 
 class MainScreen extends StatefulWidget {
@@ -43,10 +43,10 @@ class _MainScreenState extends State<MainScreen> {
 
   List<Widget> get _screens => [
     DashboardScreen(userData: _userData),
-    GroupsScreen(token: _token!), // pass token here
-    const ClubsScreen(),
-    const PlaceholderScreen(label: "Stats"),
-    ProfileScreen(userData: _userData),
+        GroupsScreen(token: _token!), // pass token here
+        const ClubsScreen(),
+        const StatsScreen(),
+        ProfileScreen(userData: _userData),
   ];
 
   void _onTabChanged(int index) {
