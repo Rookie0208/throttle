@@ -81,10 +81,10 @@ public class RideController {
         return ApiResponse.success(null, "Joined ride");
     }
 
-    @GetMapping(ApiConstants.Rides.LIST)
-    public ApiResponse<?> participants(@PathVariable String id) {
-        return ApiResponse.success(rideService.participants(id), "Participants");
-    }
+    // @GetMapping(ApiConstants.Rides.LIST)
+    // public ApiResponse<?> participants(@PathVariable String id) {
+    //     return ApiResponse.success(rideService.participants(id), "Participants");
+    // }
 
     @PostMapping(ApiConstants.Rides.COMPLETE)
     public ApiResponse<?> complete(@PathVariable String id,
@@ -115,18 +115,22 @@ public class RideController {
      * 
      */
     @PostMapping("/subgroup")
-    public ResponseEntity<?> createSubGroup(
-            @RequestBody CreateSubGroupRequest request,
-            @AuthenticationPrincipal User user) {
+    public ResponseEntity<ApiResponse<RideGroup>> createSubGroup(
+            @RequestBody CreateSubGroupRequest request, Authentication authentication) {
 
-        RideGroup group = rideService.createSubGroup(request, user);
+        String userUuid = authentication.getPrincipal().toString();
 
-        return ResponseEntity.ok(group.getUuid());
+        RideGroup group = rideService.createSubGroup(request, userUuid);
+        System.out.println("Created subgroup: " + group.getUuid());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(group, "Successfuly Created Subgroup"));
     }
 
     @GetMapping("/{groupUuid}/subgroups")
-    public List<RideGroup> getSubGroups(@PathVariable String groupUuid) {
-        return rideGroupRepository.findByParentGroupUuid(groupUuid);
+    public ResponseEntity<ApiResponse<List<RideGroup>>> getSubGroups(@PathVariable String groupUuid) {
+        List<RideGroup> subGroups = rideGroupRepository.findByParentGroupUuid(groupUuid);
+        System.out.println("Subgroups for group " + groupUuid + ": " + subGroups);
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(subGroups, "Successfuly fetched Subgroup"));
     }
 
 }

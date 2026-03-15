@@ -42,11 +42,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       final result = await SubGroupService.fetchSubGroups(
         widget.token,
-        widget.group["uuid"],
+        widget.group["uuid"],   // this is actually rideUUID
       );
 
       setState(() {
-        subGroups = result["data"] ?? [];
+        subGroups = result;
         loadingSubGroups = false;
       });
     } catch (e) {
@@ -130,17 +130,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  void _openSubGroupCreation() {
+  void _openSubGroupCreation() async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CreateSubGroupScreen(
+        rideId: widget.group["uuid"],
+        token: widget.token,
+      ),
+    ),
+  );
+
+  /// if subgroup created successfully
+  if (result != null) {
+
+    /// refresh subgroup list
+    fetchSubGroups();
+
+    /// open subgroup chat
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => CreateSubGroupScreen(
-          groupId: widget.group["uuid"],
+        builder: (_) => GroupChatScreen(
+          group: result,
           token: widget.token,
         ),
       ),
     );
   }
+}
 
   void _handleMenuSelection(String value) {
     switch (value) {
@@ -185,6 +203,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget build(BuildContext context) {
     bool isActive = widget.group["status"] == "active";
 
+    // Check if current user is the captain
+    bool isCaptain = false;
+
+if (widget.group["members"] != null &&
+    widget.group["members"] is List) {
+
+  isCaptain = (widget.group["members"] as List).any(
+    (m) => m["role"] == "CAPTAIN" && m["id"] == "u1",
+  );
+}
+
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
       appBar: AppBar(
@@ -227,7 +256,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
       body: Column(
         children: [
-
           /// SUBGROUP BAR
           _subGroupBar(),
 
@@ -287,14 +315,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _subGroupBar() {
-
     if (loadingSubGroups) {
       return const SizedBox(
         height: 50,
         child: Center(
-          child: CircularProgressIndicator(
-            color: Color(0xfffe6603),
-          ),
+          child: CircularProgressIndicator(color: Color(0xfffe6603)),
         ),
       );
     }
@@ -314,7 +339,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: subGroups.length,
         itemBuilder: (context, index) {
-
           final g = subGroups[index];
 
           return Padding(
