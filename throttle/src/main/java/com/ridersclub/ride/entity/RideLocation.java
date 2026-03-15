@@ -56,7 +56,6 @@ public class RideLocation {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;  
-
     @Column(name = "sequence")
     private Integer sequence;
 
