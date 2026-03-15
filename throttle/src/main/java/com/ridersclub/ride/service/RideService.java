@@ -27,6 +27,7 @@ import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.MyRidesResp;
 import com.ridersclub.ride.dto.response.RideLocationResp;
+import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideGroup;
@@ -295,5 +296,25 @@ public class RideService {
                                 "totalRides", stats.size(),
                                 "totalDistance", totalDistance,
                                 "totalDuration", totalDuration);
+        }
+
+        public List<SubGroupResponse> getSubGroups(String rideUuid) {
+
+                List<RideGroup> groups = rideGroupRepository.findSubGroupsByRideUuid(rideUuid);
+
+                return groups.stream()
+                                .map(group -> SubGroupResponse.builder()
+                                                .uuid(group.getUuid())
+                                                .name(group.getName())
+                                                .rideUuid(group.getRide().getUuid())
+                                                .parentGroupUuid(
+                                                                group.getParentGroup() != null
+                                                                                ? group.getParentGroup().getUuid()
+                                                                                : null)
+                                                // .visibility(group.getVisibility())
+                                                .createdByUuid(group.getCreatedBy().getUuid())
+                                                .createdAt(group.getCreatedAt())
+                                                .build())
+                                .toList();
         }
 }

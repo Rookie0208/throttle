@@ -24,6 +24,7 @@ import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.RideResponse;
+import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.repository.RideGroupRepository;
@@ -126,8 +127,9 @@ public class RideController {
     }
 
     @GetMapping("/{groupUuid}/subgroups")
-    public List<RideGroup> getSubGroups(@PathVariable String groupUuid) {
-        return rideGroupRepository.findByParentGroupUuid(groupUuid);
+    public List<SubGroupResponse> getSubGroups(@PathVariable String groupUuid) {
+        return rideService.getSubGroups(groupUuid);
+        // return rideGroupRepository.findByParentGroupUuid(groupUuid);
     }
 
 }
