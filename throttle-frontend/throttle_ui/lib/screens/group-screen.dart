@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/services/group_service.dart';
 import 'group_chat_screen.dart';
+import 'package:throttle_ui/screens/group_chat_screen.dart';
 
 class GroupsScreen extends StatefulWidget {
   final String token;
@@ -24,37 +26,77 @@ class _GroupsScreenState extends State<GroupsScreen>
   }
 
   Future<void> fetchGroups() async {
-    // Replace this with your real API call
-    // final result = await GroupService.fetchMyGroups(widget.token);
+  try {
+    final Map<String, dynamic> result =
+        await GroupService.fetchMyGroups(widget.token);
 
-    // Dummy data
-    setState(() {
-      groups = [
-        {
-          "id": "1",
-          "name": "Morning Riders",
-          "status": "active",
-          "rideStatus": "CREATED",
-          "members": [
-            {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
-            {"id": "u2", "name": "Sara", "role": "RIDER"},
-            {"id": "u3", "name": "John", "role": "NAVIGATOR"},
-          ]
-        },
-        {
-          "id": "2",
-          "name": "Weekend Warriors",
-          "status": "archive",
-          "rideStatus": "STARTED",
-          "members": [
-            {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
-            {"id": "u5", "name": "Tom", "role": "RIDER"},
-          ]
-        },
-      ];
-      isLoading = false;
-    });
+        print(result);
+
+    if (result["data"] != null && result["data"].isNotEmpty) {
+      List<Map<String, dynamic>> rides =
+          List<Map<String, dynamic>>.from(result["data"]);
+
+          print(rides);
+
+      // Map backend fields to your UI structure
+      List<Map<String, dynamic>> mappedGroups = rides.map((ride) {
+        String rideStatus = ride["status"] ?? "UNKNOWN";
+
+        return {
+...ride,
+          "id": ride["uuid"],
+          "name": ride["title"], // UI expects name
+          "rideStatus": rideStatus,
+
+          // Map backend status → UI tab status
+          "status": (rideStatus == "COMPLETED" || rideStatus == "ENDED")
+              ? "archive"
+              : "active",
+
+          "members": [] // keep empty if backend doesn't send it
+        };
+      }).toList();
+
+      setState(() {
+        groups = mappedGroups;
+        isLoading = false;
+      });
+    } else {
+      _loadDummyData();
+    }
+  } catch (e) {
+    _loadDummyData();
   }
+}
+
+void _loadDummyData() {
+  setState(() {
+    groups = [
+      {
+        "id": "1",
+        "name": "Morning Riders",
+        "status": "active",
+        "rideStatus": "CREATED",
+        "members": [
+          {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
+          {"id": "u2", "name": "Sara", "role": "RIDER"},
+          {"id": "u3", "name": "John", "role": "NAVIGATOR"},
+        ]
+      },
+      {
+        "id": "2",
+        "name": "Weekend Warriors",
+        "status": "archive",
+        "rideStatus": "STARTED",
+        "members": [
+          {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
+          {"id": "u5", "name": "Tom", "role": "RIDER"},
+        ]
+      },
+    ];
+    isLoading = false;
+  });
+}
 
   Widget _buildGroupCard(Map<String, dynamic> group) {
     return GestureDetector(
@@ -63,7 +105,7 @@ class _GroupsScreenState extends State<GroupsScreen>
           context,
           MaterialPageRoute(
             builder: (_) => GroupChatScreen(
-              group: group,
+              group: group, token: widget.token,
             ),
           ),
         );
@@ -117,9 +159,7 @@ class _GroupsScreenState extends State<GroupsScreen>
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Separate active and completed groups

@@ -1,5 +1,7 @@
 package com.ridersclub.ride.controller;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,10 +21,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
+import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.RideResponse;
 import com.ridersclub.ride.entity.Ride;
+import com.ridersclub.ride.entity.RideGroup;
+import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.ride.service.RideService;
+import com.ridersclub.user.entity.User;
 import com.ridersclub.common.Utils.ApiConstants;
 
 import lombok.RequiredArgsConstructor;
@@ -35,6 +41,9 @@ public class RideController {
 
     @Autowired
     private RideService rideService;
+
+    @Autowired
+    private RideGroupRepository rideGroupRepository;
 
     @PostMapping(ApiConstants.Rides.CREATE)
     public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateRideRequest request,
@@ -72,10 +81,10 @@ public class RideController {
         return ApiResponse.success(null, "Joined ride");
     }
 
-    @GetMapping(ApiConstants.Rides.LIST)
-    public ApiResponse<?> participants(@PathVariable String id) {
-        return ApiResponse.success(rideService.participants(id), "Participants");
-    }
+    // @GetMapping(ApiConstants.Rides.LIST)
+    // public ApiResponse<?> participants(@PathVariable String id) {
+    //     return ApiResponse.success(rideService.participants(id), "Participants");
+    // }
 
     @PostMapping(ApiConstants.Rides.COMPLETE)
     public ApiResponse<?> complete(@PathVariable String id,
@@ -94,6 +103,30 @@ public class RideController {
 
         rideService.addStats(id, user.getUsername(), req);
         return ApiResponse.success(null, "Stats saved");
+    }
+
+    /**
+     * Subgroup related APIs
+     * final payload = {
+     * "name": "Breakfast Crew",
+     * "parentGroupUuid": groupId,
+     * "memberUuids": selectedMembers
+     * };
+     * 
+     */
+    @PostMapping("/subgroup")
+    public ResponseEntity<?> createSubGroup(
+            @RequestBody CreateSubGroupRequest request,
+            @AuthenticationPrincipal User user) {
+
+        RideGroup group = rideService.createSubGroup(request, user);
+
+        return ResponseEntity.ok(group.getUuid());
+    }
+
+    @GetMapping("/{groupUuid}/subgroups")
+    public List<RideGroup> getSubGroups(@PathVariable String groupUuid) {
+        return rideGroupRepository.findByParentGroupUuid(groupUuid);
     }
 
 }

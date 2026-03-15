@@ -1,89 +1,29 @@
 import 'package:flutter/material.dart';
+import '../models/notification_model.dart';
+import '../services/notification_service.dart';
 
-class NotificationItem {
-  final int id;
-  final String type;
-  final IconData icon;
-  final String title;
-  final String desc;
-  final String time;
-  final bool unread;
-
-  NotificationItem({
-    required this.id,
-    required this.type,
-    required this.icon,
-    required this.title,
-    required this.desc,
-    required this.time,
-    required this.unread,
-  });
-}
-
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   final VoidCallback onClose;
 
-  NotificationsScreen({super.key, required this.onClose});
+  const NotificationsScreen({super.key, required this.onClose});
 
-  final List<NotificationItem> notifications = [
-    NotificationItem(
-      id: 1,
-      type: "invite",
-      icon: Icons.location_on,
-      title: "Ride Invitation",
-      desc: "Mike T. invited you to Sunday Mountain Run",
-      time: "5m ago",
-      unread: true,
-    ),
-    NotificationItem(
-      id: 2,
-      type: "join",
-      icon: Icons.person_add,
-      title: "Join Request",
-      desc: "Chris M. wants to join Weekend Warriors",
-      time: "20m ago",
-      unread: true,
-    ),
-    NotificationItem(
-      id: 3,
-      type: "streak",
-      icon: Icons.local_fire_department,
-      title: "Streak Reminder",
-      desc: "Don't break your 12-day streak! Go for a ride today.",
-      time: "1h ago",
-      unread: true,
-    ),
-    NotificationItem(
-      id: 4,
-      type: "competition",
-      icon: Icons.emoji_events,
-      title: "Competition Update",
-      desc: "You moved to #3 in the February Miles Challenge!",
-      time: "3h ago",
-      unread: false,
-    ),
-    NotificationItem(
-      id: 5,
-      type: "complete",
-      icon: Icons.check_circle,
-      title: "Ride Complete",
-      desc: "Great ride! You covered 68 miles in 2h 15m on Canyon Loop.",
-      time: "Yesterday",
-      unread: false,
-    ),
-    NotificationItem(
-      id: 6,
-      type: "invite",
-      icon: Icons.group,
-      title: "Group Invite",
-      desc: "Sarah K. invited you to join Canyon Cruisers",
-      time: "Yesterday",
-      unread: false,
-    ),
-  ];
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
 
-  int get unreadCount =>
-      notifications.where((n) => n.unread).length;
+class _NotificationsScreenState extends State<NotificationsScreen> {
+
+  late Future<List<NotificationItem>> futureNotifications;
+
+  @override
+  void initState() {
+    super.initState();
+    futureNotifications = NotificationService().fetchNotifications();
+  }
+
+  int _unreadCount(List<NotificationItem> notifications) {
+    return notifications.where((n) => n.unread).length;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +49,7 @@ class NotificationsScreen extends StatelessWidget {
                     ),
                   ),
                   InkWell(
-                    onTap: onClose,
+                    onTap: widget.onClose,
                     child: const CircleAvatar(
                       radius: 16,
                       backgroundColor: Color(0xffeeeeee),
@@ -122,38 +62,57 @@ class NotificationsScreen extends StatelessWidget {
 
             /// BODY
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                children: [
+              child: FutureBuilder<List<NotificationItem>>(
+                future: futureNotifications,
+                builder: (context, snapshot) {
 
-                  /// NEW COUNT
-                  RichText(
-                    text: TextSpan(
-                      children: [
-                        TextSpan(
-                          text: "$unreadCount new ",
-                          style: const TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                      child: Text("No notifications"),
+                    );
+                  }
+
+                  final notifications = snapshot.data!;
+                  final unreadCount = _unreadCount(notifications);
+
+                  return ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    children: [
+
+                      /// NEW COUNT
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: "$unreadCount new ",
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const TextSpan(
+                              text: "notifications",
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
-                        const TextSpan(
-                          text: "notifications",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
 
-                  const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-                  /// NOTIFICATION LIST
-                  ...notifications.map((n) => _notificationCard(n)).toList(),
-                ],
+                      /// NOTIFICATION LIST
+                      ...notifications.map((n) => _notificationCard(n)).toList(),
+                    ],
+                  );
+                },
               ),
             )
           ],

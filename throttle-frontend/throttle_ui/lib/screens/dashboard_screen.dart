@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/screens/notification_screen.dart';
+import '../utils/string_extensions.dart';
 
 class AppColors {
   static const primary = Color(0xfffe6603);
@@ -11,7 +11,9 @@ class AppColors {
 }
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final Map<String, dynamic>? userData;
+
+  const DashboardScreen({super.key, this.userData});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +26,6 @@ class DashboardScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               /// HEADER
-              /// HEADER
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
@@ -35,17 +36,20 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           "Good Morning",
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          "Alex Rider",
+                          userData != null
+                              ? "${(userData!['firstName'] ?? '').toString().toCapitalized()} ${(userData!['lastName'] ?? '').toString().toCapitalized()}"
+                                    .trim()
+                              : "Guest",
                           style: TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 20,
@@ -58,55 +62,53 @@ class DashboardScreen extends StatelessWidget {
                     /// RIGHT SIDE ICONS
                     Row(
                       children: [
-                        /// NOTIFICATION ICON
-                        Stack(
-                          children: [
-                            Container(
-                              height: 36,
-                              width: 36,
-                              decoration: BoxDecoration(
-                                color: AppColors.card,
-                                borderRadius: BorderRadius.circular(30),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.card,
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.local_fire_department,
+                                color: AppColors.primary,
+                                size: 18,
                               ),
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(
-                                  Icons.notifications_none,
-                                  color: AppColors.textPrimary,
-                                  size: 20,
-                                ),
-                                onPressed: () {
-                                  // open notification screen
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => NotificationsScreen(
-                                        onClose: () {
-                                          Navigator.pop(
-                                            context,
-                                          ); // closes the notification screen
-                                        },
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            /// RED DOT (UNREAD)
-                            Positioned(
-                              right: 8,
-                              top: 8,
-                              child: Container(
-                                height: 8,
-                                width: 8,
-                                decoration: const BoxDecoration(
+                              const SizedBox(width: 5),
+                              const Text(
+                                "12",
+                                style: TextStyle(
                                   color: AppColors.primary,
-                                  shape: BoxShape.circle,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: AppColors.card,
+                          child: Text(
+                            userData != null &&
+                                    userData!['firstName'] != null &&
+                                    userData!['firstName'].isNotEmpty
+                                ? userData!['firstName'][0].toUpperCase() +
+                                      (userData!['lastName'] != null &&
+                                              userData!['lastName'].isNotEmpty
+                                          ? userData!['lastName'][0]
+                                                .toUpperCase()
+                                          : '')
+                                : "RU",
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -186,10 +188,25 @@ class DashboardScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    StatCard(title: "Miles", value: "248"),
-                    StatCard(title: "Avg MPH", value: "54"),
-                    StatCard(title: "Duration", value: "6.5h"),
+                  children: [
+                    StatCard(
+                      title: "Miles",
+                      value: userData != null
+                          ? "${userData!['weeklyMiles'] ?? 0}"
+                          : "0",
+                    ),
+                    StatCard(
+                      title: "Avg MPH",
+                      value: userData != null
+                          ? "${userData!['weeklyAvgMph'] ?? 0}"
+                          : "0",
+                    ),
+                    StatCard(
+                      title: "Duration",
+                      value: userData != null
+                          ? "${userData!['weeklyDuration'] ?? 0}h"
+                          : "0h",
+                    ),
                   ],
                 ),
               ),
@@ -197,46 +214,49 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 30),
 
               /// UPCOMING RIDE CARD
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        "Upcoming Group Ride",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
+              if (userData != null && userData!['upcomingRide'] != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Upcoming Ride",
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 12),
-                      Text(
-                        "Sunday Mountain Run",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                        const SizedBox(height: 12),
+                        Text(
+                          userData!['upcomingRide']['title']?.toString() ??
+                              "Upcoming Ride",
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        "8 Riders • Feb 15 • 7:30 AM",
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
+                        const SizedBox(height: 4),
+                        Text(
+                          userData!['upcomingRide']['subtitle']?.toString() ??
+                              "",
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
 
               const SizedBox(height: 25),
 

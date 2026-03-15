@@ -1,7 +1,7 @@
 import '../models/ride_model.dart';
 
 class DemoRideService {
-  static List<RideModel> _rides = [];
+  static final List<RideModel> _rides = [];
 
   static List<Map<String, String>> demoFriends = [
     {"id": "1", "name": "John Rider"},

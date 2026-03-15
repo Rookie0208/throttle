@@ -63,6 +63,16 @@ public class RideGroup {
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GroupMember> members = new ArrayList<>();
 
+    // check for these columns
+//     @Column(nullable = false)
+// private String visibility; // PUBLIC / PRIVATE
+
+// @Column(nullable = false)
+// private Boolean membersCanSendMessages = true;
+
+// @Column(nullable = false)
+// private Boolean membersCanAddMembers = false;
+
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();
