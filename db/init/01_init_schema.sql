@@ -349,8 +349,37 @@ CREATE TABLE ride_live_locations (
         ON DELETE CASCADE
 );
 
-CREATE INDEX idx_rl_ride ON ride_locations(ride_id);
-CREATE INDEX idx_rl_time ON ride_locations(recorded_at);
+CREATE INDEX idx_live_location_ride ON ride_live_locations(ride_id);
+CREATE INDEX idx_live_location_user ON ride_live_locations(user_id);
+CREATE INDEX idx_live_location_time ON ride_live_locations(recorded_at);
+
+--------------------------------------------------
+-- NOTIFICATIONS
+--------------------------------------------------
+
+CREATE TABLE notifications (
+    id BIGSERIAL PRIMARY KEY,
+
+    user_id BIGINT NOT NULL,
+
+    type VARCHAR(50) NOT NULL,
+
+    title VARCHAR(200),
+    message TEXT,
+
+    reference_id BIGINT,
+    reference_type VARCHAR(50),
+
+    is_read BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMP DEFAULT now(),
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_notifications_user ON notifications(user_id);
 
 --------------------------------------------------
 -- USER FOLLOWS

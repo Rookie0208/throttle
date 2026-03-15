@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/invite_member_screen.dart';
 
 import 'package:throttle_ui/services/sub_groups_service.dart';
 
 class CreateSubGroupScreen extends StatefulWidget {
 
-  final String groupId;
+  final String rideId;
   final String token;
 
   const CreateSubGroupScreen({
     super.key,
-    required this.groupId,
+    required this.rideId,
     required this.token,
   });
 
@@ -29,8 +30,23 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
 
   List selectedMembers = [];
 
-  void _selectMembers() {
+  void _selectMembers() async {
     // Navigate to member picker screen
+    final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => InviteMemberScreen(
+        groupId: widget.rideId,
+        token: widget.token,
+      ),
+    ),
+  );
+
+  if (result != null) {
+    setState(() {
+      selectedMembers = result;
+    });
+  }
   }
 
   Future<void> _createSubGroup() async {
@@ -43,7 +59,7 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
   }
 
   final payload = {
-    "parentGroupUuid": widget.groupId,   // ✅ ADDED
+    "rideUuid": widget.rideId,   // ✅ ADDED
     "name": nameController.text.trim(),
     "visibility": visibility,
     "permissions": {
@@ -60,6 +76,8 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
       widget.token,
       payload,
     );
+
+    Navigator.pop(context, result);
 
     if (!mounted) return;
 

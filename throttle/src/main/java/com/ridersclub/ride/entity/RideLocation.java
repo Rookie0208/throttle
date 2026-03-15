@@ -53,6 +53,9 @@ public class RideLocation {
     @Column(length = 255)
     private String name;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;  
     @Column(name = "sequence")
     private Integer sequence;
 
