@@ -8,7 +8,7 @@ import lombok.Data;
 public class CreateSubGroupRequest {
     private String name;
 
-    private String parentGroupUuid;
+    private String rideUuid;
 
     private List<String> memberUuids;
 }

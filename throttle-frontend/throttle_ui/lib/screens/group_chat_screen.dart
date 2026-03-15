@@ -131,11 +131,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _openSubGroupCreation() {
+    print(widget.group);
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CreateSubGroupScreen(
-          groupId: widget.group["uuid"],
+          rideId: widget.group["uuid"],
           token: widget.token,
         ),
       ),
@@ -186,8 +187,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     bool isActive = widget.group["status"] == "active";
 
     // Check if current user is the captain
-    bool isCaptain = widget.group["members"]
-            .any((m) => m["role"] == "CAPTAIN" && m["id"] == "u1") // Replace u1 with current userId
+    bool isCaptain =
+        widget.group["members"].any(
+          (m) => m["role"] == "CAPTAIN" && m["id"] == "u1",
+        ) // Replace u1 with current userId
         ? true
         : false;
 
@@ -212,19 +215,31 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'info',
-                child: Text("Group Info", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  "Group Info",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
               const PopupMenuItem(
                 value: 'leave',
-                child: Text("Leave Group", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  "Leave Group",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
               const PopupMenuItem(
                 value: 'invite',
-                child: Text("Invite Riders", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  "Invite Riders",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
               const PopupMenuItem(
                 value: 'subgroup',
-                child: Text("Create Subgroup", style: TextStyle(color: Colors.white)),
+                child: Text(
+                  "Create Subgroup",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
             onSelected: _handleMenuSelection,
@@ -233,7 +248,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
       body: Column(
         children: [
-
           /// SUBGROUP BAR
           _subGroupBar(),
 
@@ -293,14 +307,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   Widget _subGroupBar() {
-
     if (loadingSubGroups) {
       return const SizedBox(
         height: 50,
         child: Center(
-          child: CircularProgressIndicator(
-            color: Color(0xfffe6603),
-          ),
+          child: CircularProgressIndicator(color: Color(0xfffe6603)),
         ),
       );
     }
@@ -320,7 +331,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         scrollDirection: Axis.horizontal,
         itemCount: subGroups.length,
         itemBuilder: (context, index) {
-
           final g = subGroups[index];
 
           return Padding(
