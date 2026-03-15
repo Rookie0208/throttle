@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/notification_screen.dart';
 import '../utils/string_extensions.dart';
 
 class AppColors {
@@ -62,33 +63,48 @@ class DashboardScreen extends StatelessWidget {
                     /// RIGHT SIDE ICONS
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.local_fire_department,
-                                color: AppColors.primary,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                "12",
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        Stack(
+  children: [
+    Container(
+  decoration: BoxDecoration(
+    color: AppColors.card,
+    borderRadius: BorderRadius.circular(30),
+  ),
+  child: IconButton(
+    icon: const Icon(
+      Icons.notifications_none,
+      color: AppColors.textPrimary,
+      size: 22,
+    ),
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => NotificationsScreen(
+            onClose: () {
+              Navigator.pop(context);
+            },
+          ),
+        ),
+      );
+    },
+  ),
+),
+
+    Positioned(
+      right: 8,
+      top: 8,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: AppColors.primary,
+          shape: BoxShape.circle,
+        ),
+      ),
+    ),
+  ],
+),
                         const SizedBox(width: 12),
                         CircleAvatar(
                           radius: 18,
