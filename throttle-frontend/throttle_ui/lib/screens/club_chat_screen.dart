@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'club_info_screen.dart';
+import 'package:throttle_ui/screens/club_info_screen.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Map<String, dynamic> club;
@@ -15,8 +15,16 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   final ScrollController scrollController = ScrollController();
 
   List<Map<String, dynamic>> messages = [
-    {"sender": "Mike T.", "message": "Welcome to the club!", "time": "08:00 AM"},
-    {"sender": "You", "message": "Excited to ride together!", "time": "08:05 AM"},
+    {
+      "sender": "Mike T.",
+      "message": "Welcome to the club!",
+      "time": "08:00 AM",
+    },
+    {
+      "sender": "You",
+      "message": "Excited to ride together!",
+      "time": "08:05 AM",
+    },
   ];
 
   void sendMessage() {
@@ -48,7 +56,8 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         padding: const EdgeInsets.all(12),
         constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.7),
+          maxWidth: MediaQuery.of(context).size.width * 0.7,
+        ),
         decoration: BoxDecoration(
           color: isMe ? const Color(0xfffe6603) : const Color(0xff1a1c20),
           borderRadius: BorderRadius.circular(14),
@@ -59,19 +68,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             if (!isMe)
               Text(
                 msg["sender"],
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 12),
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             const SizedBox(height: 4),
-            Text(
-              msg["message"],
-              style: const TextStyle(color: Colors.white),
-            ),
+            Text(msg["message"], style: const TextStyle(color: Colors.white)),
             const SizedBox(height: 4),
             Text(
               msg["time"],
-              style: const TextStyle(
-                  color: Colors.white38, fontSize: 10),
+              style: const TextStyle(color: Colors.white38, fontSize: 10),
             ),
           ],
         ),
@@ -82,24 +86,108 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
   void _openClubInfo() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => ClubInfoScreen(club: widget.club),
+      MaterialPageRoute(builder: (_) => ClubInfoScreen(club: widget.club)),
+    );
+  }
+
+  void _openSubClubCreation() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xff1a1c20),
+        title: const Text(
+          "Create Subclub",
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          "Here you can implement subclub creation UI.",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
       ),
     );
   }
 
+  void _handleMenuSelection(String value) {
+    switch (value) {
+      case 'info':
+        _openClubInfo();
+        break;
+      case 'leave':
+        // Implement leave club logic here
+        break;
+      case 'subclub':
+        _openSubClubCreation();
+        break;
+      case 'manage':
+        // Implement manage clubs logic here
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Check if current user is captain
+    final members = widget.club["members"];
+bool isCaptain = false;
+
+// Only run .any if members is a List
+if (members is List) {
+  isCaptain = members.any(
+    (m) => m["role"] == "CAPTAIN" && m["id"] == "u1",
+  );
+}
+
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
       appBar: AppBar(
         backgroundColor: const Color(0xff1a1c20),
-        title: Text(widget.club["name"]),
+        title: Text(
+          widget.club["name"],
+          style: const TextStyle(color: Colors.white),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _openClubInfo,
-          )
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            color: const Color(0xff1a1c20),
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'info',
+                child: Text(
+                  "Show Club Info",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'leave',
+                child: Text(
+                  "Leave Club",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              if (isCaptain)
+                const PopupMenuItem(
+                  value: 'subclub',
+                  child: Text(
+                    "Create Subclub",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              const PopupMenuItem(
+                value: 'manage',
+                child: Text(
+                  "Manage Clubs",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+            onSelected: _handleMenuSelection,
+          ),
         ],
       ),
       body: Column(
@@ -108,13 +196,11 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             child: ListView.builder(
               controller: scrollController,
               itemCount: messages.length,
-              itemBuilder: (context, index) =>
-                  _buildMessage(messages[index]),
+              itemBuilder: (context, index) => _buildMessage(messages[index]),
             ),
           ),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: const Color(0xff1a1c20),
             child: Row(
               children: [
@@ -124,20 +210,18 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
                       hintText: "Type a message...",
-                      hintStyle:
-                          TextStyle(color: Colors.white38),
+                      hintStyle: TextStyle(color: Colors.white38),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send,
-                      color: Color(0xfffe6603)),
+                  icon: const Icon(Icons.send, color: Color(0xfffe6603)),
                   onPressed: sendMessage,
-                )
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );

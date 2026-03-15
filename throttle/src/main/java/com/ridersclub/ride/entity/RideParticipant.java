@@ -2,6 +2,8 @@ package com.ridersclub.ride.entity;
 
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.user.entity.User;
@@ -37,6 +39,7 @@ public class RideParticipant {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ride_id", nullable = false)
+    @JsonIgnore
     private Ride ride;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

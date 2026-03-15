@@ -19,9 +19,10 @@ import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
 import com.ridersclub.auth.service.AuthService;
 import com.ridersclub.common.dto.ApiResponse;
+import com.ridersclub.common.Utils.ApiConstants;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping(ApiConstants.Auth.BASE)
 public class AuthController {
 
     private final AuthService authService;
@@ -30,7 +31,7 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @PostMapping("/register")
+    @PostMapping(ApiConstants.Auth.REGISTER)
     public ResponseEntity<ApiResponse<RegisterResponse>> register(
             @Valid @RequestBody RegisterRequest request) {
         RegisterResponse response = authService.register(request);
@@ -38,21 +39,21 @@ public class AuthController {
                 .body(ApiResponse.success(response, "User registered successfully"));
     }
 
-    @PostMapping("/login")
+    @PostMapping(ApiConstants.Auth.LOGIN)
     public ResponseEntity<ApiResponse<LoginResponse>> login(
             @Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success(response, "User logged in successfully"));
     }
 
-    @PostMapping("/google/initiate")
+    @PostMapping(ApiConstants.Auth.GOOGLE_INITIATE)
     public ResponseEntity<ApiResponse<GoogleAuthResponse>> initiateGoogleAuth(
             @Valid @RequestBody GoogleAuthRequest request) {
         GoogleAuthResponse response = authService.verifyGoogleToken(request);
         return ResponseEntity.ok(ApiResponse.success(response, "Google sign-in initiated"));
     }
 
-    @PostMapping("/google/verify-otp")
+    @PostMapping(ApiConstants.Auth.GOOGLE_VERIFY_OTP)
     public ResponseEntity<ApiResponse<Boolean>> verifyOtp(
             @Valid @RequestBody VerifyOtpRequest request) {
         boolean isValid = authService.verifyOtp(request.getEmail(), request.getOtp());
@@ -63,7 +64,7 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(true, "OTP verified successfully"));
     }
 
-    @PostMapping("/google/complete-registration")
+    @PostMapping(ApiConstants.Auth.GOOGLE_COMPLETE_REGISTRATION)
     public ResponseEntity<ApiResponse<LoginResponse>> completeGoogleRegistration(
             @Valid @RequestBody GoogleRegisterRequest request) {
         LoginResponse response = authService.completeGoogleRegistration(request);
@@ -72,7 +73,7 @@ public class AuthController {
     }
 
     // health-check endpoint can be kept if required
-    @PostMapping("/test")
+    @PostMapping(ApiConstants.Auth.TEST)
     public ResponseEntity<String> test() {
         return ResponseEntity.ok("Auth controller working");
     }

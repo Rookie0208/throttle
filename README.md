@@ -74,6 +74,12 @@ lib/
 -> cd throttle_ui (parallel to pubspec.yaml file)
 -> flutter run -d chrome --web-port=8081
 
+## How to run db locally in docker
+
+1. keep in paraller to docker-compose file
+-> docker exec -it container-id psql -U throttle_user -d throttleDB
+-> You can get container id by doing "docker ps"
+
 Frontend will start at:
 http://localhost:8081
 

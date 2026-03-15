@@ -46,6 +46,8 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiResponse<Void>> generic(Exception ex, HttpServletRequest request) {
     ApiErrors error = new ApiErrors("INTERNAL_SERVER_ERROR", ex.getMessage(), request.getRequestURI());
     log.error("Unhandled exception: ", ex);
+    System.out.println("INTERNAL_SERVER_ERROR: " + ex.getMessage());
+    System.out.println("Request URI: " + request.getRequestURI());
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponse.failure(error, "An unexpected error occurred"));
   }
@@ -62,6 +64,8 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ApiResponse<Void>> handleInvalidCredentials(InvalidCredentialsException ex,
       HttpServletRequest request) {
     ApiErrors error = new ApiErrors("AUTH_INVALID_CREDENTIALS", ex.getMessage(), request.getRequestURI());
+    System.out.println("Invalid credentials: " + ex.getMessage());
+    System.out.println("Request URI: " + request.getRequestURI());
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(ApiResponse.failure(error, "Invalid credentials"));
   }

@@ -4,10 +4,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.EnableAsync;
 
-@EnableJpaRepositories(basePackages = {"com.ridersclub.user.repository", "com.ridersclub.ride.repository"})
-@EntityScan(basePackages = "com.ridersclub.user.entity, com.ridersclub.ride.entity")
+@EnableAsync
+@EnableJpaRepositories(basePackages = {"com.ridersclub.user.repository", "com.ridersclub.ride.repository", "com.ridersclub.notification.repository"})
+@EntityScan(basePackages = "com.ridersclub.user.entity, com.ridersclub.ride.entity, com.ridersclub.notification.entity")
 @SpringBootApplication(scanBasePackages = "com.ridersclub")
 public class ThrottleApplication {
 

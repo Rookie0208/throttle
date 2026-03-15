@@ -1,5 +1,7 @@
 package com.ridersclub.ride.controller;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,25 +11,30 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
+import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.RideResponse;
 import com.ridersclub.ride.entity.Ride;
+import com.ridersclub.ride.entity.RideGroup;
+import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.ride.service.RideService;
+import com.ridersclub.user.entity.User;
+import com.ridersclub.common.Utils.ApiConstants;
 
 import lombok.RequiredArgsConstructor;
 
-@Controller
-@RequestMapping("/api/v1/rides")
+@RestController
+@RequestMapping(ApiConstants.Rides.BASE)
 @RequiredArgsConstructor
 public class RideController {
     private static final Logger logger = LoggerFactory.getLogger(RideController.class);
@@ -35,7 +42,10 @@ public class RideController {
     @Autowired
     private RideService rideService;
 
-    @PostMapping("/create")
+    @Autowired
+    private RideGroupRepository rideGroupRepository;
+
+    @PostMapping(ApiConstants.Rides.CREATE)
     public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateRideRequest request,
             Authentication authentication) throws AccessDeniedException {
         RideResponse response = null;
@@ -56,14 +66,14 @@ public class RideController {
         return ResponseEntity.ok(ApiResponse.success(response, "Ride created successfully"));
     }
 
-     @GetMapping("/my")
+    @GetMapping(ApiConstants.Rides.MY_RIDES)
     public ApiResponse<?> my(Authentication authentication) {
         String userId = (String) authentication.getPrincipal();
-        System.out.println("getting my rides for user : "+userId);
+        System.out.println("getting my rides for user : " + userId);
         return ApiResponse.success(rideService.myRides(userId), "My rides");
     }
 
-    @PostMapping("/{id}/join")
+    @PostMapping(ApiConstants.Rides.JOIN)
     public ApiResponse<?> join(@PathVariable String id,
             @AuthenticationPrincipal UserDetails user) {
 
@@ -71,18 +81,22 @@ public class RideController {
         return ApiResponse.success(null, "Joined ride");
     }
 
-    @GetMapping("/{id}/participants")
+    @GetMapping(ApiConstants.Rides.LIST)
     public ApiResponse<?> participants(@PathVariable String id) {
         return ApiResponse.success(rideService.participants(id), "Participants");
     }
 
-    @PostMapping("/{id}/complete")
-    public ApiResponse<?> complete(@PathVariable String id) {
-        rideService.complete(id);
-        return ApiResponse.success(null, "Ride completed");
+    @PostMapping(ApiConstants.Rides.COMPLETE)
+    public ApiResponse<?> complete(@PathVariable String id,
+            Authentication authentication) {
+
+        String userUuid = authentication.getName();
+
+        rideService.complete(id, userUuid);
+        return ApiResponse.success(null, "Ride completed successfully");
     }
 
-    @PostMapping("/{id}/stats")
+    @PostMapping(ApiConstants.Rides.STATS)
     public ApiResponse<?> stats(@PathVariable String id,
             @RequestBody RideSummaryRequest req,
             @AuthenticationPrincipal UserDetails user) {
@@ -90,4 +104,29 @@ public class RideController {
         rideService.addStats(id, user.getUsername(), req);
         return ApiResponse.success(null, "Stats saved");
     }
+
+    /**
+     * Subgroup related APIs
+     * final payload = {
+     * "name": "Breakfast Crew",
+     * "parentGroupUuid": groupId,
+     * "memberUuids": selectedMembers
+     * };
+     * 
+     */
+    @PostMapping("/subgroup")
+    public ResponseEntity<?> createSubGroup(
+            @RequestBody CreateSubGroupRequest request,
+            @AuthenticationPrincipal User user) {
+
+        RideGroup group = rideService.createSubGroup(request, user);
+
+        return ResponseEntity.ok(group.getUuid());
+    }
+
+    @GetMapping("/{groupUuid}/subgroups")
+    public List<RideGroup> getSubGroups(@PathVariable String groupUuid) {
+        return rideGroupRepository.findByParentGroupUuid(groupUuid);
+    }
+
 }
