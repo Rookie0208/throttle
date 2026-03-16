@@ -1,6 +1,11 @@
 package com.ridersclub.ride.controller;
 
+import java.util.stream.Collectors;
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -8,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ridersclub.common.dto.ApiResponse;
+import com.ridersclub.common.enums.Role;
 import com.ridersclub.ride.dto.request.AssignRoleRequest;
 import com.ridersclub.ride.dto.request.RemoveRiderRequest;
 import com.ridersclub.ride.service.RideCaptainService;
@@ -39,5 +45,18 @@ public class RideCaptainController {
 
         // captainService.removeRider(rideId, request);
         return ApiResponse.success(null, "Rider removed");
+    }
+
+    /**
+     * Fetch all ride roles
+     */
+    @GetMapping("/roles")
+    public ApiResponse<List<String>> getRideRoles() {
+
+        List<String> roles = Arrays.stream(Role.values())
+                .map(Enum::name)
+                .collect(Collectors.toList());
+
+        return ApiResponse.success(roles, "Ride roles fetched successfully");
     }
 }
