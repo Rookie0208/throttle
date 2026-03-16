@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/public_profile_screen.dart';
 import 'package:throttle_ui/services/group_service.dart';
+import 'package:throttle_ui/services/ride_member_service.dart';
 
 class RideInfoScreen extends StatelessWidget {
   final Map<String, dynamic> rideGroup;
@@ -137,9 +139,15 @@ class RideInfoScreen extends StatelessWidget {
 
               return Column(
                 children: members.map((m) {
+                  final member = Map<String, dynamic>.from(m);
+
+                  final name =
+                      "${member["firstName"] ?? ""} ${member["lastName"] ?? ""}"
+                          .trim();
+
                   return GestureDetector(
-                    onTap: () => _openMemberSheet(context, m),
-                    child: _metricTile(m["name"] ?? "", m["role"] ?? ""),
+                    onTap: () => _openMemberSheet(context, member),
+                    child: _metricTile(name, member["role"] ?? ""),
                   );
                 }).toList(),
               );
@@ -151,6 +159,10 @@ class RideInfoScreen extends StatelessWidget {
   }
 
   void _openMemberSheet(BuildContext context, Map member) {
+    // uncomment this when you have API ready for fetching roles
+    //     Future<List<String>> fetchRoles() {
+    //   return RideMemberService.fetchRoles(token);
+    // }
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xff1a1c20),
@@ -158,7 +170,8 @@ class RideInfoScreen extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
-        final String name = member["name"] ?? "";
+        final String name =
+            "${member["firstName"] ?? ""} ${member["lastName"] ?? ""}".trim();
         final String role = member["role"] ?? "MEMBER";
 
         return Padding(
@@ -172,7 +185,7 @@ class RideInfoScreen extends StatelessWidget {
                   CircleAvatar(
                     backgroundColor: const Color(0xfffe6603),
                     child: Text(
-                      member["name"][0],
+                      name.isNotEmpty ? name[0].toUpperCase() : "U",
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -204,10 +217,57 @@ class RideInfoScreen extends StatelessWidget {
                   style: TextStyle(color: Colors.white),
                 ),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PublicProfileScreen(
+                        user: Map<String, dynamic>.from(member),
+                      ),
+                    ),
+                  );
                   // Navigate to full profile screen
                 },
               ),
+
+              // uncomment this when you have API ready for fetching roles
+              //               FutureBuilder<List<String>>(
+              //   future: fetchRoles(),
+              //   builder: (context, snapshot) {
+
+              //     if (!snapshot.hasData) return const SizedBox();
+
+              //     List<String> roles = snapshot.data!;
+
+              //     return Column(
+              //       children: roles.map((role) {
+
+              //         return ListTile(
+              //           leading: const Icon(Icons.shield, color: Colors.orange),
+              //           title: Text(
+              //             "Make this ${role.toLowerCase()}",
+              //             style: const TextStyle(color: Colors.white),
+              //           ),
+              //           onTap: () async {
+
+              //             await RideMemberService.updateRole(
+              //               token,
+              //               rideGroup["uuid"],
+              //               member["userUuid"],
+              //               role,
+              //             );
+
+              //             Navigator.pop(context);
+
+              //             ScaffoldMessenger.of(context).showSnackBar(
+              //               SnackBar(content: Text("Role updated to $role")),
+              //             );
+              //           },
+              //         );
+
+              //       }).toList(),
+              //     );
+              //   },
+              // ),
 
               /// PROMOTE
               ListTile(
@@ -242,9 +302,18 @@ class RideInfoScreen extends StatelessWidget {
                   "Remove from Ride",
                   style: TextStyle(color: Colors.white),
                 ),
-                onTap: () {
+                onTap: () async {
+                  await RideMemberService.removeMember(
+                    token,
+                    rideGroup["uuid"],
+                    member["userUuid"],
+                  );
+
                   Navigator.pop(context);
-                  // call remove API
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Member removed from ride")),
+                  );
                 },
               ),
 
