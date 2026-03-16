@@ -5,6 +5,22 @@ class GroupService {
   static const String baseUrl =
       "http://localhost:8080/api/v1";
 
+      static Future<void> updateRide(
+  String token,
+  String rideUuid,
+  Map payload,
+) async {
+
+  await http.put(
+    Uri.parse("$baseUrl/rides/$rideUuid"),
+    headers: {
+      "Authorization": "Bearer $token",
+      "Content-Type": "application/json"
+    },
+    body: jsonEncode(payload),
+  );
+}
+
   static Future<Map<String, dynamic>> fetchMyGroups(String token) async {
     try {
       final response = await http.get(

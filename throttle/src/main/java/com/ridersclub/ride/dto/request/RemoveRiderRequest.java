@@ -8,6 +8,6 @@ import lombok.Data;
 public class RemoveRiderRequest {
 
     @NotBlank(message = "User ID is required")
-    private String userId;
+    private String userUuId;
 
 }
