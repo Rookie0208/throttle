@@ -236,6 +236,13 @@ CREATE TABLE ride_groups (
 
     name VARCHAR(150),
 
+    visibility VARCHAR(20) NOT NULL DEFAULT 'PUBLIC'
+        CHECK (visibility IN ('PUBLIC','PRIVATE')),
+
+    members_can_send_messages BOOLEAN NOT NULL DEFAULT TRUE,
+
+    members_can_add_members BOOLEAN NOT NULL DEFAULT FALSE,
+
     created_by BIGINT NOT NULL,
 
     created_at TIMESTAMP DEFAULT now(),
