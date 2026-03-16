@@ -164,6 +164,9 @@ public class RideService {
 
                 subGroup.setUuid(UUID.randomUUID().toString());
                 subGroup.setName(request.getName());
+                subGroup.setVisibility(request.getVisibility());
+                subGroup.setMembersCanSendMessages(request.isMembersCanSendMessages());
+                subGroup.setMembersCanAddMembers(request.isMembersCanAddMembers());
                 subGroup.setParentGroup(mainGroup);
                 subGroup.setRide(mainGroup.getRide());
                 subGroup.setCreatedBy(user);
@@ -311,7 +314,9 @@ public class RideService {
                                                                 group.getParentGroup() != null
                                                                                 ? group.getParentGroup().getUuid()
                                                                                 : null)
-                                                // .visibility(group.getVisibility())
+                                                .visibility(group.getVisibility())
+                                                .membersCanSendMessages(group.getMembersCanSendMessages())
+                                                .membersCanAddMembers(group.getMembersCanAddMembers())
                                                 .createdByUuid(group.getCreatedBy().getUuid())
                                                 .createdAt(group.getCreatedAt())
                                                 .build())
