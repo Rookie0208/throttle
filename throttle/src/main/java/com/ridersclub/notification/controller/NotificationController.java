@@ -2,6 +2,7 @@ package com.ridersclub.notification.controller;
 
 import java.util.List;
 
+import org.apache.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,12 +32,13 @@ public class NotificationController {
      * Get notifications for logged-in user
      */
   @GetMapping(ApiConstants.Notifications.MY)
-public List<Notifications> getMyNotifications(Authentication authentication) {
+public ResponseEntity<ApiResponse<List<Notifications>>> getMyNotifications(Authentication authentication) {
     System.out.println(authentication.getPrincipal().getClass());
 
     User user = (User) authentication.getPrincipal();
-    System.err.println("Fetching notifications for user: " + user.getEmail());
-    return notificationService.getUserNotifications(user.getId());
+    System.out.println("Fetching notifications for user: " + user.getEmail());
+    List<Notifications> notifications = notificationService.getUserNotifications(user.getId());
+    return ResponseEntity.status(org.springframework.http.HttpStatus.OK).body(ApiResponse.success(notifications, "Notifications fetched successfully"));
 }
 
     /**

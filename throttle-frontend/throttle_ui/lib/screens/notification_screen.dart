@@ -62,59 +62,56 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
             /// BODY
             Expanded(
-              child: FutureBuilder<List<NotificationItem>>(
-                future: futureNotifications,
-                builder: (context, snapshot) {
+  child: FutureBuilder<List<NotificationItem>>(
+    future: futureNotifications,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
 
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        return const Center(
+          child: Text(
+            "No new notifications",
+            style: TextStyle(color: Colors.grey),
+          ),
+        );
+      }
 
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
-                      child: Text("No notifications"),
-                    );
-                  }
+      final notifications = snapshot.data!;
+      final unreadCount = notifications.where((n) => n.unread).length;
 
-                  final notifications = snapshot.data!;
-                  final unreadCount = _unreadCount(notifications);
-
-                  return ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    children: [
-
-                      /// NEW COUNT
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: "$unreadCount new ",
-                              style: const TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            const TextSpan(
-                              text: "notifications",
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      /// NOTIFICATION LIST
-                      ...notifications.map((n) => _notificationCard(n)).toList(),
-                    ],
-                  );
-                },
-              ),
-            )
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        children: [
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: "$unreadCount new ",
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                const TextSpan(
+                  text: "notifications",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...notifications.map((n) => _notificationCard(n)).toList(),
+        ],
+      );
+    },
+  ),
+)
           ],
         ),
       ),
