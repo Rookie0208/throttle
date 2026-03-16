@@ -23,7 +23,6 @@ import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
-import com.ridersclub.ride.dto.response.RideGroupResponse;
 import com.ridersclub.ride.dto.response.RideResponse;
 import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.Ride;
@@ -117,16 +116,13 @@ public class RideController {
      * 
      */
     @PostMapping("/subgroup")
-    public ResponseEntity<ApiResponse<RideGroupResponse>> createSubGroup(
+    public ResponseEntity<ApiResponse<RideGroup>> createSubGroup(
             @RequestBody CreateSubGroupRequest request, Authentication authentication) {
-
-        RideGroupResponse response = null;
-
         try {
             String userUuid = authentication.getPrincipal().toString();
             RideGroup group = rideService.createSubGroup(request, userUuid);
 
-            response = new RideGroupResponse(group.getUuid());
+            return ResponseEntity.ok(ApiResponse.success(group, "Subgroup created successfully"));
         } catch (Exception e) {
             logger.error("error creating subgrop", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -134,8 +130,6 @@ public class RideController {
                             new ApiErrors("SUBGROUP_CREATION_FAILED", e.getMessage(), "/api/v1/rides/subgroup"),
                             "Subgroup creation failed"));
         }
-
-        return ResponseEntity.ok(ApiResponse.success(response, "Subgroup created successfully"));
     }
 
     @GetMapping("/{groupUuid}/subgroups")
