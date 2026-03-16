@@ -8,7 +8,7 @@ import lombok.Data;
 public class AssignRoleRequest {
 
     @NotBlank(message = "User ID is required")
-    private String userId;
+    private String userUuId;
 
     @NotBlank(message = "Role is required")
     private String role;

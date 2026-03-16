@@ -4,38 +4,34 @@ import 'package:flutter/material.dart';
 import 'package:throttle_ui/models/notification_model.dart';
 
 class NotificationService {
-
   static const String baseUrl = "http://localhost:8080/api/v1";
 
   Future<List<NotificationItem>> fetchNotifications() async {
     try {
-
       final response = await http.get(
         Uri.parse("$baseUrl/notifications/my"),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json"},
       );
-
+      print("url : "+"$baseUrl/notifications/my");
+      print("STATUS CODE: ${response.statusCode}");
+      print("BODY: ${response.body}");
       if (response.statusCode == 200) {
-
         final data = jsonDecode(response.body);
-
-        if (data == null || data["data"] == null || data["data"].isEmpty) {
-          return _dummyNotifications();
+        print("noti data : " + data);
+        // If there is no "data" or it's empty, return an empty list
+        if (data == null ||
+            data["data"] == null ||
+            (data["data"] as List).isEmpty) {
+          return [];
         }
 
         List list = data["data"];
-
-        return list
-            .map((e) => NotificationItem.fromJson(e))
-            .toList();
+        return list.map((e) => NotificationItem.fromJson(e)).toList();
       }
 
-      return _dummyNotifications();
-
+      return []; // Return empty list for non-200 responses
     } catch (e) {
-      return _dummyNotifications();
+      return []; // Return empty list if error occurs
     }
   }
 

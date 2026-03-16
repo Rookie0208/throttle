@@ -42,11 +42,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       final result = await SubGroupService.fetchSubGroups(
         widget.token,
-        widget.group["uuid"],
+        widget.group["uuid"],   // this is actually rideUUID
       );
 
       setState(() {
-        subGroups = result["data"] ?? [];
+        subGroups = result;
         loadingSubGroups = false;
       });
     } catch (e) {
@@ -130,18 +130,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
-  void _openSubGroupCreation() {
-    print(widget.group);
+  void _openSubGroupCreation() async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CreateSubGroupScreen(
+        rideId: widget.group["uuid"],
+        token: widget.token,
+      ),
+    ),
+  );
+
+  /// if subgroup created successfully
+  if (result != null) {
+
+    /// refresh subgroup list
+    fetchSubGroups();
+
+    /// open subgroup chat
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => CreateSubGroupScreen(
-          rideId: widget.group["uuid"],
+        builder: (_) => GroupChatScreen(
+          group: result,
           token: widget.token,
         ),
       ),
     );
   }
+}
 
   void _handleMenuSelection(String value) {
     switch (value) {
@@ -187,12 +204,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     bool isActive = widget.group["status"] == "active";
 
     // Check if current user is the captain
-    bool isCaptain =
-        widget.group["members"].any(
-          (m) => m["role"] == "CAPTAIN" && m["id"] == "u1",
-        ) // Replace u1 with current userId
-        ? true
-        : false;
+    bool isCaptain = false;
+
+if (widget.group["members"] != null &&
+    widget.group["members"] is List) {
+
+  isCaptain = (widget.group["members"] as List).any(
+    (m) => m["role"] == "CAPTAIN" && m["id"] == "u1",
+  );
+}
 
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
@@ -215,31 +235,19 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'info',
-                child: Text(
-                  "Group Info",
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: Text("Group Info", style: TextStyle(color: Colors.white)),
               ),
               const PopupMenuItem(
                 value: 'leave',
-                child: Text(
-                  "Leave Group",
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: Text("Leave Group", style: TextStyle(color: Colors.white)),
               ),
               const PopupMenuItem(
                 value: 'invite',
-                child: Text(
-                  "Invite Riders",
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: Text("Invite Riders", style: TextStyle(color: Colors.white)),
               ),
               const PopupMenuItem(
                 value: 'subgroup',
-                child: Text(
-                  "Create Subgroup",
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: Text("Create Subgroup", style: TextStyle(color: Colors.white)),
               ),
             ],
             onSelected: _handleMenuSelection,
