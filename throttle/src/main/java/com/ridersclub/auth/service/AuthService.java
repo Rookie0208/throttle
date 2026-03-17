@@ -74,11 +74,16 @@ public class AuthService {
             throw new EmailAlreadyExistsException("Email already in use");
         }
 
+        if (userService.existsByUsername(request.getUsername())) {
+            throw new EmailAlreadyExistsException("Username already in use");
+        }
+
         User user = new User();
         user.setUuid(UUID.randomUUID().toString());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername() != null ? request.getUsername() : request.getEmail().split("@")[0]);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setCity(request.getCity());
         user.setBikeType(request.getBikeType());
@@ -149,6 +154,7 @@ public class AuthService {
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername() != null ? request.getUsername() : request.getEmail().split("@")[0]);
         user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // Dummy password for OAuth users to
                                                                                 // satisfy DB constraint
         user.setCity(request.getCity());

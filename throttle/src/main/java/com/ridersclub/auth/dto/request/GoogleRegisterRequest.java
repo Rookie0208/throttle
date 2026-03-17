@@ -18,6 +18,8 @@ public class GoogleRegisterRequest {
     @NotBlank(message = "Last name is required")
     private String lastName;
 
+    private String username;
+
     private String city;
     private String bikeType;
     private int experienceYears;
