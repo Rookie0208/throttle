@@ -38,6 +38,8 @@ public class User {
     @Column(nullable = false, unique = true, updatable = false, length = 100)
     private String uuid;
     @Column(unique = true, nullable = false)
+    private String username;
+    @Column(unique = true, nullable = false)
     private String email;
 
     private String password;
