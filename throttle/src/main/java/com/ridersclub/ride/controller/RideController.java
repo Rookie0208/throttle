@@ -121,8 +121,7 @@ public class RideController {
         try {
             String userUuid = authentication.getPrincipal().toString();
             RideGroup group = rideService.createSubGroup(request, userUuid);
-
-            return ResponseEntity.ok(ApiResponse.success(group, "Subgroup created successfully"));
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(group, "Subgroup created successfully"));
         } catch (Exception e) {
             logger.error("error creating subgrop", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
