@@ -24,6 +24,7 @@ import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.RideResponse;
+import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.repository.RideGroupRepository;
@@ -83,7 +84,7 @@ public class RideController {
 
     // @GetMapping(ApiConstants.Rides.LIST)
     // public ApiResponse<?> participants(@PathVariable String id) {
-    //     return ApiResponse.success(rideService.participants(id), "Participants");
+    // return ApiResponse.success(rideService.participants(id), "Participants");
     // }
 
     @PostMapping(ApiConstants.Rides.COMPLETE)
@@ -117,20 +118,23 @@ public class RideController {
     @PostMapping("/subgroup")
     public ResponseEntity<ApiResponse<RideGroup>> createSubGroup(
             @RequestBody CreateSubGroupRequest request, Authentication authentication) {
-
-        String userUuid = authentication.getPrincipal().toString();
-
-        RideGroup group = rideService.createSubGroup(request, userUuid);
-        System.out.println("Created subgroup: " + group.getUuid());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(group, "Successfuly Created Subgroup"));
+        try {
+            String userUuid = authentication.getPrincipal().toString();
+            RideGroup group = rideService.createSubGroup(request, userUuid);
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(group, "Subgroup created successfully"));
+        } catch (Exception e) {
+            logger.error("error creating subgrop", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.failure(
+                            new ApiErrors("SUBGROUP_CREATION_FAILED", e.getMessage(), "/api/v1/rides/subgroup"),
+                            "Subgroup creation failed"));
+        }
     }
 
     @GetMapping("/{groupUuid}/subgroups")
-    public ResponseEntity<ApiResponse<List<RideGroup>>> getSubGroups(@PathVariable String groupUuid) {
-        List<RideGroup> subGroups = rideGroupRepository.findByParentGroupUuid(groupUuid);
-        System.out.println("Subgroups for group " + groupUuid + ": " + subGroups);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(subGroups, "Successfuly fetched Subgroup"));
+    public ApiResponse<?> getSubGroups(@PathVariable String groupUuid) {
+
+        return ApiResponse.success(rideService.getSubGroups(groupUuid), "Subgroups");
     }
 
 }

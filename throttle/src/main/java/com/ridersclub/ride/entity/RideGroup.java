@@ -4,11 +4,14 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.ridersclub.common.enums.Visibility;
 import com.ridersclub.user.entity.User;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -63,15 +66,15 @@ public class RideGroup {
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GroupMember> members = new ArrayList<>();
 
-    // check for these columns
-//     @Column(nullable = false)
-// private String visibility; // PUBLIC / PRIVATE
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Visibility visibility = Visibility.PUBLIC;
 
-// @Column(nullable = false)
-// private Boolean membersCanSendMessages = true;
+    @Column(name = "members_can_send_messages", nullable = false)
+    private Boolean membersCanSendMessages = true;
 
-// @Column(nullable = false)
-// private Boolean membersCanAddMembers = false;
+    @Column(name = "members_can_add_members", nullable = false)
+    private Boolean membersCanAddMembers = false;
 
     @PrePersist
     public void onCreate() {

@@ -18,10 +18,6 @@ public class UserProfileResponse {
     private String bio;
     private String profileImage;
 
-    // Follows
-    private long followersCount;
-    private long followingCount;
-
     // Stats
     private int totalRides;
     private double totalMiles;

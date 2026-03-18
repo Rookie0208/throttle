@@ -6,7 +6,7 @@ on:
       - main
       - throttle_rohan
       - throttle_amit
-      - throttle_abhay
+      - master
   pull_request:
     branches:
       - main
