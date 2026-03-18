@@ -293,26 +293,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       "Weekend warrior. Canyon lover.",
                                   style: const TextStyle(color: Colors.white70),
                                 ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Text(
-                                      "${widget.userData != null ? (widget.userData!['followersCount'] ?? 0) : 0} Followers",
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text(
-                                      "${widget.userData != null ? (widget.userData!['followingCount'] ?? 0) : 0} Following",
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ],
                             ),
                           ),
