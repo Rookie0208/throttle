@@ -6,7 +6,7 @@ class WeatherService {
   static Future<Map<String, dynamic>?> getCurrentWeather(
       double lat, double lon) async {
     final String url =
-        'https://api.open-meteo.com/v1/forecast?latitude=\$lat&longitude=\$lon&current_weather=true&temperature_unit=fahrenheit';
+        'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -29,10 +29,10 @@ class WeatherService {
           };
         }
       } else {
-        print("Failed to load weather: \${response.statusCode}");
+        print("Failed to load weather: ${response.statusCode}");
       }
     } catch (e) {
-      print("Error fetching weather: \$e");
+      print("Error fetching weather: $e");
     }
     return null;
   }

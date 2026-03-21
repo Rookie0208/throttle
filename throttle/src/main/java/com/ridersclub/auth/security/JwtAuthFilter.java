@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.ridersclub.user.entity.User;
+import com.ridersclub.auth.service.TokenBlacklistService;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.io.IOException;
@@ -25,19 +26,25 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
     private JwtService jwtService;
+    private TokenBlacklistService tokenBlacklistService;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    public JwtAuthFilter(JwtService jwtService, TokenBlacklistService tokenBlacklistService) {
         this.jwtService = jwtService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
     public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
+            throws ServletException, IOException, java.io.IOException {
 
         String authHeader = request.getHeader("Authorization");
         String bearerToken = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
         try {
             if (bearerToken != null) {
+                if (tokenBlacklistService.isTokenBlacklisted(bearerToken)) {
+                    throw new ServletException("Token has been blacklisted");
+                }
+
                 Claims claims = jwtService.parse(bearerToken).getBody();
                 String userId = claims.getSubject();
                

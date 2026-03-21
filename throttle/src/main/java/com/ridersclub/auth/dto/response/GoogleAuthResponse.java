@@ -12,5 +12,6 @@ public class GoogleAuthResponse {
     private String firstName;
     private String lastName;
     private String token; // JWT if login is successful
+    private String refreshToken;
     private Long expiresIn;
 }

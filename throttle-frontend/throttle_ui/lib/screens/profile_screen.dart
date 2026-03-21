@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/settings_screen.dart';
 import 'package:throttle_ui/screens/subscription_screen.dart';
 
 import '../utils/string_extensions.dart';
@@ -33,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -185,14 +186,24 @@ class _ProfileScreenState extends State<ProfileScreen>
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Container(
-                    height: 36,
-                    width: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xff1a1c20),
-                      borderRadius: BorderRadius.circular(12),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 36,
+                      width: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xff1a1c20),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.settings, color: Colors.white),
                     ),
-                    child: const Icon(Icons.settings, color: Colors.white),
                   ),
                 ],
               ),
@@ -390,7 +401,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       tabs: const [
                         Tab(text: "Overview"),
                         Tab(text: "Rides"),
-                        Tab(text: "Settings"),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -447,155 +457,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                             children: rideHistory
                                 .map<Widget>((r) => _buildRideCard(r))
                                 .toList(),
-                          ),
-
-                          // Settings Tab
-                          SingleChildScrollView(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Column(
-                              children: [
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.notifications,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Notifications",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Manage alerts",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.message,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Messages",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Chat settings",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.people,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Followers",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Manage connections",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.directions_bike,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "My Bikes",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Add or edit bikes",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.shield,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Privacy",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Data & security",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-
-                                // Subscription Section
-                                const SizedBox(height: 16),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.workspace_premium,
-                                    color: Color(0xfffe6603),
-                                  ),
-                                  title: const Text(
-                                    "Subscription",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Manage your subscription plan",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  trailing: ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => SubscriptionScreen(
-                                            onClose: () {
-                                              Navigator.pop(context);
-                                            },
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xfffe6603),
-                                      foregroundColor: Colors.white,
-                                      minimumSize: const Size(80, 36),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    child: const Text("Manage"),
-                                  ),
-                                ),
-
-                                const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.logout),
-                                  label: const Text("Log Out"),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xfffe6603),
-                                    foregroundColor: Colors.white,
-                                    minimumSize: const Size.fromHeight(50),
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       ),
