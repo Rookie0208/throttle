@@ -5,5 +5,6 @@ import java.util.UUID;
 public record LoginResponse(
                 String userId,
                 String token,
+                String refreshToken,
                 long expiresIn) {
 }

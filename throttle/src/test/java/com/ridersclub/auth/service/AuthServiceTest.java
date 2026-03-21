@@ -38,12 +38,15 @@ class AuthServiceTest {
     @Mock
     private OtpService otpService;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     private AuthService authService;
 
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-        authService = new AuthService(userService, passwordEncoder, jwtService, otpService);
+        authService = new AuthService(userService, passwordEncoder, jwtService, otpService, refreshTokenService);
     }
 
     @Test
@@ -57,6 +60,7 @@ class AuthServiceTest {
         when(userService.existsByEmail("test@example.com")).thenReturn(false);
         when(passwordEncoder.encode("secret")).thenReturn("encoded");
         User saved = new User();
+        saved.setId(1L);
         saved.setUuid(UUID.randomUUID().toString());
         when(userService.save(ArgumentMatchers.any(User.class))).thenReturn(saved);
 
@@ -81,6 +85,7 @@ class AuthServiceTest {
         req.setPassword("pwd");
 
         User user = new User();
+        user.setId(1L);
         user.setUuid(UUID.randomUUID().toString());
         user.setPassword("hash");
         user.setRole(Role.RIDER);
@@ -88,10 +93,15 @@ class AuthServiceTest {
         when(passwordEncoder.matches("pwd", "hash")).thenReturn(true);
         when(jwtService.generate(anyString(), anyMap(), anyLong())).thenReturn("token123");
 
+        com.ridersclub.auth.entity.RefreshToken rt = new com.ridersclub.auth.entity.RefreshToken();
+        rt.setToken("refresh123");
+        when(refreshTokenService.createRefreshToken(anyLong())).thenReturn(rt);
+
         LoginResponse resp = authService.login(req);
         assertNotNull(resp);
         assertEquals(user.getUuid().toString(), resp.userId());
         assertEquals("token123", resp.token());
+        assertEquals("refresh123", resp.refreshToken());
     }
 
     @Test
