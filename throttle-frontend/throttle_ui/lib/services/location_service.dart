@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -53,11 +55,31 @@ class LocationService {
 
       if (placemarks.isNotEmpty) {
         Placemark place = placemarks[0];
-        // locality is usually the city name
-        return place.locality ?? place.subAdministrativeArea ?? "Unknown City";
+        final city = place.locality ?? place.subAdministrativeArea;
+        if (city != null && city.isNotEmpty) return city;
       }
     } catch (e) {
-      print("Error getting city name: \$e");
+      print("Primary geocoder failed (likely missing API key), trying fallback...");
+      try {
+        // Fallback to free OpenStreetMap API so you don't need a Google Maps API Key
+        final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=$latitude&lon=$longitude');
+        final response = await http.get(url, headers: {
+          'User-Agent': 'ThrottleAppHelper/1.0',
+        });
+        
+        if (response.statusCode == 200) {
+           final data = json.decode(response.body);
+           if (data['address'] != null) {
+              return data['address']['city'] ?? 
+                     data['address']['town'] ?? 
+                     data['address']['village'] ?? 
+                     data['address']['county'] ?? 
+                     "Unknown City";
+           }
+        }
+      } catch (fallbackError) {
+         print("Fallback geocoding also failed: $fallbackError");
+      }
     }
     return null;
   }

@@ -341,39 +341,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  // Map weather icon string to Flutter IconData
-                                  _getIconData(_weatherData?['icon']),
-                                  color: AppColors.textSecondary,
-                                  size: 28,
-                                ),
-                                const SizedBox(width: 12),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _weatherData?['description'] ?? "Weather Unavailable",
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    // Map weather icon string to Flutter IconData
+                                    _getIconData(_weatherData?['icon']),
+                                    color: AppColors.textSecondary,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _weatherData?['description'] ?? "Weather Unavailable",
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          _cityName ?? "Location Unavailable",
+                                          style: const TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 12,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _cityName ?? "Location Unavailable",
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 16),
                             Text(
-                              _weatherData != null ? "\${_weatherData!['temperature']}°" : "--°",
+                              _weatherData != null ? "${_weatherData!['temperature']}°" : "--°",
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 22,
