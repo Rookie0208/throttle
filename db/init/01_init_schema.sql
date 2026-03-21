@@ -290,18 +290,103 @@ CREATE TABLE group_members (
 -- RIDE MESSAGES
 --------------------------------------------------
 
-CREATE TABLE ride_messages (
+-- CREATE TABLE ride_messages (
+--     id BIGSERIAL PRIMARY KEY,
+--     ride_id BIGINT NOT NULL,
+--     sender_id BIGINT NOT NULL,
+--     message TEXT NOT NULL,
+--     sent_at TIMESTAMP DEFAULT now(),
+--     FOREIGN KEY (ride_id) REFERENCES rides(id) ON DELETE CASCADE,
+--     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+-- );
+
+-- CREATE INDEX idx_rm_ride ON ride_messages(ride_id);
+-- CREATE INDEX idx_rm_time ON ride_messages(sent_at);
+
+--------------------------------------------------
+-- GROUP MESSAGES
+--------------------------------------------------
+
+CREATE TABLE group_messages (
     id BIGSERIAL PRIMARY KEY,
-    ride_id BIGINT NOT NULL,
+
+    uuid VARCHAR(100) UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+
+    group_id BIGINT NOT NULL,
     sender_id BIGINT NOT NULL,
-    message TEXT NOT NULL,
-    sent_at TIMESTAMP DEFAULT now(),
-    FOREIGN KEY (ride_id) REFERENCES rides(id) ON DELETE CASCADE,
-    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+
+    message TEXT,
+
+    message_type VARCHAR(20) DEFAULT 'TEXT'
+        CHECK (message_type IN ('TEXT','IMAGE','VIDEO','SYSTEM')),
+
+    media_url TEXT,          -- image/video URL
+    media_thumbnail TEXT,    -- preview thumbnail
+    media_size BIGINT,
+    media_duration INT,      -- video duration (sec)
+
+    reply_to_message_id BIGINT,
+
+    is_edited BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+
+    FOREIGN KEY (group_id)
+        REFERENCES ride_groups(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (sender_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (reply_to_message_id)
+        REFERENCES group_messages(id)
+        ON DELETE SET NULL
 );
 
-CREATE INDEX idx_rm_ride ON ride_messages(ride_id);
-CREATE INDEX idx_rm_time ON ride_messages(sent_at);
+CREATE INDEX idx_gm_group ON group_messages(group_id);
+CREATE INDEX idx_gm_created_at ON group_messages(created_at);
+CREATE INDEX idx_gm_sender ON group_messages(sender_id);
+
+--------------------------------------------------
+-- MESSAGAE READ STATUS
+--------------------------------------------------
+
+CREATE TABLE message_reads (
+    id BIGSERIAL PRIMARY KEY,
+
+    message_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    read_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE(message_id, user_id),
+
+    FOREIGN KEY (message_id)
+        REFERENCES group_messages(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_mr_message ON message_reads(message_id);
+CREATE INDEX idx_mr_user ON message_reads(user_id);
+
+----------------------------------------------
+-- MESSAGAE REACTIONs
+----------------------------------------------
+
+CREATE TABLE message_reactions (
+    id BIGSERIAL PRIMARY KEY,
+    message_id BIGINT,
+    user_id BIGINT,
+    reaction VARCHAR(10),
+
+    UNIQUE(message_id, user_id, reaction)
+);
 
 --------------------------------------------------
 -- RIDE RULES
