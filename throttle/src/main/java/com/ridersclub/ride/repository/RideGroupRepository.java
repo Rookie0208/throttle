@@ -22,14 +22,14 @@ public interface RideGroupRepository extends JpaRepository<RideGroup, Long> {
     Optional<RideGroup> findByRideAndParentGroupIsNull(Ride r);
 
     @Query("""
-    SELECT g 
-    FROM RideGroup g
-    WHERE g.parentGroup.uuid = (
-        SELECT mg.uuid 
-        FROM RideGroup mg 
-        WHERE mg.ride.uuid = :rideUuid 
-        AND mg.parentGroup IS NULL
-    )
-    """)
+            SELECT g
+            FROM RideGroup g
+            WHERE g.parentGroup.uuid = (
+                SELECT mg.uuid
+                FROM RideGroup mg
+                WHERE mg.ride.uuid = :rideUuid
+                AND mg.parentGroup IS NULL
+            )
+            """)
     List<RideGroup> findSubGroupsByRideUuid(String rideUuid);
 }
