@@ -138,11 +138,14 @@ public class RideService {
                         groupMemberRepository.save(captainMember);
                 }
 
-                notificationService.publishNotification(
+                notificationService.createAndSend(
                                 currentUser.getId(),
+                                "RIDE_CREATED",
                                 "Ride Created",
-                                "Your ride \"" + saved.getTitle() + "\" has been created successfully.",
-                                NotificationType.RIDE_CREATED);
+                                "Your ride \"" + ride.getTitle() + "\" has been created successfully.",
+                                saved.getId(),
+                                "RIDE");
+
                 System.out.println("notification published");
 
                 return saved;
@@ -200,11 +203,13 @@ public class RideService {
                 participantRepo.save(new RideParticipant(ride, user));
 
                 // Notify captain that someone joined
-                notificationService.publishNotification(
+                notificationService.createAndSend(
                                 ride.getCreatedBy().getId(),
+                                "RIDER_JOINED",
                                 "New Rider Joined",
-                                user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\"",
-                                NotificationType.RIDE_JOINED);
+                                user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\".",
+                                ride.getId(),
+                                "RIDE");
         }
 
         public List<MyRidesResp> myRides(String userId) {
