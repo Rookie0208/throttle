@@ -38,4 +38,18 @@ class UserService {
       return {"firstName": "CatchError", "lastName": e.toString()};
     }
   }
+
+  static Future<bool> updateProfile(Map<String, dynamic> data) async {
+    try {
+      final response = await ApiService.put('/users/me', data, authorized: true);
+      if (response['status'] == 200 || response['status'] == 201) {
+        await Logger.info("Profile updated successfully.");
+        return true;
+      }
+      await Logger.warn("Update profile failed: ${response['status']} - ${response['body']}");
+    } catch (e, st) {
+      await Logger.error("Exception during update profile", e, st);
+    }
+    return false;
+  }
 }
