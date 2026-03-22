@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/string_extensions.dart';
 import '../services/location_service.dart';
 import '../services/weather_service.dart';
+import '../services/logger_service.dart';
 class AppColors {
   static const primary = Color(0xfffe6603);
   static const background = Color(0xff0f1114);
@@ -60,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
     } catch (e) {
-      print("Error in _fetchLocationAndWeather: \$e");
+      Logger.error("Error in _fetchLocationAndWeather: $e");
       if (mounted) {
         setState(() {
           _isLoadingWeather = false;
