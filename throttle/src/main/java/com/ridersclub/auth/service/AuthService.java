@@ -37,6 +37,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final OtpService otpService;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -47,11 +48,13 @@ public class AuthService {
     public AuthService(UserService userService,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            OtpService otpService) {
+            OtpService otpService,
+            RefreshTokenService refreshTokenService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.otpService = otpService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -62,11 +65,13 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
-        long expiresIn = 864_000L; // 10 days in seconds (example)
+        long expiresIn = 900L; // 15 mins Access Token TTL
         // store simple role string; JwtAuthFilter will parse comma-separated list
         String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
         String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
-        return new LoginResponse(user.getUuid().toString(), token, expiresIn);
+
+        String refreshToken = refreshTokenService.createRefreshToken(user.getId()).getToken();
+        return new LoginResponse(user.getUuid().toString(), token, refreshToken, expiresIn);
     }
 
     public RegisterResponse register(RegisterRequest request) {
@@ -118,21 +123,23 @@ public class AuthService {
                     // User exists, just log them in (return JWT)
                     log.info("Existing user logged in via Google: {}", email);
                     User user = userOpt.get();
-                    long expiresIn = 864_000L;
+                    long expiresIn = 900L;
                     String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
                     String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", roleValue),
                             expiresIn);
-                    return new GoogleAuthResponse(false, false, email, firstName, lastName, token, expiresIn);
+                    String refreshToken = refreshTokenService.createRefreshToken(user.getId()).getToken();
+                    return new GoogleAuthResponse(false, false, email, firstName, lastName, token, refreshToken,
+                            expiresIn);
                 } else {
                     // New User -> Check if OTP is required by config
                     if (requireOtp) {
                         log.info("New user initiated Google sign-in. Sending OTP to: {}", email);
                         otpService.generateAndSendOtp(email);
-                        return new GoogleAuthResponse(true, true, email, firstName, lastName, null, null);
+                        return new GoogleAuthResponse(true, true, email, firstName, lastName, null, null, null);
                     } else {
                         log.info("New user initiated Google sign-in. OTP disabled. Proceeding to profile setup: {}",
                                 email);
-                        return new GoogleAuthResponse(true, false, email, firstName, lastName, null, null);
+                        return new GoogleAuthResponse(true, false, email, firstName, lastName, null, null, null);
                     }
                 }
             } else {
@@ -168,10 +175,11 @@ public class AuthService {
         User saved = userService.save(user);
         log.info("Completed Google registration for new user: {}", request.getEmail());
 
-        long expiresIn = 864_000L;
+        long expiresIn = 900L;
         String roleValue = saved.getRole() != null ? saved.getRole().name() : "RIDER";
         String token = jwtService.generate(saved.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
-        return new LoginResponse(saved.getUuid().toString(), token, expiresIn);
+        String refreshToken = refreshTokenService.createRefreshToken(saved.getId()).getToken();
+        return new LoginResponse(saved.getUuid().toString(), token, refreshToken, expiresIn);
     }
 
     public boolean verifyOtp(String email, String otp) {

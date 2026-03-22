@@ -1,14 +1,17 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../services/logger_service.dart';
+import 'logger_service.dart';
 
 class AuthService {
   static String get baseUrl =>
       "${dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1'}/auth";
+      
+  static const _storage = FlutterSecureStorage();
   static const String _tokenKey = "jwt_token";
+  static const String _refreshTokenKey = "refresh_token";
 
   // ================= REGISTER =================
   static Future<Map<String, dynamic>> register({
@@ -54,6 +57,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    Logger.info("Attempting login for user: $email");
     try {
       final url = Uri.parse("$baseUrl/login");
 
@@ -66,17 +70,20 @@ class AuthService {
       final decoded = jsonDecode(response.body);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        // 🔥 Extract token from nested data object
         final token = decoded["data"]?["token"];
+        final refreshToken = decoded["data"]?["refreshToken"];
 
-        if (token == null) {
+        if (token == null || refreshToken == null) {
+          Logger.error("Token missing from login response payload");
           return {"success": false, "message": "Token not found in response"};
         }
 
-        await saveToken(token);
+        await saveTokens(token, refreshToken);
+        Logger.info("Login successful. Tokens securely stored.");
 
         return {"success": true, "data": decoded["data"]};
       } else {
+        Logger.warn("Login failed with status ${response.statusCode}");
         return {
           "success": false,
           "message": decoded["message"] ?? "Login failed",
@@ -108,7 +115,10 @@ class AuthService {
       String? idToken = webIdToken;
 
       if (idToken == null) {
-        final GoogleSignInAccount account = await googleSignIn.authenticate();
+        // use authenticate to match original implementation version
+        final GoogleSignInAccount? account = await googleSignIn.authenticate();
+        if (account == null) return {"success": false, "message": "Google sign in aborted"};
+        
         final GoogleSignInAuthentication auth = account.authentication;
         idToken = auth.idToken;
       }
@@ -133,8 +143,9 @@ class AuthService {
         final data = decoded["data"];
 
         // If it's a login, save the token
-        if (data["token"] != null) {
-          await saveToken(data["token"]);
+        if (data["token"] != null && data["refreshToken"] != null) {
+          Logger.info("Google verification success. Storing tokens.");
+          await saveTokens(data["token"], data["refreshToken"]);
         }
 
         return {"success": true, "data": data};
@@ -211,8 +222,9 @@ class AuthService {
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final token = decoded["data"]?["token"];
-        if (token != null) {
-          await saveToken(token);
+        final refreshToken = decoded["data"]?["refreshToken"];
+        if (token != null && refreshToken != null) {
+          await saveTokens(token, refreshToken);
         }
         return {"success": true, "data": decoded["data"]};
       } else {
@@ -226,22 +238,88 @@ class AuthService {
     }
   }
 
-  // ================= SAVE TOKEN & DATA =================
-  static Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+  // ================= SAVE TOKENS & DATA =================
+  static Future<void> saveTokens(String token, String refreshToken) async {
+    await _storage.write(key: _tokenKey, value: token);
+    await _storage.write(key: _refreshTokenKey, value: refreshToken);
   }
 
-  // ================= GET TOKEN =================
+  // ================= GET TOKENS =================
   static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    return await _storage.read(key: _tokenKey);
+  }
+
+  static Future<String?> getRefreshToken() async {
+    return await _storage.read(key: _refreshTokenKey);
+  }
+
+  // ================= REFRESH TOKEN =================
+  static Future<bool> refreshToken() async {
+    Logger.info("Attempting to refresh access token...");
+    try {
+      final currentRefreshToken = await getRefreshToken();
+      if (currentRefreshToken == null) {
+        Logger.warn("No refresh token found locally. Cannot refresh.");
+        return false;
+      }
+
+      final url = Uri.parse("$baseUrl/refresh");
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"refreshToken": currentRefreshToken}),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body);
+        final newToken = decoded["data"]?["accessToken"];
+        final newRefreshToken = decoded["data"]?["refreshToken"];
+
+        if (newToken != null && newRefreshToken != null) {
+          Logger.info("Successfully received new tokens. Storing to secure storage.");
+          await saveTokens(newToken, newRefreshToken);
+          return true;
+        }
+      }
+      // If refresh failed (e.g., token expired or revoked in DB)
+      Logger.warn("Refresh request rejected by server. Status: ${response.statusCode}");
+      return false;
+    } catch (e) {
+      Logger.error("Network fail during refresh token call", e);
+      return false; // Network fail, maybe retry later
+    }
   }
 
   // ================= LOGOUT =================
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
+    Logger.info("Initiating secure logout...");
+    try {
+      final accessToken = await getToken();
+      final refreshToken = await getRefreshToken();
+
+      if (accessToken != null && refreshToken != null) {
+        final url = Uri.parse("$baseUrl/logout");
+        await http.post(
+          url,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $accessToken", // Needs access token for intercept filter 
+          },
+          body: jsonEncode({"refreshToken": refreshToken}),
+        );
+      }
+    } catch (e) {
+      Logger.warn("Network completely failed during logout backend call: $e");
+      // Ignored: gracefully proceed to clear local token even if network fails
+    }
+
+    Logger.info("Clearing local secure storage tokens");
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+    // Disconnect google sign-in safely
+    try {
+      await googleSignIn.signOut();
+    } catch(e) {}
   }
 
   // ================= HANDLE RESPONSE =================

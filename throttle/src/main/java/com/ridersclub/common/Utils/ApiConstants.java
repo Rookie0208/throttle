@@ -10,6 +10,8 @@ public class ApiConstants {
 
         public static final String REGISTER = "/register";
         public static final String LOGIN = "/login";
+        public static final String LOGOUT = "/logout";
+        public static final String REFRESH = "/refresh";
 
         // Google Auth
         public static final String GOOGLE_INITIATE = "/google/initiate";
