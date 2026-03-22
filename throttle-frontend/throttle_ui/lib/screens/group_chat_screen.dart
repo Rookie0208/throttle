@@ -274,14 +274,39 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
-      appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
-        title: Text(
-          activeSubGroup != null
-              ? "${widget.group["name"]} • ${activeSubGroup!["name"]}"
-              : widget.group["name"],
+     appBar: AppBar(
+  backgroundColor: const Color(0xff1a1c20),
+  title: Text(
+    activeSubGroup != null
+        ? "${widget.group["name"]} • ${activeSubGroup!["name"]}"
+        : widget.group["name"],
+  ),
+  actions: [
+    PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: Colors.white),
+      color: const Color(0xff1a1c20),
+      onSelected: _handleMenuSelection,
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'info',
+          child: Text("Group Info", style: TextStyle(color: Colors.white)),
         ),
-      ),
+        const PopupMenuItem(
+          value: 'invite',
+          child: Text("Invite Riders", style: TextStyle(color: Colors.white)),
+        ),
+        const PopupMenuItem(
+          value: 'subgroup',
+          child: Text("Create Subgroup", style: TextStyle(color: Colors.white)),
+        ),
+        const PopupMenuItem(
+          value: 'leave',
+          child: Text("Leave Group", style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  ],
+),
       body: Column(
         children: [
           _subGroupBar(),
@@ -302,4 +327,77 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       ),
     );
   }
+
+  void _handleMenuSelection(String value) {
+  switch (value) {
+    case 'info':
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RideInfoScreen(
+            rideGroup: widget.group,
+            token: widget.token,
+          ),
+        ),
+      );
+      break;
+
+    case 'invite':
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => InviteMemberScreen(
+            groupId: widget.group["uuid"],
+            token: widget.token,
+          ),
+        ),
+      );
+      break;
+
+    case 'subgroup':
+      _openSubGroupCreation();
+      break;
+
+    case 'leave':
+      _leaveGroup();
+      break;
+  }
+}
+
+void _openSubGroupCreation() async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CreateSubGroupScreen(
+        rideId: widget.group["uuid"],   // parent group id
+        token: widget.token,
+      ),
+    ),
+  );
+
+  /// If subgroup created successfully
+  if (result != null) {
+    /// Refresh subgroup list
+    await fetchSubGroups();
+
+    /// Auto-switch to new subgroup
+    setState(() {
+      activeSubGroup = result;
+      activeSubGroupId = result["uuid"];
+    });
+
+    /// Load its messages
+    fetchMessages(result["uuid"]);
+  }
+}
+
+void _leaveGroup() async {
+  // TODO: call backend API
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Left group")),
+  );
+
+  Navigator.pop(context);
+}
 }
