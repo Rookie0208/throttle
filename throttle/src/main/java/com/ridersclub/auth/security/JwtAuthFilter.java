@@ -71,9 +71,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 log.debug("No Bearer token found in request headers");
             }
             filterChain.doFilter(request, response);
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            log.warn("JWT token is expired: {}", e.getMessage());
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"status\":401,\"message\":\"Token expired\"}");
+            return;
         } catch (Exception e) {
             log.error("Authentication failed: {}", e.getMessage());
-            throw new ServletException("Invalid or expired JWT token", e);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"status\":401,\"message\":\"Invalid token\"}");
+            return;
         }
     }
 

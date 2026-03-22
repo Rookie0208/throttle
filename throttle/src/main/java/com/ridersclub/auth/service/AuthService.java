@@ -69,7 +69,7 @@ public class AuthService {
         // store simple role string; JwtAuthFilter will parse comma-separated list
         String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
         String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
-        
+
         String refreshToken = refreshTokenService.createRefreshToken(user.getId()).getToken();
         return new LoginResponse(user.getUuid().toString(), token, refreshToken, expiresIn);
     }
@@ -123,7 +123,8 @@ public class AuthService {
                     String token = jwtService.generate(user.getUuid().toString(), Map.of("roles", roleValue),
                             expiresIn);
                     String refreshToken = refreshTokenService.createRefreshToken(user.getId()).getToken();
-                    return new GoogleAuthResponse(false, false, email, firstName, lastName, token, refreshToken, expiresIn);
+                    return new GoogleAuthResponse(false, false, email, firstName, lastName, token, refreshToken,
+                            expiresIn);
                 } else {
                     // New User -> Check if OTP is required by config
                     if (requireOtp) {
