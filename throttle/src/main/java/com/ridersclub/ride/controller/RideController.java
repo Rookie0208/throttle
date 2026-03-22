@@ -74,6 +74,26 @@ public class RideController {
         return ApiResponse.success(rideService.myRides(userId), "My rides");
     }
 
+    /*
+    Need an endpont to fetch public rides.
+    GET /rides/public
+    {
+  "success": true,
+  "message": "Public rides fetched",
+  "data": [
+    {
+      "uuid": "123",
+      "title": "Sunday Ride",
+      "description": "Ride to hills",
+      "rideType": "ADVENTURE",
+      "routeType": "HIGHWAY",
+      "startTime": "2026-03-25T07:00:00",
+      "maxRiders": 10
+    }
+  ]
+}
+    */
+
     @PostMapping(ApiConstants.Rides.JOIN)
     public ApiResponse<?> join(@PathVariable String id,
             @AuthenticationPrincipal UserDetails user) {

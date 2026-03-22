@@ -62,4 +62,57 @@ class GroupService {
       throw Exception("Failed to fetch ride members");
     }
   }
+
+  /// ================= JOIN RIDE =================
+  static Future<void> joinRide(String token, String rideId) async {
+    final url = Uri.parse("$baseUrl/rides/$rideId/join");
+
+    final response = await http.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+
+      if (data["success"] == false) {
+        throw Exception(data["message"] ?? "Failed to join ride");
+      }
+
+      return; // success
+    } else {
+      throw Exception("Failed to join ride: ${response.statusCode}");
+    }
+  }
+
+  /// ================= FETCH PUBLIC RIDES =================
+  static Future<Map<String, dynamic>> fetchPublicRides(
+      String token) async {
+    final url = Uri.parse("$baseUrl/rides/public");
+
+    final response = await http.get(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      if (data == null || data["data"] == null) {
+        return {"data": []};
+      }
+
+      return data;
+    } else {
+      throw Exception(
+        "Failed to fetch public rides: ${response.statusCode}",
+      );
+    }
+  }
 }
