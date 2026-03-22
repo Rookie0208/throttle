@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'logger_service.dart';
 
 class LocationService {
   /// Requests permission and gets the current location
@@ -59,7 +60,7 @@ class LocationService {
         if (city != null && city.isNotEmpty) return city;
       }
     } catch (e) {
-      print("Primary geocoder failed (likely missing API key), trying fallback...");
+      Logger.warn("Primary geocoder failed (likely missing API key), trying fallback...");
       try {
         // Fallback to free OpenStreetMap API so you don't need a Google Maps API Key
         final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=$latitude&lon=$longitude');
@@ -78,7 +79,7 @@ class LocationService {
            }
         }
       } catch (fallbackError) {
-         print("Fallback geocoding also failed: $fallbackError");
+         Logger.error("Fallback geocoding also failed: $fallbackError");
       }
     }
     return null;

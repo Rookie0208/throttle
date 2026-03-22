@@ -3,6 +3,7 @@ import 'package:throttle_ui/screens/settings_screen.dart';
 import 'package:throttle_ui/screens/subscription_screen.dart';
 
 import '../utils/string_extensions.dart';
+import '../services/user_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -41,6 +42,80 @@ class _ProfileScreenState extends State<ProfileScreen>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _editBio() async {
+    final TextEditingController bioController = TextEditingController(
+      text: widget.userData?['bio'] ?? "",
+    );
+
+    bool? saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xff1a1c20),
+        title: const Text("Edit Bio", style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: bioController,
+          style: const TextStyle(color: Colors.white),
+          maxLength: 150,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: "Tell us about your riding style...",
+            hintStyle: TextStyle(color: Colors.white38),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xfffe6603)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xfffe6603),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Save", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true && widget.userData != null && mounted) {
+      final newBio = bioController.text.trim();
+      final oldBio = widget.userData!['bio'];
+
+      // Optimistic UI update
+      setState(() {
+        widget.userData!['bio'] = newBio;
+      });
+
+      // API Call
+      bool success = await UserService.updateProfile({
+        "bio": newBio,
+        "firstName": widget.userData!['firstName'] ?? "",
+        "lastName": widget.userData!['lastName'] ?? "",
+        "profileImage": widget.userData!['profileImage'] ?? "",
+      });
+
+      if (!success && mounted) {
+        // Rollback
+        setState(() {
+          widget.userData!['bio'] = oldBio;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to save bio on the server.")),
+        );
+      }
+    }
   }
 
   Widget _buildStatCard(IconData icon, String value, String label) {
@@ -299,10 +374,33 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  widget.userData?['bio'] ??
-                                      "Weekend warrior. Canyon lover.",
-                                  style: const TextStyle(color: Colors.white70),
+                                GestureDetector(
+                                  onTap: _editBio,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          widget.userData?['bio'] != null &&
+                                                  widget.userData!['bio']
+                                                      .toString()
+                                                      .isNotEmpty
+                                              ? widget.userData!['bio']
+                                              : "Tell us about your riding style...",
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.edit,
+                                        color: Colors.white38,
+                                        size: 14,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -424,15 +522,48 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
-                                  height: 80,
-                                  child: ListView(
-                                    scrollDirection: Axis.horizontal,
-                                    children: achievements
-                                        .map<Widget>(
-                                          (a) => _buildAchievementCard(a),
+                                  height: achievements.isEmpty ? null : 80,
+                                  child: achievements.isEmpty
+                                      ? Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 24,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xff1a1c20),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.white12,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            children: const [
+                                              Icon(
+                                                Icons.workspace_premium,
+                                                color: Colors.white24,
+                                                size: 32,
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                "Complete rides to earn badges!",
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         )
-                                        .toList(),
-                                  ),
+                                      : ListView(
+                                          scrollDirection: Axis.horizontal,
+                                          children: achievements
+                                              .map<Widget>(
+                                                (a) => _buildAchievementCard(a),
+                                              )
+                                              .toList(),
+                                        ),
                                 ),
                                 const SizedBox(height: 12),
                                 const Text(
@@ -443,21 +574,92 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Column(
-                                  children: rideHistory
-                                      .map((r) => _buildRideCard(r))
-                                      .toList(),
-                                ),
+                                rideHistory.isEmpty
+                                    ? Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 32,
+                                          horizontal: 16,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xff1a1c20),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white12,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: const [
+                                            Icon(
+                                              Icons.route,
+                                              color: Colors.white24,
+                                              size: 48,
+                                            ),
+                                            SizedBox(height: 12),
+                                            Text(
+                                              "Your journey begins here",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            SizedBox(height: 6),
+                                            Text(
+                                              "Start tracking your rides to see your history",
+                                              style: TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 13,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : Column(
+                                        children: rideHistory
+                                            .map((r) => _buildRideCard(r))
+                                            .toList(),
+                                      ),
                               ],
                             ),
                           ),
 
                           // Rides Tab
-                          ListView(
-                            children: rideHistory
-                                .map<Widget>((r) => _buildRideCard(r))
-                                .toList(),
-                          ),
+                          rideHistory.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Icon(
+                                        Icons.history,
+                                        color: Colors.white24,
+                                        size: 64,
+                                      ),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        "No Ride History",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        "Your completed rides will appear here.",
+                                        style: TextStyle(color: Colors.white54),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ListView(
+                                  children: rideHistory
+                                      .map<Widget>((r) => _buildRideCard(r))
+                                      .toList(),
+                                ),
                         ],
                       ),
                     ),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'logger_service.dart';
 
 class WeatherService {
   /// Fetches current weather from Open-Meteo API
@@ -29,10 +30,10 @@ class WeatherService {
           };
         }
       } else {
-        print("Failed to load weather: ${response.statusCode}");
+        Logger.warn("Failed to load weather: ${response.statusCode}");
       }
     } catch (e) {
-      print("Error fetching weather: $e");
+      Logger.error("Error fetching weather: $e");
     }
     return null;
   }

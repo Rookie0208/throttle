@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import lombok.extern.slf4j.Slf4j;
 
 import com.ridersclub.auth.dto.request.GoogleAuthRequest;
 import com.ridersclub.auth.dto.request.GoogleRegisterRequest;
@@ -30,6 +31,7 @@ import com.ridersclub.common.dto.ApiResponse;
 
 @RestController
 @RequestMapping(ApiConstants.Auth.BASE)
+@Slf4j
 public class AuthController {
 
     private final AuthService authService;
@@ -50,7 +52,9 @@ public class AuthController {
     @PostMapping(ApiConstants.Auth.REGISTER)
     public ResponseEntity<ApiResponse<RegisterResponse>> register(
             @Valid @RequestBody RegisterRequest request) {
+        log.info("Received registration request for email: {}", request.getEmail());
         RegisterResponse response = authService.register(request);
+        log.info("User registered successfully");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "User registered successfully"));
     }
@@ -58,11 +62,13 @@ public class AuthController {
     @PostMapping(ApiConstants.Auth.LOGIN)
     public ResponseEntity<ApiResponse<LoginResponse>> login(
             @Valid @RequestBody LoginRequest request) {
+        log.info("Received login request for email: {}", request.getEmail());
         LoginResponse response = authService.login(request);
+        log.info("User logged in successfully");
         return ResponseEntity.ok(ApiResponse.success(response, "User logged in successfully"));
     }
 
-    @PostMapping("/logout")
+    @PostMapping(ApiConstants.Auth.LOGOUT)
     public ResponseEntity<ApiResponse<Boolean>> logout(
             @Valid @RequestBody LogoutRequest logoutRequest,
             HttpServletRequest request) {
@@ -75,8 +81,9 @@ public class AuthController {
                 java.util.Date expiration = jwtService.parse(bearerToken).getBody().getExpiration();
                 long ttlMillis = expiration.getTime() - System.currentTimeMillis();
                 tokenBlacklistService.blacklistToken(bearerToken, ttlMillis);
+                log.info("Access token blacklisted successfully with TTL: {} ms", ttlMillis);
             } catch (Exception e) {
-                // Ignore if token is already expired or invalid
+                log.warn("Failed to blacklist access token during logout: {}", e.getMessage());
             }
         }
         
@@ -84,24 +91,27 @@ public class AuthController {
             com.ridersclub.auth.entity.RefreshToken token = refreshTokenService.findByToken(logoutRequest.getRefreshToken())
                     .orElseThrow(() -> new RuntimeException("Refresh token not found"));
             refreshTokenService.deleteByToken(token);
+            log.info("Refresh token invalidated successfully during logout");
         } catch (Exception e) {
-            // Ignore if already deleted or doesn't exist
+            log.warn("Failed to invalidate refresh token during logout: {}", e.getMessage());
         }
         
         return ResponseEntity.ok(ApiResponse.success(true, "User logged out securely"));
     }
 
-    @PostMapping("/refresh")
+    @PostMapping(ApiConstants.Auth.REFRESH)
     public ResponseEntity<ApiResponse<TokenRefreshResponse>> refreshToken(
             @Valid @RequestBody TokenRefreshRequest request) {
         
         String requestRefreshToken = request.getRefreshToken();
+        log.info("Processing token refresh request");
         
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
                 .map(com.ridersclub.auth.entity.RefreshToken::getUser)
                 .map(user -> {
                     // Refresh Token Rotation: Delete old one, create new one
+                    log.debug("Rotating refresh token for user UUID: {}", user.getUuid());
                     refreshTokenService.deleteByToken(refreshTokenService.findByToken(requestRefreshToken).get());
                     com.ridersclub.auth.entity.RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
                     
@@ -109,11 +119,15 @@ public class AuthController {
                     String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
                     String newAccessToken = jwtService.generate(user.getUuid().toString(), java.util.Map.of("roles", roleValue), expiresIn);
                     
+                    log.info("Tokens successfully refreshed and rotated for user");
                     return ResponseEntity.ok(ApiResponse.success(
                             new TokenRefreshResponse(newAccessToken, newRefreshToken.getToken(), expiresIn),
                             "Token refreshed successfully"));
                 })
-                .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
+                .orElseThrow(() -> {
+                    log.error("Refresh token rejected or not found in database");
+                    return new RuntimeException("Refresh token is not in database!");
+                });
     }
 
     @PostMapping(ApiConstants.Auth.GOOGLE_INITIATE)
