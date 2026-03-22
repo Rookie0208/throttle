@@ -175,6 +175,15 @@ public class RideService {
                 subGroup.setCreatedBy(user);
 
                 rideGroupRepository.save(subGroup);
+                notificationService.createAndSend(
+                                user.getId(),
+                                "RIDE_CREATED",
+                                "Ride Created",
+                                "Your ride \"" + ride.getTitle() + "\" has been created successfully.",
+                                subGroup.getId(),
+                                "RIDE");
+
+                System.out.println("notification published");
 
                 return subGroup;
         }
