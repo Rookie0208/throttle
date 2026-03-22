@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/notification_screen.dart';
 import '../utils/string_extensions.dart';
 import '../services/location_service.dart';
 import '../services/weather_service.dart';
@@ -14,8 +15,9 @@ class AppColors {
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
+  final String token;
 
-  const DashboardScreen({super.key, this.userData});
+  const DashboardScreen({super.key, this.userData, required this.token});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -155,6 +157,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     /// RIGHT SIDE ICONS
                     Row(
                       children: [
+                        Stack(
+  children: [
+    Container(
+  decoration: BoxDecoration(
+    color: AppColors.card,
+    borderRadius: BorderRadius.circular(30),
+  ),
+  child: IconButton(
+    icon: const Icon(
+      Icons.notifications_none,
+      color: AppColors.textPrimary,
+      size: 22,
+    ),
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => NotificationsScreen(
+            onClose: () {
+              Navigator.pop(context);
+            },
+            token: widget.token,
+          ),
+        ),
+      );
+    },
+  ),
+),
+
+    Positioned(
+      right: 8,
+      top: 8,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: AppColors.primary,
+          shape: BoxShape.circle,
+        ),
+      ),
+    ),
+  ],
+),
+                        const SizedBox(width: 12),
                         CircleAvatar(
                           radius: 18,
                           backgroundColor: AppColors.card,

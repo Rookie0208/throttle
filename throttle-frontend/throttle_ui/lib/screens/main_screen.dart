@@ -42,7 +42,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   List<Widget> get _screens => [
-    DashboardScreen(userData: _userData),
+    DashboardScreen(userData: _userData, token: _token!),
         GroupsScreen(token: _token!), // pass token here
         const ClubsScreen(),
         const StatsScreen(),

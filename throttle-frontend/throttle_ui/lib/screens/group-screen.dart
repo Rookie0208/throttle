@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/plan_ride_screen.dart';
+import 'package:throttle_ui/screens/public_rides_screen.dart';
 import 'package:throttle_ui/services/group_service.dart';
 import 'group_chat_screen.dart';
 import 'package:throttle_ui/screens/group_chat_screen.dart';
@@ -18,6 +20,69 @@ class _GroupsScreenState extends State<GroupsScreen>
   bool isLoading = true;
   late TabController _tabController;
 
+  Widget _buildEmptyState() {
+  return Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(
+          Icons.motorcycle,
+          size: 70,
+          color: Colors.white30,
+        ),
+        const SizedBox(height: 20),
+
+        const Text(
+          "No rides yet",
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        const Text(
+          "Join a ride or create your own.",
+          style: TextStyle(color: Colors.white54),
+        ),
+
+        const SizedBox(height: 25),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => PublicRidesScreen(token: widget.token),
+  ),
+);
+              },
+              child: const Text("Join Ride"),
+            ),
+
+            const SizedBox(width: 20),
+
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xfffe6603),
+              ),
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => PlanRideScreen(token: widget.token)));
+              },
+              child: const Text("Create Ride", style: TextStyle(color: Colors.white),),
+            ),
+          ],
+        )
+      ],
+    ),
+  );
+}
+
   @override
   void initState() {
     super.initState();
@@ -30,30 +95,22 @@ class _GroupsScreenState extends State<GroupsScreen>
     final Map<String, dynamic> result =
         await GroupService.fetchMyGroups(widget.token);
 
-        print(result);
-
     if (result["data"] != null && result["data"].isNotEmpty) {
       List<Map<String, dynamic>> rides =
           List<Map<String, dynamic>>.from(result["data"]);
 
-          print(rides);
-
-      // Map backend fields to your UI structure
       List<Map<String, dynamic>> mappedGroups = rides.map((ride) {
         String rideStatus = ride["status"] ?? "UNKNOWN";
 
         return {
-...ride,
+          ...ride,
           "id": ride["uuid"],
-          "name": ride["title"], // UI expects name
+          "name": ride["title"],
           "rideStatus": rideStatus,
-
-          // Map backend status → UI tab status
           "status": (rideStatus == "COMPLETED" || rideStatus == "ENDED")
               ? "archive"
               : "active",
-
-          "members": [] // keep empty if backend doesn't send it
+          "members": []
         };
       }).toList();
 
@@ -62,13 +119,20 @@ class _GroupsScreenState extends State<GroupsScreen>
         isLoading = false;
       });
     } else {
-      _loadDummyData();
+      setState(() {
+        groups = [];
+        isLoading = false;
+      });
     }
   } catch (e) {
-    _loadDummyData();
+    setState(() {
+      groups = [];
+      isLoading = false;
+    });
   }
 }
 
+// change this dummy data
 void _loadDummyData() {
   setState(() {
     groups = [
@@ -163,8 +227,21 @@ void _loadDummyData() {
     }
 
     // Separate active and completed groups
-    final activeGroups = groups.where((g) => g["status"] == "active").toList();
-    final completedGroups = groups.where((g) => g["status"] == "archive").toList();
+   // If no rides exist
+if (groups.isEmpty) {
+  return Scaffold(
+    backgroundColor: const Color(0xff0f1114),
+    appBar: AppBar(
+      backgroundColor: const Color(0xff0f1114),
+      title: const Text("Rides"),
+    ),
+    body: _buildEmptyState(),
+  );
+}
+
+// Separate active and completed groups
+final activeGroups = groups.where((g) => g["status"] == "active").toList();
+final completedGroups = groups.where((g) => g["status"] == "archive").toList();
 
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
