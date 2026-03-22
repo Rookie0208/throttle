@@ -37,6 +37,10 @@ public class SubGroupResponse {
 
     private Visibility visibility;
 
+    private boolean membersCanSendMessages;
+
+    private boolean membersCanAddMembers;
+
     private String createdByUuid;
 
     private LocalDateTime createdAt;

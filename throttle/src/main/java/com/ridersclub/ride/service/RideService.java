@@ -138,11 +138,14 @@ public class RideService {
                         groupMemberRepository.save(captainMember);
                 }
 
-                notificationService.publishNotification(
+                notificationService.createAndSend(
                                 currentUser.getId(),
+                                "RIDE_CREATED",
                                 "Ride Created",
-                                "Your ride \"" + saved.getTitle() + "\" has been created successfully.",
-                                NotificationType.RIDE_CREATED);
+                                "Your ride \"" + ride.getTitle() + "\" has been created successfully.",
+                                saved.getId(),
+                                "RIDE");
+
                 System.out.println("notification published");
 
                 return saved;
@@ -164,11 +167,23 @@ public class RideService {
 
                 subGroup.setUuid(UUID.randomUUID().toString());
                 subGroup.setName(request.getName());
+                subGroup.setVisibility(request.getVisibility());
+                subGroup.setMembersCanSendMessages(request.isMembersCanSendMessages());
+                subGroup.setMembersCanAddMembers(request.isMembersCanAddMembers());
                 subGroup.setParentGroup(mainGroup);
                 subGroup.setRide(mainGroup.getRide());
                 subGroup.setCreatedBy(user);
 
                 rideGroupRepository.save(subGroup);
+                notificationService.createAndSend(
+                                user.getId(),
+                                "RIDE_CREATED",
+                                "Ride Created",
+                                "Your ride \"" + ride.getTitle() + "\" has been created successfully.",
+                                subGroup.getId(),
+                                "RIDE");
+
+                System.out.println("notification published");
 
                 return subGroup;
         }
@@ -197,11 +212,13 @@ public class RideService {
                 participantRepo.save(new RideParticipant(ride, user));
 
                 // Notify captain that someone joined
-                notificationService.publishNotification(
+                notificationService.createAndSend(
                                 ride.getCreatedBy().getId(),
+                                "RIDER_JOINED",
                                 "New Rider Joined",
-                                user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\"",
-                                NotificationType.RIDE_JOINED);
+                                user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\".",
+                                ride.getId(),
+                                "RIDE");
         }
 
         public List<MyRidesResp> myRides(String userId) {
@@ -311,7 +328,9 @@ public class RideService {
                                                                 group.getParentGroup() != null
                                                                                 ? group.getParentGroup().getUuid()
                                                                                 : null)
-                                                // .visibility(group.getVisibility())
+                                                .visibility(group.getVisibility())
+                                                .membersCanSendMessages(group.getMembersCanSendMessages())
+                                                .membersCanAddMembers(group.getMembersCanAddMembers())
                                                 .createdByUuid(group.getCreatedBy().getUuid())
                                                 .createdAt(group.getCreatedAt())
                                                 .build())

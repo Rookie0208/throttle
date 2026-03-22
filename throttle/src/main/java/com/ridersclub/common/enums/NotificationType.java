@@ -3,8 +3,11 @@ package com.ridersclub.common.enums;
 public enum NotificationType {
 RIDE_CREATED,
     RIDE_JOINED,
-    RIDE_UPDATED,
+    RIDE_INVITE,
+    RIDE_STARTED,
     RIDE_COMPLETED,
-    GROUP_ROLE_ASSIGNED,
-    CHAT_MESSAGE
+    GROUP_CREATED,
+    SUBGROUP_CREATED,
+    ROLE_ASSIGNED,
+    GENERAL
 }
