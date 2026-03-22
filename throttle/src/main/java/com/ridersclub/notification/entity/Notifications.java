@@ -1,7 +1,6 @@
 package com.ridersclub.notification.entity;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -9,9 +8,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import com.ridersclub.common.enums.NotificationType;
-import com.ridersclub.user.entity.User;
 
 @Entity
 @Table(name = "notifications")
@@ -29,9 +25,10 @@ public class Notifications {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String type;
 
+    @Column(length = 200)
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -40,19 +37,19 @@ public class Notifications {
     @Column(name = "reference_id")
     private Long referenceId;
 
-    @Column(name = "reference_type")
+    @Column(name = "reference_type", length = 50)
     private String referenceType;
 
-    @Column(name = "is_read")
-    private Boolean isRead = false;
+    @Column(name = "is_read", nullable = false)
+    private boolean read;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    // @PrePersist
-    // public void prePersist() {
-    //     this.uuid = UUID.randomUUID().toString();
-    //     this.createdAt = LocalDateTime.now();
-    //     this.read = false;
-    // }
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 }

@@ -15,8 +15,9 @@ class AppColors {
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
+  final String token;
 
-  const DashboardScreen({super.key, this.userData});
+  const DashboardScreen({super.key, this.userData, required this.token});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -177,6 +178,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onClose: () {
               Navigator.pop(context);
             },
+            token: widget.token,
           ),
         ),
       );

@@ -1,29 +1,35 @@
 package com.ridersclub.notification.service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.scheduling.annotation.Async;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.ridersclub.common.enums.NotificationType;
+import com.ridersclub.notification.dto.NotificationResponse;
 import com.ridersclub.notification.entity.Notifications;
-import com.ridersclub.notification.event.NotificationEvent;
 import com.ridersclub.notification.repository.NotificationRepository;
 import com.ridersclub.user.entity.User;
+import com.ridersclub.user.repository.UserRepository;
 
 @Service
 public class NotificationService {
 
-    @Autowired
-    private NotificationRepository notificationRepository;
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    @Autowired
-    private ApplicationEventPublisher eventPublisher;
+    public NotificationService(
+            NotificationRepository notificationRepository,
+            UserRepository userRepository,
+            SimpMessagingTemplate messagingTemplate) {
+        this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
+        this.messagingTemplate = messagingTemplate;
+    }
 
-    public void createNotification(
+    @Transactional
+    public NotificationResponse createAndSend(
             Long userId,
             String type,
             String title,
@@ -38,54 +44,52 @@ public class NotificationService {
                 .message(message)
                 .referenceId(referenceId)
                 .referenceType(referenceType)
-                .isRead(false)
-                .createdAt(LocalDateTime.now())
+                .read(false)
                 .build();
 
-        notificationRepository.save(notification);
+        Notifications saved = notificationRepository.save(notification);
+        NotificationResponse response = NotificationResponse.fromEntity(saved);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        messagingTemplate.convertAndSendToUser(
+                user.getUuid(),
+                "/queue/notifications",
+                response);
+
+        return response;
     }
 
-    // Publish event to handle async saving and later push
-    public void publishNotification(
-            Long userId,
-            String title,
-            String message,
-            NotificationType type) {
-
-        NotificationEvent event = new NotificationEvent(this, userId, title, message, type);
-
-        eventPublisher.publishEvent(event);
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> getMyNotifications(Long userId) {
+        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(NotificationResponse::fromEntity)
+                .toList();
     }
 
-    // Async listener to save notifications
-    @Async
-    @org.springframework.context.event.EventListener
-    public void handleNotificationEvent(NotificationEvent event) {
-        Notifications notification = Notifications.builder()
-                .userId(event.getUserId())
-                .title(event.getTitle())
-                .message(event.getMessage())
-                .type(event.getType().name())
-                .isRead(false)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        notificationRepository.save(notification);
-
-        // TODO: In future, push via WebSocket or FCM
-    }
-
-    public List<Notifications> getUserNotifications(Long userId) {
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
-    }
-
-    public void markAsRead(Long notificationId) {
-
+    @Transactional
+    public void markAsRead(Long notificationId, Long userId) {
         Notifications notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
 
-        notification.setIsRead(true);
+        if (!notification.getUserId().equals(userId)) {
+            throw new RuntimeException("You cannot modify this notification");
+        }
+
+        notification.setRead(true);
         notificationRepository.save(notification);
     }
 
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        List<Notifications> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
+
+        for (Notifications notification : notifications) {
+            notification.setRead(true);
+        }
+
+        notificationRepository.saveAll(notifications);
+    }
 }
