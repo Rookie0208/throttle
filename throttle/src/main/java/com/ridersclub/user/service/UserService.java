@@ -198,7 +198,7 @@ public class UserService {
             String userId,
             UpdateProfileRequest request) {
 
-        User user = userRepository.findById(Long.valueOf(userId))
+        User user = userRepository.findByUuid(userId)
                 .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
 
         // Update only non-null fields

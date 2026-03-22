@@ -17,6 +17,15 @@ services:
     networks:
       - throttle-network
 
+  redis:
+    image: redis:alpine
+    container_name: throttle-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - throttle-network
+
 volumes:
   postgres_data:
 
