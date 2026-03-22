@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/settings_screen.dart';
 import 'package:throttle_ui/screens/subscription_screen.dart';
 
 import '../utils/string_extensions.dart';
+import '../services/user_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -33,13 +35,87 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _editBio() async {
+    final TextEditingController bioController = TextEditingController(
+      text: widget.userData?['bio'] ?? "",
+    );
+
+    bool? saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xff1a1c20),
+        title: const Text("Edit Bio", style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: bioController,
+          style: const TextStyle(color: Colors.white),
+          maxLength: 150,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            hintText: "Tell us about your riding style...",
+            hintStyle: TextStyle(color: Colors.white38),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Colors.white24),
+            ),
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xfffe6603)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              "Cancel",
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xfffe6603),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Save", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true && widget.userData != null && mounted) {
+      final newBio = bioController.text.trim();
+      final oldBio = widget.userData!['bio'];
+
+      // Optimistic UI update
+      setState(() {
+        widget.userData!['bio'] = newBio;
+      });
+
+      // API Call
+      bool success = await UserService.updateProfile({
+        "bio": newBio,
+        "firstName": widget.userData!['firstName'] ?? "",
+        "lastName": widget.userData!['lastName'] ?? "",
+        "profileImage": widget.userData!['profileImage'] ?? "",
+      });
+
+      if (!success && mounted) {
+        // Rollback
+        setState(() {
+          widget.userData!['bio'] = oldBio;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to save bio on the server.")),
+        );
+      }
+    }
   }
 
   Widget _buildStatCard(IconData icon, String value, String label) {
@@ -185,14 +261,24 @@ class _ProfileScreenState extends State<ProfileScreen>
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Container(
-                    height: 36,
-                    width: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xff1a1c20),
-                      borderRadius: BorderRadius.circular(12),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SettingsScreen(),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      height: 36,
+                      width: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xff1a1c20),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.settings, color: Colors.white),
                     ),
-                    child: const Icon(Icons.settings, color: Colors.white),
                   ),
                 ],
               ),
@@ -288,10 +374,33 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  widget.userData?['bio'] ??
-                                      "Weekend warrior. Canyon lover.",
-                                  style: const TextStyle(color: Colors.white70),
+                                GestureDetector(
+                                  onTap: _editBio,
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          widget.userData?['bio'] != null &&
+                                                  widget.userData!['bio']
+                                                      .toString()
+                                                      .isNotEmpty
+                                              ? widget.userData!['bio']
+                                              : "Tell us about your riding style...",
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.edit,
+                                        color: Colors.white38,
+                                        size: 14,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -390,7 +499,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                       tabs: const [
                         Tab(text: "Overview"),
                         Tab(text: "Rides"),
-                        Tab(text: "Settings"),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -414,15 +522,48 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 ),
                                 const SizedBox(height: 8),
                                 SizedBox(
-                                  height: 80,
-                                  child: ListView(
-                                    scrollDirection: Axis.horizontal,
-                                    children: achievements
-                                        .map<Widget>(
-                                          (a) => _buildAchievementCard(a),
+                                  height: achievements.isEmpty ? null : 80,
+                                  child: achievements.isEmpty
+                                      ? Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 24,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xff1a1c20),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.white12,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            children: const [
+                                              Icon(
+                                                Icons.workspace_premium,
+                                                color: Colors.white24,
+                                                size: 32,
+                                              ),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                "Complete rides to earn badges!",
+                                                style: TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         )
-                                        .toList(),
-                                  ),
+                                      : ListView(
+                                          scrollDirection: Axis.horizontal,
+                                          children: achievements
+                                              .map<Widget>(
+                                                (a) => _buildAchievementCard(a),
+                                              )
+                                              .toList(),
+                                        ),
                                 ),
                                 const SizedBox(height: 12),
                                 const Text(
@@ -433,170 +574,92 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Column(
-                                  children: rideHistory
-                                      .map((r) => _buildRideCard(r))
-                                      .toList(),
-                                ),
+                                rideHistory.isEmpty
+                                    ? Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 32,
+                                          horizontal: 16,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xff1a1c20),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          border: Border.all(
+                                            color: Colors.white12,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: const [
+                                            Icon(
+                                              Icons.route,
+                                              color: Colors.white24,
+                                              size: 48,
+                                            ),
+                                            SizedBox(height: 12),
+                                            Text(
+                                              "Your journey begins here",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            SizedBox(height: 6),
+                                            Text(
+                                              "Start tracking your rides to see your history",
+                                              style: TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 13,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : Column(
+                                        children: rideHistory
+                                            .map((r) => _buildRideCard(r))
+                                            .toList(),
+                                      ),
                               ],
                             ),
                           ),
 
                           // Rides Tab
-                          ListView(
-                            children: rideHistory
-                                .map<Widget>((r) => _buildRideCard(r))
-                                .toList(),
-                          ),
-
-                          // Settings Tab
-                          SingleChildScrollView(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Column(
-                              children: [
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.notifications,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Notifications",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Manage alerts",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.message,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Messages",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Chat settings",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.people,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Followers",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Manage connections",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.directions_bike,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "My Bikes",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Add or edit bikes",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.shield,
-                                    color: Colors.white,
-                                  ),
-                                  title: const Text(
-                                    "Privacy",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Data & security",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-
-                                // Subscription Section
-                                const SizedBox(height: 16),
-                                ListTile(
-                                  leading: const Icon(
-                                    Icons.workspace_premium,
-                                    color: Color(0xfffe6603),
-                                  ),
-                                  title: const Text(
-                                    "Subscription",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  subtitle: const Text(
-                                    "Manage your subscription plan",
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  trailing: ElevatedButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => SubscriptionScreen(
-                                            onClose: () {
-                                              Navigator.pop(context);
-                                            },
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xfffe6603),
-                                      foregroundColor: Colors.white,
-                                      minimumSize: const Size(80, 36),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                          rideHistory.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: const [
+                                      Icon(
+                                        Icons.history,
+                                        color: Colors.white24,
+                                        size: 64,
                                       ),
-                                    ),
-                                    child: const Text("Manage"),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        "No Ride History",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        "Your completed rides will appear here.",
+                                        style: TextStyle(color: Colors.white54),
+                                      ),
+                                    ],
                                   ),
+                                )
+                              : ListView(
+                                  children: rideHistory
+                                      .map<Widget>((r) => _buildRideCard(r))
+                                      .toList(),
                                 ),
-
-                                const SizedBox(height: 16),
-                                ElevatedButton.icon(
-                                  onPressed: () {},
-                                  icon: const Icon(Icons.logout),
-                                  label: const Text("Log Out"),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xfffe6603),
-                                    foregroundColor: Colors.white,
-                                    minimumSize: const Size.fromHeight(50),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ],
                       ),
                     ),
