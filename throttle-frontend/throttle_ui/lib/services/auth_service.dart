@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'logger_service.dart';
 
 class AuthService {
   static String get baseUrl =>
@@ -56,6 +57,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    Logger.info("Attempting login for user: $email");
     try {
       final url = Uri.parse("$baseUrl/login");
 
@@ -72,13 +74,16 @@ class AuthService {
         final refreshToken = decoded["data"]?["refreshToken"];
 
         if (token == null || refreshToken == null) {
+          Logger.error("Token missing from login response payload");
           return {"success": false, "message": "Token not found in response"};
         }
 
         await saveTokens(token, refreshToken);
+        Logger.info("Login successful. Tokens securely stored.");
 
         return {"success": true, "data": decoded["data"]};
       } else {
+        Logger.warn("Login failed with status ${response.statusCode}");
         return {
           "success": false,
           "message": decoded["message"] ?? "Login failed",
@@ -139,6 +144,7 @@ class AuthService {
 
         // If it's a login, save the token
         if (data["token"] != null && data["refreshToken"] != null) {
+          Logger.info("Google verification success. Storing tokens.");
           await saveTokens(data["token"], data["refreshToken"]);
         }
 
@@ -249,9 +255,13 @@ class AuthService {
 
   // ================= REFRESH TOKEN =================
   static Future<bool> refreshToken() async {
+    Logger.info("Attempting to refresh access token...");
     try {
       final currentRefreshToken = await getRefreshToken();
-      if (currentRefreshToken == null) return false;
+      if (currentRefreshToken == null) {
+        Logger.warn("No refresh token found locally. Cannot refresh.");
+        return false;
+      }
 
       final url = Uri.parse("$baseUrl/refresh");
       final response = await http.post(
@@ -266,19 +276,23 @@ class AuthService {
         final newRefreshToken = decoded["data"]?["refreshToken"];
 
         if (newToken != null && newRefreshToken != null) {
+          Logger.info("Successfully received new tokens. Storing to secure storage.");
           await saveTokens(newToken, newRefreshToken);
           return true;
         }
       }
       // If refresh failed (e.g., token expired or revoked in DB)
+      Logger.warn("Refresh request rejected by server. Status: ${response.statusCode}");
       return false;
     } catch (e) {
+      Logger.error("Network fail during refresh token call", e);
       return false; // Network fail, maybe retry later
     }
   }
 
   // ================= LOGOUT =================
   static Future<void> logout() async {
+    Logger.info("Initiating secure logout...");
     try {
       final accessToken = await getToken();
       final refreshToken = await getRefreshToken();
@@ -295,9 +309,11 @@ class AuthService {
         );
       }
     } catch (e) {
+      Logger.warn("Network completely failed during logout backend call: $e");
       // Ignored: gracefully proceed to clear local token even if network fails
     }
 
+    Logger.info("Clearing local secure storage tokens");
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _refreshTokenKey);
     // Disconnect google sign-in safely
