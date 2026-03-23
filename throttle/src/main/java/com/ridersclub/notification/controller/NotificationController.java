@@ -1,6 +1,7 @@
 package com.ridersclub.notification.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -57,15 +59,26 @@ public ResponseEntity<ApiResponse<List<NotificationResponse>>> getMyNotification
      * Mark notification as read
      */
     @PutMapping(ApiConstants.Notifications.MARK_AS_READ)
-    public ResponseEntity<ApiResponse<Notifications>> markAsRead(@PathVariable Long id, Authentication authentication) {
-        String userUuid = (String) authentication.getPrincipal();
+public ResponseEntity<ApiResponse<Notifications>> updateReadStatus(
+        @PathVariable Long id,
+        @RequestBody Map<String, Boolean> request,
+        Authentication authentication) {
 
-        User user = userRepository.findByUuid(userUuid)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    String userUuid = (String) authentication.getPrincipal();
 
-        notificationService.markAsRead(id, user.getId());
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(null, "Notification marked as read"));
+    User user = userRepository.findByUuid(userUuid)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    Boolean read = request.get("read");
+    if (read == null) {
+        throw new RuntimeException("read field is required");
     }
+
+    Notifications notification = notificationService.updateReadStatus(id, user.getId(), read);
+
+    return ResponseEntity.ok(ApiResponse.success(notification, 
+            read ? "Notification marked as read" : "Notification marked as unread"));
+}
 
     @PostMapping("/read-all")
     public ResponseEntity<ApiResponse<?>> markAllAsRead(Authentication authentication) {
