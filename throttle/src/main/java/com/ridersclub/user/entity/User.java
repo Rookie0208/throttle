@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.ridersclub.common.Utils.NormalizeUtil;
 import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.enums.Role;
 
@@ -19,6 +20,8 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -68,6 +71,18 @@ public class User {
 
     public boolean hasRole(String string) {
         return role.name().equals(string);
+    }
+
+    @PrePersist
+    @PreUpdate
+    public void normalize() {
+        username = NormalizeUtil.lowerTrim(username);
+        email = NormalizeUtil.lowerTrim(email);
+        city = NormalizeUtil.lowerTrim(city);
+        firstName = NormalizeUtil.trim(firstName);
+        lastName = NormalizeUtil.trim(lastName);
+        pronoun = NormalizeUtil.trim(pronoun);
+
     }
 
 }
