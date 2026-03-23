@@ -21,6 +21,40 @@ class GroupService {
   );
 }
 
+// Update pre-ride info for a specific group
+  static Future<void> updatePreRideInfo(String token, String groupId, Map<String, dynamic> preRideInfo) async {
+    final url = Uri.parse('$baseUrl/rideGroups/$groupId/preRideInfo');
+    final response = await http.put(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(preRideInfo),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update pre-ride info');
+    }
+  }
+
+  // Fetch pre-ride info for a specific group
+  static Future<Map<String, dynamic>> fetchPreRideInfo(String token, String groupId) async {
+    final url = Uri.parse('$baseUrl/rideGroups/$groupId/preRideInfo');
+    final response = await http.get(
+      url,
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception('Failed to load pre-ride info');
+    }
+  }
+
   static Future<Map<String, dynamic>> fetchMyGroups(String token) async {
     try {
       final response = await http.get(
