@@ -82,6 +82,18 @@ public class NotificationService {
         notificationRepository.save(notification);
     }
 
+    public Notifications updateReadStatus(Long notificationId, Long userId, boolean read) {
+    Notifications notification = notificationRepository.findById(notificationId)
+            .orElseThrow(() -> new RuntimeException("Notification not found"));
+
+    if (!notification.getUserId().equals(userId)) {
+        throw new RuntimeException("You are not allowed to update this notification");
+    }
+
+    notification.setRead(read);
+    return notificationRepository.save(notification);
+}
+
     @Transactional
     public void markAllAsRead(Long userId) {
         List<Notifications> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
