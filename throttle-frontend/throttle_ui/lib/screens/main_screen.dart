@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/clubs_screen.dart';
+import 'package:throttle_ui/screens/friends_screen.dart';
 import 'package:throttle_ui/screens/group-screen.dart';
 import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/profile_screen.dart';
@@ -45,7 +46,8 @@ class _MainScreenState extends State<MainScreen> {
     DashboardScreen(userData: _userData, token: _token!),
         GroupsScreen(token: _token!), // pass token here
         const ClubsScreen(),
-        const StatsScreen(),
+        // const StatsScreen(),
+        const FriendsScreen(),
         ProfileScreen(userData: _userData),
   ];
 
@@ -99,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
             label: "Rides",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.groups), label: "Clubs"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Stats"),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Friends"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
