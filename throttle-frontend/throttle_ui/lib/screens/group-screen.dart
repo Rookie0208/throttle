@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/screens/plan_ride_screen.dart';
+import 'package:throttle_ui/screens/public_rides_screen.dart';
 import 'package:throttle_ui/services/group_service.dart';
 import 'group_chat_screen.dart';
 import 'package:throttle_ui/screens/group_chat_screen.dart';
@@ -53,7 +55,12 @@ class _GroupsScreenState extends State<GroupsScreen>
           children: [
             TextButton(
               onPressed: () {
-                Navigator.pushNamed(context, "/joinRide");
+                Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => PublicRidesScreen(token: widget.token),
+  ),
+);
               },
               child: const Text("Join Ride"),
             ),
@@ -65,9 +72,9 @@ class _GroupsScreenState extends State<GroupsScreen>
                 backgroundColor: const Color(0xfffe6603),
               ),
               onPressed: () {
-                Navigator.pushNamed(context, "/createRide");
+                Navigator.push(context, MaterialPageRoute(builder: (_) => PlanRideScreen(token: widget.token)));
               },
-              child: const Text("Create Ride"),
+              child: const Text("Create Ride", style: TextStyle(color: Colors.white),),
             ),
           ],
         )

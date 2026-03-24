@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/notification_screen.dart';
+import 'package:throttle_ui/services/notification_service.dart';
 import '../utils/string_extensions.dart';
 import '../services/location_service.dart';
 import '../services/weather_service.dart';
@@ -15,8 +16,9 @@ class AppColors {
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
+  final String token;
 
-  const DashboardScreen({super.key, this.userData});
+  const DashboardScreen({super.key, this.userData, required this.token});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -26,11 +28,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _cityName;
   Map<String, dynamic>? _weatherData;
   bool _isLoadingWeather = true;
+  int unreadNotificationCount = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchLocationAndWeather();
+    _fetchUnreadNotificationCount();
   }
 
   Future<void> _fetchLocationAndWeather() async {
@@ -109,6 +113,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+Future<void> _fetchUnreadNotificationCount() async {
+  final data = await NotificationService().fetchNotifications(widget.token);
+
+  setState(() {
+    unreadNotificationCount =
+        data.where((n) => n.unread).length;
+  });
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -155,72 +167,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                     /// RIGHT SIDE ICONS
                     Row(
-                      children: [
-                        Stack(
   children: [
-    Container(
-  decoration: BoxDecoration(
-    color: AppColors.card,
-    borderRadius: BorderRadius.circular(30),
-  ),
-  child: IconButton(
-    icon: const Icon(
-      Icons.notifications_none,
-      color: AppColors.textPrimary,
-      size: 22,
-    ),
-    onPressed: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => NotificationsScreen(
-            onClose: () {
-              Navigator.pop(context);
+    Stack(
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: IconButton(
+            icon: const Icon(
+              Icons.notifications_none,
+              color: AppColors.textPrimary,
+              size: 22,
+            ),
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => NotificationsScreen(
+                    onClose: () {
+                      Navigator.pop(context);
+                    },
+                    token: widget.token,
+                  ),
+                ),
+              );
+
+              /// 🔥 OPTIONAL: refresh count after coming back
+              _fetchUnreadNotificationCount();
             },
           ),
         ),
-      );
-    },
-  ),
-),
 
-    Positioned(
-      right: 8,
-      top: 8,
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: const BoxDecoration(
-          color: AppColors.primary,
-          shape: BoxShape.circle,
-        ),
-      ),
+        /// 🔥 SHOW COUNT (only if > 0)
+        if (unreadNotificationCount > 0)
+          Positioned(
+            right: 6,
+            top: 6,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              constraints: const BoxConstraints(
+                minWidth: 18,
+                minHeight: 18,
+              ),
+              child: Center(
+                child: Text(
+                  unreadNotificationCount > 99
+                      ? "99+"
+                      : "$unreadNotificationCount",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     ),
   ],
-),
-                        const SizedBox(width: 12),
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: AppColors.card,
-                          child: Text(
-                            widget.userData != null &&
-                                    widget.userData!['firstName'] != null &&
-                                    widget.userData!['firstName'].isNotEmpty
-                                ? widget.userData!['firstName'][0].toUpperCase() +
-                                      (widget.userData!['lastName'] != null &&
-                                              widget.userData!['lastName'].isNotEmpty
-                                          ? widget.userData!['lastName'][0]
-                                                .toUpperCase()
-                                          : '')
-                                : "RU",
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+)
                   ],
                 ),
               ),

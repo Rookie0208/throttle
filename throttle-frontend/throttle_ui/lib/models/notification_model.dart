@@ -2,32 +2,29 @@ import 'package:flutter/material.dart';
 
 class NotificationItem {
   final int id;
-  final String type;
-  final IconData icon;
   final String title;
   final String desc;
   final String time;
-  final bool unread;
+  bool unread;
+  final String type;
 
   NotificationItem({
     required this.id,
-    required this.type,
-    required this.icon,
     required this.title,
     required this.desc,
     required this.time,
     required this.unread,
+    required this.type,
   });
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
     return NotificationItem(
       id: json["id"],
-      type: json["type"],
-      icon: Icons.notifications, // backend won't send icon
-      title: json["title"],
-      desc: json["desc"],
-      time: json["time"],
-      unread: json["unread"] ?? false,
+      title: json["title"] ?? "",
+      desc: json["message"] ?? "",
+      time: json["createdAt"] ?? "",
+      unread: !(json["read"] ?? false),
+      type: json["type"] ?? "",
     );
   }
 }
