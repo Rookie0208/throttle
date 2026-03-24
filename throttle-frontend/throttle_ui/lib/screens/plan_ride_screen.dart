@@ -13,12 +13,11 @@ class PlanRideScreen extends StatefulWidget {
 }
 
 class _PlanRideScreenState extends State<PlanRideScreen> {
-  // ================= COLORS =================
   final bgColor = const Color(0xff0f1115);
   final cardColor = const Color(0xff1a1c20);
+  final softCardColor = const Color(0xff14161a);
   final primaryColor = const Color(0xfffe6603);
 
-  // ================= STATE =================
   String rideType = "SOLO";
   String difficulty = "EASY";
 
@@ -35,43 +34,65 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   List<String> selectedFriends = [];
   bool isLoading = false;
 
-  // ------------------- STATE VARIABLES -------------------
   DateTime selectedStartTime = DateTime.now().add(const Duration(hours: 1));
   double startLat = 0.0;
   double startLng = 0.0;
   double endLat = 0.0;
   double endLng = 0.0;
 
-  // ================= MAPBOX CONFIG =================
-  final String mapboxToken =
-      "sk.eyJ1IjoiYW1pdHJhd2F0MjYxMiIsImEiOiJjbW1jNmZhZjQwMnNnMnJxdzJzNjJ0amk2In0.7524zGVXx4-Qq41E_LKOTg"; // add your token here
+  int currentStep = 0;
 
-  // ================= UI HELPERS =================
-  Widget sectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white70,
-          fontWeight: FontWeight.bold,
+  final String mapboxToken =
+      "sk.eyJ1IjoiYW1pdHJhd2F0MjYxMiIsImEiOiJjbW1jNmZhZjQwMnNnMnJxdzJzNjJ0amk2In0.7524zGVXx4-Qq41E_LKOTg";
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    descriptionController.dispose();
+    startLocationController.dispose();
+    endLocationController.dispose();
+    maxRidersController.dispose();
+    rulesController.dispose();
+    super.dispose();
+  }
+
+  Widget sectionTitle(String text, {String? subtitle}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-      ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12.5,
+              height: 1.25,
+            ),
+          ),
+        ]
+      ],
     );
   }
 
-  Widget cardWrapper({required Widget child, bool disabled = false}) {
-    return Opacity(
-      opacity: disabled ? 0.5 : 1,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: child,
+  Widget cardWrapper({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white10),
       ),
+      child: child,
     );
   }
 
@@ -82,28 +103,108 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     TextInputType? keyboardType,
     bool disabled = false,
     Function(String)? onSubmitted,
+    IconData? icon,
   }) {
-    return cardWrapper(
-      disabled: disabled,
-      child: TextField(
-        controller: controller,
-        enabled: !disabled,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white, fontSize: 15),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: EdgeInsets.zero,
+    return Opacity(
+      opacity: disabled ? 0.45 : 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: softCardColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white10),
         ),
-        onSubmitted: onSubmitted,
+        child: Row(
+          crossAxisAlignment:
+              maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white54, size: 18),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: TextField(
+                controller: controller,
+                enabled: !disabled,
+                maxLines: maxLines,
+                keyboardType: keyboardType,
+                style: const TextStyle(color: Colors.white, fontSize: 14.5),
+                decoration: InputDecoration(
+                  hintText: hint,
+                  hintStyle: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 13.5,
+                  ),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                onSubmitted: onSubmitted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ================= DATE & TIME =================
+  Widget stepIndicator() {
+    final steps = ["Type", "Route", "Info", "Setup", "Preview"];
+
+    return Row(
+      children: List.generate(steps.length, (index) {
+        final isActive = index == currentStep;
+        final isDone = index < currentStep;
+
+        return Expanded(
+          child: Column(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                height: 28,
+                width: 28,
+                decoration: BoxDecoration(
+                  color: isDone || isActive ? primaryColor : Colors.white10,
+                  shape: BoxShape.circle,
+                  boxShadow: isActive
+                      ? [
+                          BoxShadow(
+                            color: primaryColor.withOpacity(0.35),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          )
+                        ]
+                      : null,
+                ),
+                child: Center(
+                  child: isDone
+                      ? const Icon(Icons.check, color: Colors.white, size: 15)
+                      : Text(
+                          "${index + 1}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                steps[index],
+                style: TextStyle(
+                  color: isActive ? Colors.white : Colors.white54,
+                  fontSize: 10.5,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                ),
+              )
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
   Future<void> pickDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -113,7 +214,16 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     );
 
     if (picked != null) {
-      setState(() => selectedDate = picked);
+      setState(() {
+        selectedDate = picked;
+        selectedStartTime = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          selectedTime.hour,
+          selectedTime.minute,
+        );
+      });
     }
   }
 
@@ -124,17 +234,25 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     );
 
     if (picked != null) {
-      setState(() => selectedTime = picked);
+      setState(() {
+        selectedTime = picked;
+        selectedStartTime = DateTime(
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          selectedTime.hour,
+          selectedTime.minute,
+        );
+      });
     }
   }
 
-  // ================= INVITE MODAL =================
   void openInviteFriendsModal() {
     showModalBottomSheet(
       context: context,
       backgroundColor: bgColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       isScrollControlled: true,
       builder: (_) {
@@ -151,7 +269,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
             return Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.6,
+                height: MediaQuery.of(context).size.height * 0.58,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -159,11 +277,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       "Invite Club Members",
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Expanded(
                       child: ListView.builder(
                         itemCount: clubMembers.length,
@@ -171,36 +289,51 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                           final member = clubMembers[index];
                           final isSelected = selectedFriends.contains(member);
 
-                          return ListTile(
-                            title: Text(
-                              member,
-                              style: const TextStyle(color: Colors.white),
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            decoration: BoxDecoration(
+                              color: softCardColor,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.white10),
                             ),
-                            trailing: Checkbox(
-                              value: isSelected,
-                              activeColor: primaryColor,
-                              onChanged: (val) {
-                                setModalState(() {
-                                  if (val == true) {
-                                    selectedFriends.add(member);
-                                  } else {
-                                    selectedFriends.remove(member);
-                                  }
-                                });
-                                setState(() {});
-                              },
+                            child: ListTile(
+                              title: Text(
+                                member,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              trailing: Checkbox(
+                                value: isSelected,
+                                activeColor: primaryColor,
+                                onChanged: (val) {
+                                  setModalState(() {
+                                    if (val == true) {
+                                      selectedFriends.add(member);
+                                    } else {
+                                      selectedFriends.remove(member);
+                                    }
+                                  });
+                                  setState(() {});
+                                },
+                              ),
                             ),
                           );
                         },
                       ),
                     ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        minimumSize: const Size.fromHeight(50),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Done"),
                       ),
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text("Done"),
                     ),
                   ],
                 ),
@@ -212,7 +345,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     );
   }
 
-  // ================= GEOCODING =================
   Future<void> fetchCoordinates(String placeName, bool isStart) async {
     if (placeName.trim().isEmpty) return;
 
@@ -244,7 +376,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     }
   }
 
-  // ------------------- HELPER METHODS -------------------
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),
@@ -257,8 +388,50 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     );
   }
 
-  // ================= CREATE RIDE =================
-  // ------------------- CREATE RIDE -------------------
+  bool validateCurrentStep() {
+    if (currentStep == 0 && rideType == "GROUP") {
+      if (maxRidersController.text.trim().isEmpty ||
+          int.tryParse(maxRidersController.text.trim()) == null) {
+        showError("Please enter max riders for group ride");
+        return false;
+      }
+    }
+
+    if (currentStep == 1) {
+      if (startLocationController.text.trim().isEmpty ||
+          endLocationController.text.trim().isEmpty) {
+        showError("Start and End locations are required");
+        return false;
+      }
+    }
+
+    if (currentStep == 2) {
+      if (titleController.text.trim().isEmpty) {
+        showError("Title is required");
+        return false;
+      }
+      if (descriptionController.text.trim().isEmpty) {
+        showError("Description is required");
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void nextStep() {
+    if (!validateCurrentStep()) return;
+    if (currentStep < 4) {
+      setState(() => currentStep++);
+    }
+  }
+
+  void previousStep() {
+    if (currentStep > 0) {
+      setState(() => currentStep--);
+    }
+  }
+
   Future<void> createRide() async {
     if (titleController.text.trim().isEmpty) {
       showError("Title is required");
@@ -321,124 +494,257 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     }
   }
 
-  // ================= BUILD =================
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        title: const Text("Plan a Ride"),
+  Widget _choiceTile({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: selected ? primaryColor : softCardColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? primaryColor : Colors.white10,
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: primaryColor.withOpacity(0.22),
+                      blurRadius: 14,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : null,
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: Colors.white, size: 22),
+              const SizedBox(height: 7),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              )
+            ],
+          ),
+        ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+    );
+  }
+
+  Widget _infoChip(String iconText, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: softCardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            iconText,
+            style: const TextStyle(fontSize: 18),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildStepContent() {
+    switch (currentStep) {
+      case 0:
+        return cardWrapper(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // RIDE TYPE
-              sectionTitle("Ride Type"),
+              sectionTitle(
+                "Choose ride type",
+                subtitle: "Pick solo or group before continuing.",
+              ),
+              const SizedBox(height: 14),
               Row(
-                children: ["SOLO", "GROUP"].map((type) {
-                  final selected = rideType == type;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => rideType = type),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: selected ? primaryColor : cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text(
-                            type,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-
-              // MAP PLACEHOLDER
-              sectionTitle("Route Preview"),
-              Container(
-                height: 180,
-                decoration: BoxDecoration(
-                  color: cardColor,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: const Center(
-                  child: Text(
-                    "Map goes here",
-                    style: TextStyle(color: Colors.white38),
+                children: [
+                  _choiceTile(
+                    label: "SOLO",
+                    icon: Icons.person,
+                    selected: rideType == "SOLO",
+                    onTap: () => setState(() => rideType = "SOLO"),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  _choiceTile(
+                    label: "GROUP",
+                    icon: Icons.groups_2,
+                    selected: rideType == "GROUP",
+                    onTap: () => setState(() => rideType = "GROUP"),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+              modernField(
+                controller: maxRidersController,
+                hint: rideType == "SOLO"
+                    ? "Max riders not needed for solo"
+                    : "Enter max riders",
+                keyboardType: TextInputType.number,
+                disabled: rideType == "SOLO",
+                icon: Icons.people_alt_outlined,
+              ),
+            ],
+          ),
+        );
 
-              // START LOCATION
-              sectionTitle("Start Location"),
+      case 1:
+        return cardWrapper(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              sectionTitle(
+                "Set your route",
+                subtitle: "Add start and end locations for the ride.",
+              ),
+              const SizedBox(height: 12),
               modernField(
                 controller: startLocationController,
                 hint: "Enter start location",
                 onSubmitted: (val) => fetchCoordinates(val, true),
+                icon: Icons.trip_origin,
               ),
-              const SizedBox(height: 16),
-
-              // END LOCATION
-              sectionTitle("End Location"),
+              const SizedBox(height: 10),
               modernField(
                 controller: endLocationController,
                 hint: "Enter end location",
                 onSubmitted: (val) => fetchCoordinates(val, false),
+                icon: Icons.flag_outlined,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              Container(
+                height: 110,
+                decoration: BoxDecoration(
+                  color: softCardColor,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white10),
+                ),
+                child: const Center(
+                  child: Text(
+                    "Route preview goes here",
+                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
 
-              // TITLE
-              sectionTitle("Title"),
+      case 2:
+        return cardWrapper(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              sectionTitle(
+                "Ride details",
+                subtitle: "Add title, description and any ride rules.",
+              ),
+              const SizedBox(height: 12),
               modernField(
                 controller: titleController,
                 hint: "Sunday Morning Ride",
+                icon: Icons.title,
               ),
-              const SizedBox(height: 16),
-
-              // DESCRIPTION
-              sectionTitle("Description"),
+              const SizedBox(height: 10),
               modernField(
                 controller: descriptionController,
                 hint: "Describe the ride...",
                 maxLines: 3,
+                icon: Icons.notes,
               ),
-              const SizedBox(height: 16),
-
-              // RULES
-              sectionTitle("Rules (comma separated)"),
+              const SizedBox(height: 10),
               modernField(
                 controller: rulesController,
                 hint: "Helmet required, No rash riding",
+                maxLines: 2,
+                icon: Icons.rule_folder_outlined,
               ),
-              const SizedBox(height: 16),
+            ],
+          ),
+        );
 
-              // DATE & TIME
-              sectionTitle("Date & Time"),
+      case 3:
+        return cardWrapper(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              sectionTitle(
+                "Schedule & setup",
+                subtitle: "Choose time, difficulty and invite riders.",
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
                       onTap: pickDate,
-                      child: cardWrapper(
-                        child: Text(
-                          "${selectedDate.toLocal()}".split(" ")[0],
-                          style: const TextStyle(color: Colors.white),
+                      child: Container(
+                        padding: const EdgeInsets.all(13),
+                        decoration: BoxDecoration(
+                          color: softCardColor,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Date",
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "${selectedDate.toLocal()}".split(" ")[0],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -447,20 +753,48 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   Expanded(
                     child: GestureDetector(
                       onTap: pickTime,
-                      child: cardWrapper(
-                        child: Text(
-                          selectedTime.format(context),
-                          style: const TextStyle(color: Colors.white),
+                      child: Container(
+                        padding: const EdgeInsets.all(13),
+                        decoration: BoxDecoration(
+                          color: softCardColor,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white10),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Time",
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              selectedTime.format(context),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-
-              // DIFFICULTY
-              sectionTitle("Difficulty"),
+              const SizedBox(height: 12),
+              const Text(
+                "Difficulty",
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: ["EASY", "MODERATE", "HARD"].map((level) {
                   final selected = difficulty == level;
@@ -469,17 +803,21 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       onTap: () => setState(() => difficulty = level),
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: selected ? primaryColor : cardColor,
+                          color: selected ? primaryColor : softCardColor,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selected ? primaryColor : Colors.white10,
+                          ),
                         ),
                         child: Center(
                           child: Text(
                             level,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
                             ),
                           ),
                         ),
@@ -488,80 +826,302 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 16),
+              if (rideType == "GROUP") ...[
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: openInviteFriendsModal,
+                  child: Container(
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: softCardColor,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          height: 34,
+                          width: 34,
+                          decoration: BoxDecoration(
+                            color: primaryColor.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.person_add_alt_1,
+                            color: Color(0xfffe6603),
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            selectedFriends.isEmpty
+                                ? "Invite club members"
+                                : "${selectedFriends.length} riders selected",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          color: Colors.white54,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
 
-              // MAX RIDERS
-              sectionTitle("Max Riders"),
-              modernField(
-                controller: maxRidersController,
-                hint: "Enter max riders",
-                keyboardType: TextInputType.number,
-                disabled: rideType == "SOLO",
+      case 4:
+        final rules = rulesController.text.trim().isEmpty
+            ? "-"
+            : rulesController.text.trim();
+        final invited = selectedFriends.isEmpty
+            ? "No riders"
+            : selectedFriends.join(", ");
+
+        return cardWrapper(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              sectionTitle(
+                "Preview your ride",
+                subtitle: "Quick summary before you create it.",
               ),
-              const SizedBox(height: 16),
-
-              // INVITE FRIENDS
-              sectionTitle("Invite Friends"),
-              GestureDetector(
-                onTap: rideType == "GROUP" ? openInviteFriendsModal : null,
-                child: cardWrapper(
-                  disabled: rideType == "SOLO",
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              const SizedBox(height: 14),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.28,
+                children: [
+                  _infoChip("🏍️", "Ride Type", rideType),
+                  _infoChip("📍", "Start", startLocationController.text.trim().isEmpty
+                      ? "-"
+                      : startLocationController.text.trim()),
+                  _infoChip("🏁", "End", endLocationController.text.trim().isEmpty
+                      ? "-"
+                      : endLocationController.text.trim()),
+                  _infoChip("📝", "Title", titleController.text.trim().isEmpty
+                      ? "-"
+                      : titleController.text.trim()),
+                  _infoChip("📅", "Date", "${selectedDate.toLocal()}".split(" ")[0]),
+                  _infoChip("⏰", "Time", selectedTime.format(context)),
+                  _infoChip("🔥", "Difficulty", difficulty),
+                  _infoChip("📋", "Rules", rules),
+                  if (rideType == "GROUP")
+                    _infoChip(
+                      "👥",
+                      "Max Riders",
+                      maxRidersController.text.trim().isEmpty
+                          ? "-"
+                          : maxRidersController.text.trim(),
+                    ),
+                  if (rideType == "GROUP")
+                    _infoChip("🤝", "Invited", invited),
+                ],
+              ),
+              if (descriptionController.text.trim().isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: softCardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        selectedFriends.isEmpty
-                            ? "Select club members"
-                            : "${selectedFriends.length} selected",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
+                      const Text(
+                        "Description",
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Colors.white54,
-                        size: 18,
+                      const SizedBox(height: 6),
+                      Text(
+                        descriptionController.text.trim(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          height: 1.35,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 30),
+              ]
+            ],
+          ),
+        );
 
-              // CREATE BUTTON
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : createRide,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+      default:
+        return const SizedBox();
+    }
+  }
+
+  Widget buildBottomActions() {
+    final isLastStep = currentStep == 4;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: const Border(
+          top: BorderSide(color: Colors.white10),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (currentStep > 0)
+            Expanded(
+              child: OutlinedButton(
+                onPressed: isLoading ? null : previousStep,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white24),
+                  minimumSize: const Size.fromHeight(46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
+                ),
+                child: const Text(
+                  "Back",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ),
+            ),
+          if (currentStep > 0) const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : isLastStep
+                      ? createRide
+                      : nextStep,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(46),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: isLoading
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      isLastStep ? "Create Ride" : "Next",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14.5,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final modalHeight = MediaQuery.of(context).size.height * 0.56;
+
+    return Scaffold(
+      backgroundColor: Colors.black.withOpacity(0.40),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            height: modalHeight,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
                           "Create Ride",
                           style: TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: stepIndicator(),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.06, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: SingleChildScrollView(
+                      key: ValueKey(currentStep),
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                      child: buildStepContent(),
+                    ),
+                  ),
+                ),
+                buildBottomActions(),
+              ],
+            ),
           ),
         ),
       ),
