@@ -1,33 +1,33 @@
 package com.ridersclub.auth.service;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
-
-import java.util.Collections;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import lombok.extern.slf4j.Slf4j;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-
 import com.ridersclub.auth.dto.request.GoogleAuthRequest;
 import com.ridersclub.auth.dto.request.GoogleRegisterRequest;
-import com.ridersclub.auth.dto.response.GoogleAuthResponse;
 import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
+import com.ridersclub.auth.dto.response.GoogleAuthResponse;
 import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
+import com.ridersclub.auth.security.JwtService;
+import com.ridersclub.common.Utils.NormalizeUtil;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
-import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.service.UserService;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -58,7 +58,8 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
-        User user = userService.findByEmail(request.getEmail())
+        String email = NormalizeUtil.lowerTrim(request.getEmail());
+        User user = userService.findByEmail(email)
                 .orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
 
         if (user.getPassword() == null || !passwordEncoder.matches(request.getPassword(), user.getPassword())) {
