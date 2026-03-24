@@ -109,12 +109,39 @@ class _MainScreenState extends State<MainScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.orange,
         child: const Icon(Icons.add),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PlanRideScreen(token: _token!)),
-          );
-        },
+        onPressed: () async {
+  await Navigator.of(context).push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierDismissible: false,
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, animation, __) {
+        return PlanRideScreen(token: _token!);
+      },
+      transitionsBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(
+            opacity: curved,
+            child: child,
+          ),
+        );
+      },
+    ),
+  );
+
+  setState(() {});
+},
       ),
     );
   }
