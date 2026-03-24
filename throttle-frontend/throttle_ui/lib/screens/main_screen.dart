@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/clubs_screen.dart';
+import 'package:throttle_ui/screens/friends_screen.dart';
 import 'package:throttle_ui/screens/group-screen.dart';
 import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/profile_screen.dart';
@@ -42,10 +43,11 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   List<Widget> get _screens => [
-    DashboardScreen(userData: _userData),
+    DashboardScreen(userData: _userData, token: _token!),
         GroupsScreen(token: _token!), // pass token here
         const ClubsScreen(),
-        const StatsScreen(),
+        // const StatsScreen(),
+        const FriendsScreen(),
         ProfileScreen(userData: _userData),
   ];
 
@@ -99,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
             label: "Rides",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.groups), label: "Clubs"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Stats"),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Friends"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
@@ -107,12 +109,39 @@ class _MainScreenState extends State<MainScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.orange,
         child: const Icon(Icons.add),
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PlanRideScreen(token: _token!)),
-          );
-        },
+        onPressed: () async {
+  await Navigator.of(context).push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierDismissible: false,
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, animation, __) {
+        return PlanRideScreen(token: _token!);
+      },
+      transitionsBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 1),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(
+            opacity: curved,
+            child: child,
+          ),
+        );
+      },
+    ),
+  );
+
+  setState(() {});
+},
       ),
     );
   }
