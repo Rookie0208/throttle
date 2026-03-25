@@ -2,6 +2,8 @@ package com.ridersclub.message.controller;
 
 import java.util.List;
 
+import com.ridersclub.message.dto.response.MessageDTO;
+import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.web.bind.annotation.*;
 
 import com.ridersclub.message.dto.response.MessageResponse;
@@ -48,5 +50,13 @@ public class MessageController {
             @RequestParam String groupUuid) {
 
         messageService.markMessagesAsRead(userUuid, groupUuid);
+    }
+
+
+    //Websocket
+    @MessageMapping("/chat.send")
+    public void sendMessage(MessageDTO message) {
+
+        messageService.processMessage(message);
     }
 }
