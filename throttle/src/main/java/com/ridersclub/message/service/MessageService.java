@@ -2,6 +2,7 @@ package com.ridersclub.message.service;
 
 import java.util.List;
 
+import com.ridersclub.message.dto.response.MessageDTO;
 import com.ridersclub.message.dto.response.MessageResponse;
 
 public interface MessageService {
@@ -16,4 +17,6 @@ public interface MessageService {
     List<MessageResponse> getMessages(String groupUuid);
 
     void markMessagesAsRead(String userUuid, String groupUuid);
+
+    void processMessage(MessageDTO message);
 }

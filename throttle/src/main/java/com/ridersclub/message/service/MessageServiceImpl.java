@@ -1,11 +1,15 @@
 package com.ridersclub.message.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.stream.Collectors;
 
+import com.ridersclub.message.dto.response.MessageDTO;
 import com.ridersclub.message.dto.response.MessageResponse;
 import com.ridersclub.message.entity.GroupMessage;
 import com.ridersclub.message.entity.MessageRead;
@@ -24,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional
 public class MessageServiceImpl implements MessageService {
+   
+        private final SimpMessagingTemplate messagingTemplate;
 
     private final GroupMessageRepository messageRepo;
     private final MessageReadRepository readRepo;
@@ -73,7 +79,7 @@ public class MessageServiceImpl implements MessageService {
                 .findTop20ByGroup_UuidOrderByCreatedAtDesc(groupUuid)
                 .stream()
                 .map(this::mapToResponse)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     // ===============================
@@ -87,12 +93,16 @@ public class MessageServiceImpl implements MessageService {
 
         List<GroupMessage> messages = messageRepo.findTop20ByGroup_UuidOrderByCreatedAtDesc(groupUuid);
 
-        List<MessageRead> reads = messages.stream()
-                .map(msg -> MessageRead.builder()
-                        .message(msg)
-                        .user(user)
-                        .build())
-                .toList();
+        List<MessageRead> reads = new ArrayList<>();
+
+        for (GroupMessage msg : messages) {
+             MessageRead read = MessageRead.builder()
+            .message(msg)
+            .user(user)
+            .build();
+
+        reads.add(read);
+}
 
         readRepo.saveAll(reads);
     }
@@ -109,5 +119,51 @@ public class MessageServiceImpl implements MessageService {
                 msg.getMediaUrl(),
                 msg.getMessageType().name(),
                 msg.getCreatedAt());
+    }
+
+
+    //websocket
+    @Transactional
+    public void processMessage(MessageDTO dto) {
+        User sender = userRepository.getReferenceById(dto.getSenderId());                       // use this approach when we need to set the entity as a reference without fetching it from the database. It is more efficient than findById() when we only need the reference for associations and not the actual data of the entity. DB calls are saved when we use getReferenceById() instead of findById() because it does not hit the database to fetch the entity data. Instead, it creates a proxy reference that can be used for associations without loading the full entity. This is particularly beneficial in scenarios where we only need to set the reference for relationships and do not require the actual data of the entity, thus improving performance by reducing unnecessary database calls.
+        RideGroup group = rideGroupRepository.getReferenceById(dto.getGroupId());
+
+        GroupMessage replyTo = null;
+
+        if (dto.getReplyToId() != null) {
+            replyTo = messageRepo.findById(dto.getReplyToId())
+                    .orElse(null);
+        }
+
+        GroupMessage message = GroupMessage.builder()
+                .uuid(UUID.randomUUID().toString())
+                .sender(sender)
+                .group(group)
+                .message(dto.getMessage())
+                .mediaUrl(dto.getMediaUrl())
+                .messageType(MessageType.valueOf(dto.getMessageType()))
+                .replyTo(replyTo)
+                .edited(false)
+                .build();
+
+        messageRepo.save(message);
+
+        // 🔥 broadcast to group members
+        messagingTemplate.convertAndSend(
+                "/topic/group." + group.getId(),
+                mapToDTO(message)
+        );
+    }
+
+    private MessageDTO mapToDTO(GroupMessage msg) {
+
+        return MessageDTO.builder()
+                .uuid(msg.getUuid())
+                .groupId(msg.getGroup().getId())
+                .senderId(msg.getSender().getId())
+                .message(msg.getMessage())
+                .mediaUrl(msg.getMediaUrl())
+                .messageType(msg.getMessageType().name())
+                .build();
     }
 }
