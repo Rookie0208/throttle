@@ -397,73 +397,23 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   void _openPreRideInfo() {
-    final meetingPointController = TextEditingController();
-    final stopsController = TextEditingController();
-    final fuelStopsController = TextEditingController();
-    final breakPointsController = TextEditingController();
-    final checkpointsController = TextEditingController();
-    final speedLimitController = TextEditingController();
-    final emergencyContactController = TextEditingController();
-    final rideRulesController = TextEditingController();
+    int step = 0;
+
+    final meetingController = TextEditingController();
+    final fuelController = TextEditingController();
+    final checkpointController = TextEditingController();
     final notesController = TextEditingController();
 
-    final preRideInfo = widget.rideGroup["preRideInfo"] ?? {};
+    List<String> checkpoints = [];
+    List<String> selectedRules = [];
 
-    meetingPointController.text = preRideInfo["meetingPoint"] ?? "";
-    stopsController.text = preRideInfo["estimatedStops"] ?? "";
-    fuelStopsController.text = preRideInfo["fuelStops"] ?? "";
-    breakPointsController.text = preRideInfo["breakPoints"] ?? "";
-    checkpointsController.text = preRideInfo["checkpoints"] ?? "";
-    speedLimitController.text = preRideInfo["speedLimit"] ?? "";
-    emergencyContactController.text = preRideInfo["emergencyContact"] ?? "";
-    rideRulesController.text = preRideInfo["rideRules"] ?? "";
-    notesController.text = preRideInfo["notes"] ?? "";
-
-    // Disable input fields for normal users
-    // bool isEditable = (widget.rideGroup["myRole"] == "CAPTAIN" || widget.rideGroup["myRole"] == "ADMIN");
-    bool isEditable =
-        true; // for now, only allow viewing pre-ride info. Editing can be implemented later.
-    if (!isEditable) {
-      // Disable text input fields for non-admin/captain users
-      meetingPointController.text = preRideInfo["meetingPoint"] ?? "";
-      stopsController.text = preRideInfo["estimatedStops"] ?? "";
-      fuelStopsController.text = preRideInfo["fuelStops"] ?? "";
-      breakPointsController.text = preRideInfo["breakPoints"] ?? "";
-      checkpointsController.text = preRideInfo["checkpoints"] ?? "";
-      speedLimitController.text = preRideInfo["speedLimit"] ?? "";
-      emergencyContactController.text = preRideInfo["emergencyContact"] ?? "";
-      rideRulesController.text = preRideInfo["rideRules"] ?? "";
-      notesController.text = preRideInfo["notes"] ?? "";
-
-      // Disable input fields
-      meetingPointController.selection = TextSelection.collapsed(
-        offset: meetingPointController.text.length,
-      );
-      stopsController.selection = TextSelection.collapsed(
-        offset: stopsController.text.length,
-      );
-      fuelStopsController.selection = TextSelection.collapsed(
-        offset: fuelStopsController.text.length,
-      );
-      breakPointsController.selection = TextSelection.collapsed(
-        offset: breakPointsController.text.length,
-      );
-      checkpointsController.selection = TextSelection.collapsed(
-        offset: checkpointsController.text.length,
-      );
-      speedLimitController.selection = TextSelection.collapsed(
-        offset: speedLimitController.text.length,
-      );
-      emergencyContactController.selection = TextSelection.collapsed(
-        offset: emergencyContactController.text.length,
-      );
-      rideRulesController.selection = TextSelection.collapsed(
-        offset: rideRulesController.text.length,
-      );
-      notesController.selection = TextSelection.collapsed(
-        offset: notesController.text.length,
-      );
-    }
+    final rules = [
+      "No overspeeding",
+      "Stay in formation",
+      "No reckless riding",
+      "Follow captain",
+      "Helmet mandatory",
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -473,86 +423,463 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            top: 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const Text(
-                  "Pre Ride Information",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Widget section;
+
+            /// ---------- STEP 1 ----------
+            if (step == 0) {
+              section = SizedBox(
+                height:
+                    MediaQuery.of(context).size.height *
+                    0.15, // slightly bigger
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Meeting Point",
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: meetingController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Enter meetup location"),
+                    ),
+                  ],
+                ),
+              );
+            }
+            /// ---------- STEP 2 ----------
+            else if (step == 1) {
+              section = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Fuel & Checkpoints",
+                    style: TextStyle(color: Colors.white, fontSize: 16),
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                _input("📍 Meeting Point", meetingPointController, isEditable),
-                _input("🛑 Estimated Stops", stopsController, isEditable),
-                _input("⛽ Fuel Stops", fuelStopsController, isEditable),
-                _input("⏸️ Break Points", breakPointsController, isEditable),
-                _input("🏁 Checkpoints", checkpointsController, isEditable),
-                _input(" Speedway Limit", speedLimitController, isEditable),
-                _input(
-                  "Emergency Contact",
-                  emergencyContactController,
-                  isEditable,
-                ),
-                _input("Ride Rules", rideRulesController, isEditable),
-                _input("Notes", notesController, isEditable),
-
-                const SizedBox(height: 16),
-
-                // Enable "Save & Notify" only for captain/admin
-                if (isEditable)
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Capture inputs for pre-ride info
-                      final preRideData = {
-                        "meetingPoint": meetingPointController.text,
-                        "estimatedStops": stopsController.text,
-                        "fuelStops": fuelStopsController.text,
-                        "breakPoints": breakPointsController.text,
-                        "checkpoints": checkpointsController.text,
-                        "speedLimit": speedLimitController.text,
-                        "emergencyContact": emergencyContactController.text,
-                        "rideRules": rideRulesController.text,
-                        "notes": notesController.text,
-                      };
-
-                      // Call the update service
-                      await GroupService.updatePreRideInfo(
-                        widget.token,
-                        widget.rideGroup["uuid"],
-                        preRideData,
-                      );
-
-                      // Optionally: Show notification to participants
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Pre-Ride Information updated!"),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: fuelController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _inputDecoration("Estimated fuel stops"),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: checkpointController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: _inputDecoration(
+                            "Add checkpoint location",
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          if (checkpointController.text.isNotEmpty) {
+                            setModalState(() {
+                              checkpoints.add(checkpointController.text);
+                              checkpointController.clear();
+                            });
+                          }
+                        },
+                        child: const CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Color(0xfffe6603),
+                          child: Icon(Icons.add, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: checkpoints.asMap().entries.map((entry) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff0f1114),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              size: 14,
+                              color: Color(0xfffe6603),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              entry.value,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       );
-
-                      Navigator.pop(context);
-                    },
-                    child: const Text("Save & Notify"),
-                  )
-                else
-                  const Text(
-                    "You do not have permission to edit this information.",
-                    style: TextStyle(color: Colors.white70),
+                    }).toList(),
                   ),
-              ],
+                ],
+              );
+            }
+            /// ---------- STEP 3 ----------
+            else if (step == 2) {
+              section = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Ride Rules",
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: rules.map((rule) {
+                      final selected = selectedRules.contains(rule);
+                      return GestureDetector(
+                        onTap: () {
+                          setModalState(() {
+                            selected
+                                ? selectedRules.remove(rule)
+                                : selectedRules.add(rule);
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xfffe6603)
+                                : const Color(0xff0f1114),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            rule,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _inputDecoration("Add custom rule (optional)"),
+                  ),
+                ],
+              );
+            }
+            /// ---------- STEP 4 (PREVIEW) ----------
+            else {
+              section = SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Preview",
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    const SizedBox(height: 12),
+                    _preview("Meeting Point", meetingController.text),
+                    _preview("Fuel Stops", fuelController.text),
+                    _preview("Rules", selectedRules.join(", ")),
+                    const SizedBox(height: 10),
+                    const Text(
+                      "Checkpoints",
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 6),
+                    Column(
+                      children: checkpoints
+                          .map(
+                            (c) => ListTile(
+                              dense: true,
+                              leading: const Icon(
+                                Icons.place,
+                                color: Color(0xfffe6603),
+                                size: 18,
+                              ),
+                              title: Text(
+                                c,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: notesController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Notes (optional)"),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  /// Circle Step Progress
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(4, (index) {
+                      bool done = index <= step;
+                      return Expanded(
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 10,
+                              backgroundColor: done
+                                  ? const Color(0xfffe6603)
+                                  : Colors.white12,
+                              child: Text(
+                                "${index + 1}",
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                            if (index < 3)
+                              Expanded(
+                                child: Container(
+                                  height: 2,
+                                  color: index < step
+                                      ? const Color(0xfffe6603)
+                                      : Colors.white12,
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  section,
+
+                  const SizedBox(height: 16),
+
+                  /// Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      if (step > 0)
+                        TextButton(
+                          onPressed: () => setModalState(() => step--),
+                          child: const Text("Back"),
+                        )
+                      else
+                        const SizedBox(), // placeholder for alignment
+
+                      ElevatedButton(
+                        onPressed: () {
+                          if (step < 3) {
+                            setModalState(() => step++);
+                          } else {
+                            Navigator.pop(context);
+                          }
+                        },
+                        child: Text(step == 3 ? "Save" : "Next"),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Common input decoration for all text fields
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.white54, fontSize: 14),
+      filled: true,
+      fillColor: const Color(0xff0f1114),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+  }
+
+  // Preview row for the last section
+  Widget _preview(String title, String content) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "$title: ",
+            style: const TextStyle(
+              color: Colors.white70,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        );
+          Expanded(
+            child: Text(
+              content.isEmpty ? "-" : content,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepContainer({required String title, required Widget child}) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _checkpointCard({
+    required int index,
+    required String text,
+    required VoidCallback onRemove,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xff1a1c20),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.location_on, color: Color(0xfffe6603)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "$index. $text",
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.red),
+            onPressed: onRemove,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _previewCard(String text) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xff1a1c20),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.location_on, color: Color(0xfffe6603)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(text, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _previewTile(String label, String value) {
+    if (value.isEmpty) return const SizedBox();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        "$label: $value",
+        style: const TextStyle(color: Colors.white70),
+      ),
+    );
+  }
+
+  Widget _inputField(
+    String hint,
+    TextEditingController controller, {
+    int maxLines = 1,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white38),
+        filled: true,
+        fillColor: const Color(0xff1a1c20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _locationField(String hint, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      readOnly: true, // 🔥 ready for map picker
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white38),
+        prefixIcon: const Icon(Icons.location_on, color: Color(0xfffe6603)),
+        filled: true,
+        fillColor: const Color(0xff1a1c20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      onTap: () {
+        // 👉 future: open map picker
       },
     );
   }

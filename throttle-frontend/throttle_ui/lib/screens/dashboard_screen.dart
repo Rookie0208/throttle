@@ -17,7 +17,6 @@ class AppColors {
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
   final String token;
-
   const DashboardScreen({super.key, this.userData, required this.token});
 
   @override
@@ -33,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    print("userData : "+widget.userData.toString());
     _fetchLocationAndWeather();
     _fetchUnreadNotificationCount();
   }
@@ -123,6 +123,17 @@ Future<void> _fetchUnreadNotificationCount() async {
 }
   @override
   Widget build(BuildContext context) {
+    final miles = widget.userData?['weeklyMiles'] ?? 0;
+    final avg = widget.userData?['weeklyAvgMph'] ?? 0;
+    final duration = widget.userData?['weeklyDuration'] ?? 0;
+    final rawSubtitle =
+    widget.userData!['upcomingRide']['subtitle'] ?? "";
+
+/// 🔥 Remove "10 Riders •"
+final cleanedSubtitle = rawSubtitle.contains("•")
+    ? rawSubtitle.split("•").skip(1).join("•").trim()
+    : rawSubtitle;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -289,95 +300,319 @@ Future<void> _fetchUnreadNotificationCount() async {
                 ),
               ),
 
-              const SizedBox(height: 25),
+const SizedBox(height: 25),
+              /// TODAY'S PLAN
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Today's Plan",
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(height: 12),
 
-              /// WEEK STATS
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: const Text(
-                  "This Week",
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+      if (widget.userData?['todayRide'] == null)
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: const Text(
+            "No plans for today. Time to explore! 🏍️",
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        )
+      else
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: const Icon(Icons.map, color: AppColors.primary),
               ),
+              const SizedBox(width: 12),
 
-              const SizedBox(height: 15),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    StatCard(
-                      title: "Miles",
-                      value: widget.userData != null
-                          ? "${widget.userData!['weeklyMiles'] ?? 0}"
-                          : "0",
+                    Text(
+                      widget.userData!['todayRide']['title'] ?? "Ride",
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    StatCard(
-                      title: "Avg MPH",
-                      value: widget.userData != null
-                          ? "${widget.userData!['weeklyAvgMph'] ?? 0}"
-                          : "0",
-                    ),
-                    StatCard(
-                      title: "Duration",
-                      value: widget.userData != null
-                          ? "${widget.userData!['weeklyDuration'] ?? 0}h"
-                          : "0h",
-                    ),
+                    const SizedBox(height: 4),
+                    Text(
+  cleanedSubtitle, // 👉 now shows: "MAR 27 • 17:46"
+  style: const TextStyle(
+    color: AppColors.textSecondary,
+    fontSize: 12,
+  ),
+),
                   ],
                 ),
-              ),
+              )
+            ],
+          ),
+        ),
+    ],
+  ),
+),
 
-              const SizedBox(height: 30),
+/// RECENT RIDE
+if ((widget.userData?['recentRides'] ?? []).isNotEmpty) ...[
+  const SizedBox(height: 25),
 
-              /// UPCOMING RIDE CARD
-              if (widget.userData != null && widget.userData!['upcomingRide'] != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Upcoming Ride",
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          widget.userData!['upcomingRide']['title']?.toString() ??
-                              "Upcoming Ride",
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.userData!['upcomingRide']['subtitle']?.toString() ??
-                              "",
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Last Ride",
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.route, color: AppColors.primary),
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Text(
+                  widget.userData!['recentRides'].last['title'] ?? "Ride",
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+],
+
+/// ACHIEVEMENT
+if ((widget.userData?['achievements'] ?? []).isNotEmpty) ...[
+  const SizedBox(height: 25),
+
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Latest Achievement",
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.emoji_events, color: Colors.amber),
+              const SizedBox(width: 12),
+
+              Expanded(
+                child: Text(
+                  widget.userData!['achievements'].last['title'] ??
+                      "Achievement",
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+],
+
+              /// WEEK STATS (ONLY IF DATA EXISTS)
+if (!(miles == 0 && avg == 0 && duration == 0)) ...[
+  const SizedBox(height: 25),
+
+  const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 20),
+    child: Text(
+      "This Week",
+      style: TextStyle(
+        color: AppColors.textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  ),
+
+  const SizedBox(height: 15),
+
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: Row(
+      children: [
+        if (miles != 0) ...[
+          Expanded(child: StatCard(title: "Miles", value: "$miles")),
+          const SizedBox(width: 10),
+        ],
+        if (avg != 0) ...[
+          Expanded(child: StatCard(title: "Avg MPH", value: "$avg")),
+          const SizedBox(width: 10),
+        ],
+        if (duration != 0)
+          Expanded(child: StatCard(title: "Duration", value: "${duration}h")),
+      ],
+    ),
+  ),
+],
+              const SizedBox(height: 15),
+
+           /// UPCOMING RIDE CARD
+if (widget.userData?['upcomingRide'] != null) ...[
+  const SizedBox(height: 25),
+
+  Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    child: GestureDetector(
+      onTap: () {
+        // 👉 Navigate to ride group
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            /// ICON
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.directions_bike, color: AppColors.primary),
+            ),
+
+            const SizedBox(width: 14),
+
+            /// CONTENT
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  /// 🔥 TITLE (BIGGER NOW)
+                  Text(
+                    widget.userData!['upcomingRide']['title'] ?? "Ride",
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  /// SUBTITLE
+                  Text(
+  cleanedSubtitle, // 👉 now shows: "MAR 27 • 17:46"
+  style: const TextStyle(
+    color: AppColors.textSecondary,
+    fontSize: 12,
+  ),
+),
+
+                  const SizedBox(height: 10),
+
+                  /// 🔥 INFO ROW (FIXED)
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 13, color: Colors.white54),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.userData!['upcomingRide']['time'] ?? "",
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white54,
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      const Icon(Icons.people, size: 13, color: Colors.white54),
+                      const SizedBox(width: 4),
+
+                      /// ✅ FIX: ensure minimum 1 rider (captain)
+                      Text(
+                        "${(widget.userData!['upcomingRide']['riders'] ?? 1) == 0 ? 1 : widget.userData!['upcomingRide']['riders']} joined",
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            /// ARROW
+            const Icon(Icons.chevron_right, color: Colors.white38),
+          ],
+        ),
+      ),
+    ),
+  ),
+],
 
               const SizedBox(height: 25),
 
