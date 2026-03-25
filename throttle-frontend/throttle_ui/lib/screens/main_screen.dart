@@ -4,10 +4,10 @@ import 'package:throttle_ui/screens/friends_screen.dart';
 import 'package:throttle_ui/screens/group-screen.dart';
 import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/profile_screen.dart';
-import 'package:throttle_ui/screens/stats_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
-import 'dashboard_screen.dart';
 import 'package:throttle_ui/services/user_service.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
+import 'dashboard_screen.dart' hide AppColors;
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -31,6 +31,7 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadToken() async {
     final token = await AuthService.getToken();
     Map<String, dynamic>? userData;
+
     if (token != null) {
       userData = await UserService.getMe();
     }
@@ -43,13 +44,12 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   List<Widget> get _screens => [
-    DashboardScreen(userData: _userData, token: _token!),
-        GroupsScreen(token: _token!), // pass token here
+        DashboardScreen(userData: _userData, token: _token!),
+        GroupsScreen(token: _token!),
         const ClubsScreen(),
-        // const StatsScreen(),
         const FriendsScreen(),
         ProfileScreen(userData: _userData),
-  ];
+      ];
 
   void _onTabChanged(int index) {
     setState(() {
@@ -57,39 +57,74 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
+  Future<void> _openCreateRideSheet() async {
+    await Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: false,
+        transitionDuration: const Duration(milliseconds: 350),
+        reverseTransitionDuration: const Duration(milliseconds: 280),
+        pageBuilder: (_, animation, __) {
+          return PlanRideScreen(token: _token!);
+        },
+        transitionsBuilder: (_, animation, __, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(curved),
+            child: FadeTransition(
+              opacity: curved,
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 🔥 Show loading while fetching token
     if (_isLoading) {
       return const Scaffold(
-        backgroundColor: Color(0xff0f1114),
-        body: Center(child: CircularProgressIndicator(color: Colors.orange)),
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+          ),
+        ),
       );
     }
 
-    // 🔥 If token missing → force login logic (optional)
     if (_token == null) {
       return const Scaffold(
-        backgroundColor: Color(0xff0f1114),
+        backgroundColor: AppColors.background,
         body: Center(
           child: Text(
             "Session expired. Please login again.",
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: AppColors.textPrimary),
           ),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       body: _screens[_currentIndex],
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabChanged,
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xff1a1c20),
-        selectedItemColor: Colors.orange,
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.primary,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
@@ -100,48 +135,24 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.two_wheeler),
             label: "Rides",
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.groups), label: "Clubs"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Friends"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.groups),
+            label: "Clubs",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: "Friends",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: "Profile",
+          ),
         ],
       ),
-
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.orange,
-        child: const Icon(Icons.add),
-        onPressed: () async {
-  await Navigator.of(context).push(
-    PageRouteBuilder(
-      opaque: false,
-      barrierDismissible: false,
-      transitionDuration: const Duration(milliseconds: 350),
-      reverseTransitionDuration: const Duration(milliseconds: 280),
-      pageBuilder: (_, animation, __) {
-        return PlanRideScreen(token: _token!);
-      },
-      transitionsBuilder: (_, animation, __, child) {
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutCubic,
-          reverseCurve: Curves.easeInCubic,
-        );
-
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 1),
-            end: Offset.zero,
-          ).animate(curved),
-          child: FadeTransition(
-            opacity: curved,
-            child: child,
-          ),
-        );
-      },
-    ),
-  );
-
-  setState(() {});
-},
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: Colors.white),
+        onPressed: _openCreateRideSheet,
       ),
     );
   }
