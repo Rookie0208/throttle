@@ -96,7 +96,13 @@ public class AuthService {
         User saved = userService.save(user);
         boolean verificationRequired = true; // adjust logic as needed
         String verificationType = verificationRequired ? "EMAIL" : "NONE";
-        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType);
+        
+        long expiresIn = 900L;
+        String roleValue = saved.getRole() != null ? saved.getRole().name() : "RIDER";
+        String token = jwtService.generate(saved.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
+        String refreshToken = refreshTokenService.createRefreshToken(saved.getId()).getToken();
+        
+        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType, token, refreshToken, expiresIn);
     }
 
     public GoogleAuthResponse verifyGoogleToken(GoogleAuthRequest request) {

@@ -565,64 +565,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               .toList(),
                                         ),
                                 ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  "Recent Rides",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                rideHistory.isEmpty
-                                    ? Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 32,
-                                          horizontal: 16,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xff1a1c20),
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: Colors.white12,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          children: const [
-                                            Icon(
-                                              Icons.route,
-                                              color: Colors.white24,
-                                              size: 48,
-                                            ),
-                                            SizedBox(height: 12),
-                                            Text(
-                                              "Your journey begins here",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            SizedBox(height: 6),
-                                            Text(
-                                              "Start tracking your rides to see your history",
-                                              style: TextStyle(
-                                                color: Colors.white54,
-                                                fontSize: 13,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    : Column(
-                                        children: rideHistory
-                                            .map((r) => _buildRideCard(r))
-                                            .toList(),
-                                      ),
                               ],
                             ),
                           ),
@@ -634,13 +576,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: const [
                                       Icon(
-                                        Icons.history,
+                                        Icons.route,
                                         color: Colors.white24,
                                         size: 64,
                                       ),
                                       SizedBox(height: 16),
                                       Text(
-                                        "No Ride History",
+                                        "Your journey begins here",
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontSize: 18,
@@ -649,8 +591,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       ),
                                       SizedBox(height: 8),
                                       Text(
-                                        "Your completed rides will appear here.",
+                                        "Start tracking your rides to see your history",
                                         style: TextStyle(color: Colors.white54),
+                                        textAlign: TextAlign.center,
                                       ),
                                     ],
                                   ),
