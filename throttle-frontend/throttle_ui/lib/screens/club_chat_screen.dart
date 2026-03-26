@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/club_info_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class ClubChatScreen extends StatefulWidget {
   final Map<String, dynamic> club;
@@ -59,7 +60,7 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
           maxWidth: MediaQuery.of(context).size.width * 0.7,
         ),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xfffe6603) : const Color(0xff1a1c20),
+          color: isMe ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -68,14 +69,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
             if (!isMe)
               Text(
                 msg["sender"],
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
             const SizedBox(height: 4),
-            Text(msg["message"], style: const TextStyle(color: Colors.white)),
+            Text(msg["message"], style: const TextStyle(color: AppColors.textPrimary)),
             const SizedBox(height: 4),
             Text(
               msg["time"],
-              style: const TextStyle(color: Colors.white38, fontSize: 10),
+              style: const TextStyle(color: AppColors.textHint, fontSize: 10),
             ),
           ],
         ),
@@ -94,14 +95,14 @@ class _ClubChatScreenState extends State<ClubChatScreen> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text(
           "Create Subclub",
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: AppColors.white),
         ),
         content: const Text(
           "Here you can implement subclub creation UI.",
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -144,30 +145,30 @@ if (members is List) {
 }
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: Text(
           widget.club["name"],
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: AppColors.textPrimary),
         ),
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
-            color: const Color(0xff1a1c20),
+            color: AppColors.surface,
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'info',
                 child: Text(
                   "Show Club Info",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.white),
                 ),
               ),
               const PopupMenuItem(
                 value: 'leave',
                 child: Text(
                   "Leave Club",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.white),
                 ),
               ),
               if (isCaptain)
@@ -175,14 +176,14 @@ if (members is List) {
                   value: 'subclub',
                   child: Text(
                     "Create Subclub",
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.white),
                   ),
                 ),
               const PopupMenuItem(
                 value: 'manage',
                 child: Text(
                   "Manage Clubs",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.white),
                 ),
               ),
             ],
@@ -201,22 +202,22 @@ if (members is List) {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            color: const Color(0xff1a1c20),
+            color: AppColors.surface,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: messageController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
                       hintText: "Type a message...",
-                      hintStyle: TextStyle(color: Colors.white38),
+                      hintStyle: TextStyle(color: AppColors.textHint),
                       border: InputBorder.none,
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xfffe6603)),
+                  icon: const Icon(Icons.send, color: AppColors.primary),
                   onPressed: sendMessage,
                 ),
               ],

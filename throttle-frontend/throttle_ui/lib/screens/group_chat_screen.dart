@@ -4,6 +4,7 @@ import 'package:throttle_ui/screens/group_info_sheet.dart';
 import 'package:throttle_ui/screens/invite_member_screen.dart';
 import 'package:throttle_ui/screens/ride_start_screen.dart';
 import 'package:throttle_ui/services/sub_groups_service.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
@@ -117,7 +118,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         padding: const EdgeInsets.all(10),
         margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
         decoration: BoxDecoration(
-          color: isMe ? const Color(0xfffe6603) : const Color(0xff1a1c20),
+          color: isMe ? AppColors.primary : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -126,9 +127,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             if (!isMe)
               Text(msg["sender"],
                   style:
-                      const TextStyle(color: Colors.white70, fontSize: 12)),
+                      const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
             Text(msg["message"],
-                style: const TextStyle(color: Colors.white)),
+                style: const TextStyle(color: AppColors.textPrimary)),
           ],
         ),
       ),
@@ -158,7 +159,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return Container(
       height: 50,
-      color: const Color(0xff1a1c20),
+      color: AppColors.surface,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
@@ -203,15 +204,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: selected
-            ? const Color(0xfffe6603)
-            : const Color(0xff0f1114),
+            ? AppColors.primary
+            : AppColors.background,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Center(
         child: Text(
           text,
           style: TextStyle(
-            color: selected ? Colors.black : Colors.white,
+            color: selected ? Colors.black : AppColors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -229,7 +230,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return const Center(
         child: Text(
           "No messages yet",
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: AppColors.textSecondary),
         ),
       );
     }
@@ -244,22 +245,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Widget _messageInput() {
     return Container(
       padding: const EdgeInsets.all(10),
-      color: const Color(0xff1a1c20),
+      color: AppColors.surface,
       child: Row(
         children: [
           Expanded(
             child: TextField(
               controller: messageController,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: "Type message...",
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: TextStyle(color: AppColors.textHint),
                 border: InputBorder.none,
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.send, color: Color(0xfffe6603)),
+            icon: const Icon(Icons.send, color: AppColors.primary),
             onPressed: sendMessage,
           )
         ],
@@ -273,9 +274,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         (activeSubGroup?["status"] ?? widget.group["status"]) == "active";
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
      appBar: AppBar(
-  backgroundColor: const Color(0xff1a1c20),
+  backgroundColor: AppColors.surface,
   title: Text(
     activeSubGroup != null
         ? "${widget.group["name"]} • ${activeSubGroup!["name"]}"
@@ -283,25 +284,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   ),
   actions: [
     PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: Colors.white),
-      color: const Color(0xff1a1c20),
+      icon: const Icon(Icons.more_vert, color: AppColors.white),
+      color: AppColors.surface,
       onSelected: _handleMenuSelection,
       itemBuilder: (context) => [
         const PopupMenuItem(
           value: 'info',
-          child: Text("Group Info", style: TextStyle(color: Colors.white)),
+          child: Text("Group Info", style: TextStyle(color: AppColors.white)),
         ),
         const PopupMenuItem(
           value: 'invite',
-          child: Text("Invite Riders", style: TextStyle(color: Colors.white)),
+          child: Text("Invite Riders", style: TextStyle(color: AppColors.white)),
         ),
         const PopupMenuItem(
           value: 'subgroup',
-          child: Text("Create Subgroup", style: TextStyle(color: Colors.white)),
+          child: Text("Create Subgroup", style: TextStyle(color: AppColors.white)),
         ),
         const PopupMenuItem(
           value: 'leave',
-          child: Text("Leave Group", style: TextStyle(color: Colors.white)),
+          child: Text("Leave Group", style: TextStyle(color: AppColors.white)),
         ),
       ],
     ),
@@ -316,7 +317,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               padding: EdgeInsets.all(8),
               child: Text(
                 "Messaging disabled",
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(color: AppColors.textSecondary),
               ),
             ),
 

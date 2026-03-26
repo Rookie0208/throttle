@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class RideStatsScreen extends StatelessWidget {
   final String groupName;
@@ -16,16 +17,16 @@ class RideStatsScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
-          Text(title, style: const TextStyle(color: Colors.white70)),
+          Text(title, style: const TextStyle(color: AppColors.textSecondary)),
           const SizedBox(height: 4),
           Text(value,
               style: const TextStyle(
-                  color: Color(0xfffe6603),
+                  color: AppColors.primary,
                   fontSize: 20,
                   fontWeight: FontWeight.bold))
         ],
@@ -36,9 +37,9 @@ class RideStatsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text("Ride Stats"),
       ),
       body: Padding(
@@ -47,7 +48,7 @@ class RideStatsScreen extends StatelessWidget {
           children: [
             Text(groupName,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold)),
 

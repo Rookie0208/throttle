@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/subscription_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
 import 'package:throttle_ui/screens/onboarding_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -9,14 +10,14 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text(
           "Settings",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: AppColors.white),
       ),
       body: SafeArea(
         child: Column(
@@ -31,77 +32,77 @@ class SettingsScreen extends StatelessWidget {
                   ListTile(
                     leading: const Icon(
                       Icons.notifications,
-                      color: Colors.white,
+                      color: AppColors.white,
                     ),
                     title: const Text(
                       "Notifications",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.white),
                     ),
                     subtitle: const Text(
                       "Manage alerts",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.message, color: Colors.white),
+                    leading: const Icon(Icons.message, color: AppColors.white),
                     title: const Text(
                       "Messages",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.white),
                     ),
                     subtitle: const Text(
                       "Chat settings",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.people, color: Colors.white),
+                    leading: const Icon(Icons.people, color: AppColors.white),
                     title: const Text(
                       "Followers",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.white),
                     ),
                     subtitle: const Text(
                       "Manage connections",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ),
                   ListTile(
                     leading: const Icon(
                       Icons.directions_bike,
-                      color: Colors.white,
+                      color: AppColors.white,
                     ),
                     title: const Text(
                       "My Bikes",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.white),
                     ),
                     subtitle: const Text(
                       "Add or edit bikes",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.shield, color: Colors.white),
+                    leading: const Icon(Icons.shield, color: AppColors.white),
                     title: const Text(
                       "Privacy",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.white),
                     ),
                     subtitle: const Text(
                       "Data & security",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ),
                   const SizedBox(height: 16),
                   ListTile(
                     leading: const Icon(
                       Icons.workspace_premium,
-                      color: Color(0xfffe6603),
+                      color: AppColors.primary,
                     ),
                     title: const Text(
                       "Subscription",
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.white),
                     ),
                     subtitle: const Text(
                       "Manage your subscription plan",
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                     trailing: ElevatedButton(
                       onPressed: () {
@@ -115,8 +116,8 @@ class SettingsScreen extends StatelessWidget {
                         );
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xfffe6603),
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
                         minimumSize: const Size(80, 36),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -146,8 +147,8 @@ class SettingsScreen extends StatelessWidget {
                 icon: const Icon(Icons.logout),
                 label: const Text("Log Out"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xfffe6603),
-                  foregroundColor: Colors.white,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.white,
                   minimumSize: const Size.fromHeight(50),
                 ),
               ),

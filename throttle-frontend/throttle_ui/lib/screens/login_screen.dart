@@ -8,6 +8,7 @@ import 'signup_screen.dart';
 import 'main_screen.dart';
 import '../services/logger_service.dart';
 import 'otp_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -232,7 +233,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f1115),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -249,15 +250,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       width: 50,
                       height: 6,
-                      color: const Color(0xfffe6603),
+                      color: AppColors.primary,
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.speed, color: Color(0xfffe6603), size: 30),
+                    const Icon(Icons.speed, color: AppColors.primary, size: 30),
                     const SizedBox(width: 8),
                     Container(
                       width: 50,
                       height: 6,
-                      color: const Color(0xfffe6603),
+                      color: AppColors.primary,
                     ),
                   ],
                 ),
@@ -270,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.white,
                   ),
                 ),
 
@@ -279,10 +280,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 // EMAIL
                 TextField(
                   controller: emailController,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: "Email",
-                    labelStyle: TextStyle(color: Colors.white70),
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
 
@@ -292,10 +293,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: passwordController,
                   obscureText: true,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: AppColors.textPrimary),
                   decoration: const InputDecoration(
                     labelText: "Password",
-                    labelStyle: TextStyle(color: Colors.white70),
+                    labelStyle: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
 
@@ -307,19 +308,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: isLoading ? null : login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xfffe6603),
+                      backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(35),
                       ),
                     ),
                     child: isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
+                        ? const CircularProgressIndicator(color: AppColors.white)
                         : const Text(
                             "Login",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
-                              color: Colors.white,
+                              color: AppColors.white,
                             ),
                           ),
                   ),
@@ -329,7 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // OR separator
                 const Center(
-                  child: Text("OR", style: TextStyle(color: Colors.white70)),
+                  child: Text("OR", style: TextStyle(color: AppColors.textSecondary)),
                 ),
                 const SizedBox(height: 15),
 
@@ -365,12 +366,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       children: const [
                         Text(
                           "Don't have an account? ",
-                          style: TextStyle(color: Colors.white),
+                          style: TextStyle(color: AppColors.white),
                         ),
                         Text(
                           "Sign Up",
                           style: TextStyle(
-                            color: Color(0xfffe6603),
+                            color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

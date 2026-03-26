@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/public_profile_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -59,9 +60,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
     bool hasFriends = friends.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text("Friends"),
       ),
       body: Column(
@@ -72,19 +73,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: const Color(0xff1a1c20),
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: TextField(
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.textPrimary),
               onChanged: (val) {
                 setState(() => query = val);
               },
               decoration: const InputDecoration(
                 hintText: "Search riders...",
-                hintStyle: TextStyle(color: Colors.white38),
+                hintStyle: TextStyle(color: AppColors.textHint),
                 border: InputBorder.none,
-                icon: Icon(Icons.search, color: Colors.white38),
+                icon: Icon(Icons.search, color: AppColors.textHint),
               ),
             ),
           ),
@@ -108,7 +109,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       return const Center(
         child: Text(
           "No matching friends",
-          style: TextStyle(color: Colors.white54),
+          style: TextStyle(color: AppColors.textMuted),
         ),
       );
     }
@@ -119,7 +120,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         const Text(
           "Your Friends",
           style: TextStyle(
-            color: Color(0xfffe6603),
+            color: AppColors.primary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -138,7 +139,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       return const Center(
         child: Text(
           "No riders found",
-          style: TextStyle(color: Colors.white54),
+          style: TextStyle(color: AppColors.textMuted),
         ),
       );
     }
@@ -149,7 +150,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
         const Text(
           "Suggested Riders",
           style: TextStyle(
-            color: Color(0xfffe6603),
+            color: AppColors.primary,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -166,7 +167,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -174,10 +175,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
           /// AVATAR
           CircleAvatar(
-            backgroundColor: const Color(0xfffe6603),
+            backgroundColor: AppColors.primary,
             child: Text(
               user["name"][0],
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.textPrimary),
             ),
           ),
 
@@ -191,13 +192,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 Text(
                   user["name"],
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
                   user["bio"] ?? "",
-                  style: const TextStyle(color: Colors.white54),
+                  style: const TextStyle(color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -210,16 +211,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     // MaterialPageRoute route = MaterialPageRoute(builder: PublicProfileScreen(user: user));
                     // Navigator.push(context, route);
                   },
-                  child: const Text("View", style: TextStyle(color: Colors.white54)),
+                  child: const Text("View", style: TextStyle(color: AppColors.textMuted)),
                 )
               : ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xfffe6603),
+                    backgroundColor: AppColors.primary,
                   ),
                   onPressed: () {
                     /// TODO: call add friend API
                   },
-                  child: const Text("Add", style: TextStyle(color: Colors.white)),
+                  child: const Text("Add", style: TextStyle(color: AppColors.white)),
                 ),
         ],
       ),

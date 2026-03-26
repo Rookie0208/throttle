@@ -1,11 +1,5 @@
 import 'package:flutter/material.dart';
-
-class AppColors {
-  static const primary = Color(0xfffe6603);
-  static const background = Color(0xff0f1114);
-  static const card = Color(0xff16181d);
-  static const textSecondary = Colors.white70;
-}
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class BottomNav extends StatelessWidget {
   final int activeIndex;
@@ -24,7 +18,7 @@ class BottomNav extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card.withOpacity(0.95),
         border: const Border(
-          top: BorderSide(color: Colors.white12),
+          top: BorderSide(color: AppColors.white12),
         ),
       ),
       child: Row(
@@ -125,7 +119,7 @@ class BottomNav extends StatelessWidget {
               ),
               child: const Icon(
                 Icons.navigation,
-                color: Colors.white,
+                color: AppColors.white,
                 size: 28,
               ),
             ),

@@ -5,14 +5,7 @@ import '../utils/string_extensions.dart';
 import '../services/location_service.dart';
 import '../services/weather_service.dart';
 import '../services/logger_service.dart';
-class AppColors {
-  static const primary = Color(0xfffe6603);
-  static const background = Color(0xff0f1114);
-  static const card = Color(0xff16181d);
-  static const textPrimary = Colors.white;
-  static const textSecondary = Colors.white70;
-  static const border = Colors.white12;
-}
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -232,7 +225,7 @@ final cleanedSubtitle = rawSubtitle.contains("•")
                       ? "99+"
                       : "$unreadNotificationCount",
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
@@ -264,7 +257,7 @@ final cleanedSubtitle = rawSubtitle.contains("•")
                       children: [
                         Row(
                           children: const [
-                            Icon(Icons.flash_on, color: Colors.white, size: 26),
+                            Icon(Icons.flash_on, color: AppColors.white, size: 26),
                             SizedBox(width: 12),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -272,7 +265,7 @@ final cleanedSubtitle = rawSubtitle.contains("•")
                                 Text(
                                   "Start Ride",
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -281,7 +274,7 @@ final cleanedSubtitle = rawSubtitle.contains("•")
                                 Text(
                                   "Begin tracking your ride",
                                   style: TextStyle(
-                                    color: Colors.white70,
+                                    color: AppColors.textSecondary,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -291,7 +284,7 @@ final cleanedSubtitle = rawSubtitle.contains("•")
                         ),
                         const Icon(
                           Icons.arrow_forward_ios,
-                          color: Colors.white70,
+                          color: AppColors.textSecondary,
                           size: 18,
                         ),
                       ],
@@ -576,19 +569,19 @@ if (widget.userData?['upcomingRide'] != null) ...[
                   /// 🔥 INFO ROW (FIXED)
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 13, color: Colors.white54),
+                      const Icon(Icons.schedule, size: 13, color: AppColors.textMuted),
                       const SizedBox(width: 4),
                       Text(
                         widget.userData!['upcomingRide']['time'] ?? "",
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.white54,
+                          color: AppColors.textMuted,
                         ),
                       ),
 
                       const SizedBox(width: 12),
 
-                      const Icon(Icons.people, size: 13, color: Colors.white54),
+                      const Icon(Icons.people, size: 13, color: AppColors.textMuted),
                       const SizedBox(width: 4),
 
                       /// ✅ FIX: ensure minimum 1 rider (captain)
@@ -596,7 +589,7 @@ if (widget.userData?['upcomingRide'] != null) ...[
                         "${(widget.userData!['upcomingRide']['riders'] ?? 1) == 0 ? 1 : widget.userData!['upcomingRide']['riders']} joined",
                         style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.white54,
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ],
@@ -606,7 +599,7 @@ if (widget.userData?['upcomingRide'] != null) ...[
             ),
 
             /// ARROW
-            const Icon(Icons.chevron_right, color: Colors.white38),
+            const Icon(Icons.chevron_right, color: AppColors.textHint),
           ],
         ),
       ),

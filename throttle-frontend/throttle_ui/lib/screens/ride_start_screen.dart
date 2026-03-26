@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'live_ride_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class RideStartScreen extends StatefulWidget {
   final String groupName;
@@ -59,17 +60,17 @@ class _RideStartScreenState extends State<RideStartScreen> {
   Widget infoTile(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, color: Colors.white70, size: 18),
+        Icon(icon, color: AppColors.textSecondary, size: 18),
         const SizedBox(width: 8),
         Text(
           "$label: ",
-          style: const TextStyle(color: Colors.white54),
+          style: const TextStyle(color: AppColors.textMuted),
         ),
         Expanded(
           child: Text(
             value,
             style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontWeight: FontWeight.w500),
           ),
         )
@@ -81,10 +82,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text("Start Ride"),
       ),
 
@@ -97,7 +98,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xff1a1c20),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Column(
@@ -107,7 +108,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
                   Text(
                     widget.groupName,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -142,7 +143,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
             const Text(
               "Slide to Start Ride",
               style: TextStyle(
-                  color: Colors.white70,
+                  color: AppColors.textSecondary,
                   fontSize: 16),
             ),
 
@@ -153,7 +154,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
               height: 64,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: const Color(0xff1a1c20),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(40),
               ),
               child: Stack(
@@ -163,7 +164,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
                     child: Text(
                       "START RIDE",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
+                        color: AppColors.white.withOpacity(0.4),
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.2,
                       ),
@@ -180,12 +181,12 @@ class _RideStartScreenState extends State<RideStartScreen> {
                         height: 52,
                         width: 52,
                         decoration: BoxDecoration(
-                          color: const Color(0xfffe6603),
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(40),
                         ),
                         child: const Icon(
                           Icons.motorcycle,
-                          color: Colors.white,
+                          color: AppColors.white,
                         ),
                       ),
                     ),

@@ -7,7 +7,7 @@ import 'package:throttle_ui/screens/profile_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
 import 'package:throttle_ui/services/user_service.dart';
 import 'package:throttle_ui/utils/app_colors.dart';
-import 'dashboard_screen.dart' hide AppColors;
+import 'dashboard_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -151,7 +151,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add, color: AppColors.white),
         onPressed: _openCreateRideSheet,
       ),
     );

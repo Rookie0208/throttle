@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/invite_member_screen.dart';
 
 import 'package:throttle_ui/services/sub_groups_service.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class CreateSubGroupScreen extends StatefulWidget {
 
@@ -100,10 +101,10 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
 
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text("Create Subgroup"),
       ),
 
@@ -114,19 +115,19 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
           /// GROUP NAME
           const Text(
             "Subgroup Name",
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
 
           const SizedBox(height: 8),
 
           TextField(
             controller: nameController,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: AppColors.textPrimary),
             decoration: InputDecoration(
               hintText: "Ex: Breakfast Crew",
-              hintStyle: const TextStyle(color: Colors.white38),
+              hintStyle: const TextStyle(color: AppColors.textHint),
               filled: true,
-              fillColor: const Color(0xff1a1c20),
+              fillColor: AppColors.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -138,14 +139,14 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
           /// VISIBILITY
           const Text(
             "Visibility",
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
 
           const SizedBox(height: 8),
 
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xff1a1c20),
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -154,11 +155,11 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                 RadioListTile(
                   value: "PUBLIC",
                   groupValue: visibility,
-                  activeColor: const Color(0xfffe6603),
-                  title: const Text("Public", style: TextStyle(color: Colors.white)),
+                  activeColor: AppColors.primary,
+                  title: const Text("Public", style: TextStyle(color: AppColors.white)),
                   subtitle: const Text(
                     "Anyone in the ride can join",
-                    style: TextStyle(color: Colors.white54),
+                    style: TextStyle(color: AppColors.textMuted),
                   ),
                   onChanged: (v) {
                     setState(() {
@@ -170,11 +171,11 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                 RadioListTile(
                   value: "PRIVATE",
                   groupValue: visibility,
-                  activeColor: const Color(0xfffe6603),
-                  title: const Text("Invite Only", style: TextStyle(color: Colors.white)),
+                  activeColor: AppColors.primary,
+                  title: const Text("Invite Only", style: TextStyle(color: AppColors.white)),
                   subtitle: const Text(
                     "Admin approval required",
-                    style: TextStyle(color: Colors.white54),
+                    style: TextStyle(color: AppColors.textMuted),
                   ),
                   onChanged: (v) {
                     setState(() {
@@ -191,25 +192,25 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
           /// PERMISSIONS
           const Text(
             "Permissions",
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
 
           const SizedBox(height: 8),
 
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xff1a1c20),
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
 
                 SwitchListTile(
-                  activeColor: const Color(0xfffe6603),
+                  activeColor: AppColors.primary,
                   value: membersCanMessage,
                   title: const Text(
                     "Members can send messages",
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.white),
                   ),
                   onChanged: (v) {
                     setState(() {
@@ -219,11 +220,11 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                 ),
 
                 SwitchListTile(
-                  activeColor: const Color(0xfffe6603),
+                  activeColor: AppColors.primary,
                   value: membersCanAddMembers,
                   title: const Text(
                     "Members can add riders",
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.white),
                   ),
                   onChanged: (v) {
                     setState(() {
@@ -233,11 +234,11 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                 ),
 
                 SwitchListTile(
-                  activeColor: const Color(0xfffe6603),
+                  activeColor: AppColors.primary,
                   value: adminApprovalRequired,
                   title: const Text(
                     "Admin approval required",
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: AppColors.white),
                   ),
                   onChanged: (v) {
                     setState(() {
@@ -254,10 +255,10 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
           /// ADD MEMBERS
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xfffe6603),
+              backgroundColor: AppColors.primary,
             ),
-            icon: const Icon(Icons.group_add, color: Colors.white),
-            label: const Text("Add Members",style: TextStyle(color: Colors.white),),
+            icon: const Icon(Icons.group_add, color: AppColors.white),
+            label: const Text("Add Members",style: TextStyle(color: AppColors.white),),
             onPressed: _selectMembers,
           ),
 
@@ -266,13 +267,13 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
           /// CREATE BUTTON
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xfffe6603),
+              backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
             onPressed: _createSubGroup,
             child: const Text(
               "Create Subgroup",
-              style: TextStyle(fontSize: 16, color: Colors.white),
+              style: TextStyle(fontSize: 16, color: AppColors.white),
             ),
           ),
         ],

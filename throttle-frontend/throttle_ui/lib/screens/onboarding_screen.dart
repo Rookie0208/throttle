@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -77,7 +78,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Icon(
                 page["icon"] as IconData,
                 size: 100,
-                color: const Color(0xfffe6603),
+                color: AppColors.primary,
               ),
 
               const SizedBox(height: 40),
@@ -95,7 +96,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               Text(
                 page["desc"] as String,
-                style: const TextStyle(color: Colors.white70),
+                style: const TextStyle(color: AppColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
 
@@ -112,7 +113,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     height: 8,
                     decoration: BoxDecoration(
                       color: currentIndex == index
-                          ? const Color(0xfffe6603)
+                          ? AppColors.primary
                           : Colors.grey,
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -129,13 +130,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: ElevatedButton(
                   onPressed: next,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xfffe6603),
+                    backgroundColor: AppColors.primary,
                   ),
                   child: Text(
                     currentIndex == pages.length - 1
                         ? "Get Started"
                         : "Next  >",
-                    style: const TextStyle(fontSize: 14, color: Colors.white),
+                    style: const TextStyle(fontSize: 14, color: AppColors.white),
                   ),
                 ),
               ),

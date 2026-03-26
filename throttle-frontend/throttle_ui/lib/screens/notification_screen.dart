@@ -6,14 +6,17 @@ class NotificationsScreen extends StatefulWidget {
   final VoidCallback onClose;
   final String token;
 
-  const NotificationsScreen({super.key, required this.onClose, required this.token});
+  const NotificationsScreen({
+    super.key,
+    required this.onClose,
+    required this.token,
+  });
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-
   List<NotificationItem> notifications = [];
   bool loading = true;
 
@@ -51,27 +54,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-
     if (loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
     if (notifications.isEmpty) {
-  return Scaffold(
-    body: Container(
-      color: const Color.fromARGB(255, 20, 19, 19), // dark background
-      child: const Center(
-        child: Text(
-          "No notifications",
-          style: TextStyle(
-            color: Colors.white, // white text
-            fontSize: 16,
+      return Scaffold(
+        body: Container(
+          color: const Color.fromARGB(255, 20, 19, 19), // dark background
+          child: const Center(
+            child: Text(
+              "No notifications",
+              style: TextStyle(
+                color: Colors.white, // white text
+                fontSize: 16,
+              ),
+            ),
           ),
         ),
-      ),
-    ),
-  );
-}
+      );
+    }
 
     final unread = notifications.where((n) => n.unread).toList();
     final read = notifications.where((n) => !n.unread).toList();
@@ -80,7 +82,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-
             /// HEADER WITH COUNT BADGE
             Container(
               padding: const EdgeInsets.all(16),
@@ -95,14 +96,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   /// 🔥 COUNT BADGE
                   if (unreadCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.red,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         "$unreadCount",
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
 
@@ -111,7 +118,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   IconButton(
                     icon: const Icon(Icons.close),
                     onPressed: widget.onClose,
-                  )
+                  ),
                 ],
               ),
             ),
@@ -120,11 +127,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-
                   /// ================= UNREAD =================
                   if (unread.isNotEmpty) ...[
-                    const Text("Unread",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Unread",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 10),
                     ...unread.map((n) => _notificationCard(n)),
                     const SizedBox(height: 20),
@@ -132,14 +140,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                   /// ================= READ =================
                   if (read.isNotEmpty) ...[
-                    const Text("Read",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      "Read",
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 10),
                     ...read.map((n) => _notificationCard(n)),
                   ],
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -147,97 +157,103 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _notificationCard(NotificationItem n) {
+    return Dismissible(
+      key: Key(n.id.toString()),
 
-  return Dismissible(
-    key: Key(n.id.toString()),
+      /// 👉 RIGHT = MARK READ
+      background: Container(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.only(left: 20),
+        color: Colors.green,
+        child: const Icon(Icons.mark_email_read, color: Colors.white),
+      ),
 
-    /// 👉 RIGHT = MARK READ
-    background: Container(
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.only(left: 20),
-      color: Colors.green,
-      child: const Icon(Icons.mark_email_read, color: Colors.white),
-    ),
+      /// 👉 LEFT = MARK UNREAD
+      secondaryBackground: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: Colors.orange,
+        child: const Icon(Icons.mark_email_unread, color: Colors.white),
+      ),
 
-    /// 👉 LEFT = MARK UNREAD
-    secondaryBackground: Container(
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.only(right: 20),
-      color: Colors.orange,
-      child: const Icon(Icons.mark_email_unread, color: Colors.white),
-    ),
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          toggleRead(n, true);
+        } else {
+          toggleRead(n, false);
+        }
+        return false; // don't remove item
+      },
 
-    confirmDismiss: (direction) async {
-      if (direction == DismissDirection.startToEnd) {
-        toggleRead(n, true);
-      } else {
-        toggleRead(n, false);
-      }
-      return false; // don't remove item
-    },
-
-    child: Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        // KEEP your existing unread blue color scheme
-        color: n.unread ? Colors.blue.withOpacity(.05) : Colors.blue.withOpacity(.02),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          // KEEP your existing unread blue color scheme
           color: n.unread
-              ? Colors.blue.withOpacity(.3) // original unread border
-              : Colors.blue.withOpacity(.15), // subtle for read
+              ? Colors.blue.withOpacity(.05)
+              : Colors.blue.withOpacity(.02),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: n.unread
+                ? Colors.blue.withOpacity(.3) // original unread border
+                : Colors.blue.withOpacity(.15), // subtle for read
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  n.title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: n.unread
+                        ? const Color.fromARGB(255, 242, 242, 242)
+                        : const Color.fromARGB(221, 73, 73, 73),
+                  ),
+                ),
+
+                /// BUTTONS
+                Row(
+                  children: [
+                    if (n.unread)
+                      TextButton(
+                        onPressed: () => toggleRead(n, true),
+                        child: const Text("Mark as Read"),
+                      ),
+                    if (!n.unread)
+                      TextButton(
+                        onPressed: () => toggleRead(n, false),
+                        child: const Text("Mark as Unread"),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 4),
+
+            Text(
+              n.desc,
+              style: TextStyle(
+                color: n.unread
+                    ? const Color.fromARGB(255, 255, 255, 255)
+                    : Colors.grey[600], // subtle difference
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            Text(
+              formatTime(n.time),
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ],
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                n.title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: n.unread ? const Color.fromARGB(255, 242, 242, 242) : const Color.fromARGB(221, 73, 73, 73),
-                ),
-              ),
-
-              /// BUTTONS
-              Row(
-                children: [
-                  TextButton(
-                    onPressed: () => toggleRead(n, true),
-                    child: const Text("Mark Read"),
-                  ),
-                  TextButton(
-                    onPressed: () => toggleRead(n, false),
-                    child: const Text("Unread"),
-                  ),
-                ],
-              )
-            ],
-          ),
-
-          const SizedBox(height: 4),
-
-          Text(
-            n.desc,
-            style: TextStyle(
-              color: n.unread ? const Color.fromARGB(255, 255, 255, 255) : Colors.grey[600], // subtle difference
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            formatTime(n.time),
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-          ),
-        ],
-      ),
-    ),
-  );
-}
+    );
+  }
 }

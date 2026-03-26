@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/services/group_service.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class PublicRidesScreen extends StatefulWidget {
   final String token;
@@ -71,9 +72,9 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text("Public Rides"),
       ),
       body: Column(
@@ -83,13 +84,13 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               onChanged: applySearch,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 hintText: "Search rides...",
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                hintStyle: const TextStyle(color: AppColors.textHint),
+                prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
                 filled: true,
-                fillColor: const Color(0xff1a1c20),
+                fillColor: AppColors.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -105,8 +106,8 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
               children: [
                 DropdownButton<String>(
                   value: selectedSort,
-                  dropdownColor: const Color(0xff1a1c20),
-                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: AppColors.surface,
+                  style: const TextStyle(color: AppColors.textPrimary),
                   items: const [
                     DropdownMenuItem(value: "latest", child: Text("Latest")),
                     DropdownMenuItem(
@@ -120,7 +121,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
                 const Spacer(),
 
                 IconButton(
-                  icon: const Icon(Icons.filter_list, color: Colors.white),
+                  icon: const Icon(Icons.filter_list, color: AppColors.white),
                   onPressed: () {
                     _openFilterSheet();
                   },
@@ -133,7 +134,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
           Expanded(
             child: loading
                 ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xfffe6603)),
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   )
                 : filteredRides.isEmpty
                 ? _buildEmptyState()
@@ -155,13 +156,13 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.map_outlined, size: 70, color: Colors.white30),
+          const Icon(Icons.map_outlined, size: 70, color: AppColors.white30),
           const SizedBox(height: 20),
 
           const Text(
             "No rides available",
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -171,19 +172,19 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
 
           const Text(
             "Be the first to create a ride 🚀",
-            style: TextStyle(color: Colors.white54),
+            style: TextStyle(color: AppColors.textMuted),
           ),
 
           const SizedBox(height: 25),
 
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xfffe6603),
+              backgroundColor: AppColors.primary,
             ),
             onPressed: () {
              Navigator.push(context, MaterialPageRoute(builder: (_) => PlanRideScreen(token: widget.token)));
             },
-            child: const Text("Create Ride", style: TextStyle(color: Colors.white),),
+            child: const Text("Create Ride", style: TextStyle(color: AppColors.white),),
           ),
         ],
       ),
@@ -196,7 +197,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
       margin: const EdgeInsets.all(10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -205,7 +206,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
           Text(
             ride["title"] ?? "",
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.white,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -213,7 +214,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
 
           Text(
             ride["description"] ?? "",
-            style: const TextStyle(color: Colors.white70),
+            style: const TextStyle(color: AppColors.textSecondary),
           ),
 
           const SizedBox(height: 10),
@@ -222,12 +223,12 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
             children: [
               Text(
                 ride["rideType"] ?? "",
-                style: const TextStyle(color: Colors.white38),
+                style: const TextStyle(color: AppColors.textHint),
               ),
               const SizedBox(width: 10),
               Text(
                 ride["routeType"] ?? "",
-                style: const TextStyle(color: Colors.white38),
+                style: const TextStyle(color: AppColors.textHint),
               ),
             ],
           ),
@@ -236,7 +237,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
 
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xfffe6603),
+              backgroundColor: AppColors.primary,
             ),
             onPressed: () {
               _joinRide(ride["uuid"]);
@@ -269,7 +270,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
   void _openFilterSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xff1a1c20),
+      backgroundColor: AppColors.surface,
       builder: (_) {
         return Padding(
           padding: const EdgeInsets.all(16),
@@ -278,13 +279,13 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
             children: [
               const Text(
                 "Filters",
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                style: TextStyle(color: AppColors.white, fontSize: 18),
               ),
 
               ListTile(
                 title: const Text(
                   "Adventure",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.white),
                 ),
                 onTap: () {
                   setState(() {
@@ -299,7 +300,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
               ListTile(
                 title: const Text(
                   "City",
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppColors.white),
                 ),
                 onTap: () {
                   setState(() {
