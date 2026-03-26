@@ -177,9 +177,9 @@ public class RideService {
                 rideGroupRepository.save(subGroup);
                 notificationService.createAndSend(
                                 user.getId(),
-                                "RIDE_CREATED",
-                                "Ride Created",
-                                "Your ride \"" + ride.getTitle() + "\" has been created successfully.",
+                                "SUBGROUP_CREATED",
+                                "Subgroup Created",
+                                "Your subgroup \"" + subGroup.getName() + "\" has been created successfully.",
                                 subGroup.getId(),
                                 "RIDE");
 

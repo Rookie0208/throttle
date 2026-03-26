@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'signup_screen.dart';
 import 'package:throttle_ui/utils/app_colors.dart';
 
@@ -36,6 +37,7 @@ class _OtpScreenState extends State<OtpScreen> {
       final result = await AuthService.verifyOtp(email: email, otp: otpStr);
 
       if (result['success'] == true) {
+        await NotificationService().notifyAccountVerified(email: email);
         // Correct OTP, now go to Signup Screen to complete profile
         if (mounted) {
           Navigator.pushReplacement(

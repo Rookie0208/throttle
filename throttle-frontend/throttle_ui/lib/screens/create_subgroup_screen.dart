@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/invite_member_screen.dart';
 
+import 'package:throttle_ui/services/notification_service.dart';
 import 'package:throttle_ui/services/sub_groups_service.dart';
 import 'package:throttle_ui/utils/app_colors.dart';
 
@@ -76,6 +77,11 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
     final result = await SubGroupService.createSubGroup(
       widget.token,
       payload,
+    );
+
+    await NotificationService().notifySubGroupCreated(
+      token: widget.token,
+      subgroupName: nameController.text.trim(),
     );
 
     Navigator.pop(context, result);

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/public_profile_screen.dart';
 import 'package:throttle_ui/services/group_service.dart';
+import 'package:throttle_ui/services/notification_service.dart';
 import 'package:throttle_ui/services/ride_service.dart';
 import 'package:throttle_ui/utils/app_colors.dart';
 
@@ -1272,6 +1273,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           if (step < 3) {
                             setModalState(() => step++);
                           } else {
+                            final previousPreRide =
+                                Map<String, dynamic>.from(
+                                  widget.rideGroup["preRideInfo"] ?? {},
+                                );
                             final preRidePayload =
                                 RideService.buildPreRideInfoPayload(
                                   rideGroup: widget.rideGroup,
@@ -1287,9 +1292,33 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                               preRideInfo: preRidePayload,
                             );
 
+                            final rideTitle =
+                                widget.rideGroup["title"]?.toString() ?? "ride";
+                            final meetingPoint =
+                                preRidePayload["meetingPoint"]?.toString() ?? "";
+                            final hadMeetingPoint =
+                                (previousPreRide["meetingPoint"] ?? "")
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty;
+
                             Navigator.pop(context);
                             setState(() {});
                             _showMessage("Pre-ride information saved locally");
+
+                            NotificationService().notifyPreRideInfoUpdated(
+                              token: widget.token,
+                              rideTitle: rideTitle,
+                            );
+
+                            if (!hadMeetingPoint &&
+                                meetingPoint.trim().isNotEmpty) {
+                              NotificationService().notifyMeetingPointSelected(
+                                token: widget.token,
+                                rideTitle: rideTitle,
+                                meetingPoint: meetingPoint,
+                              );
+                            }
                           }
                         },
                         child: Text(step == 3 ? "Save" : "Next"),

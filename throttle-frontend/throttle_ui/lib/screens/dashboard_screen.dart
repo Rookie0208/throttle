@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/models/notification_model.dart';
 import 'package:throttle_ui/screens/notification_screen.dart';
 import 'package:throttle_ui/services/notification_service.dart';
 import '../utils/string_extensions.dart';
@@ -21,6 +22,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? _weatherData;
   bool _isLoadingWeather = true;
   int unreadNotificationCount = 0;
+  List<NotificationItem> _notifications = [];
 
   @override
   void initState() {
@@ -28,6 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     print("userData : "+widget.userData.toString());
     _fetchLocationAndWeather();
     _fetchUnreadNotificationCount();
+    _syncUpcomingRideReminderNotifications();
   }
 
   Future<void> _fetchLocationAndWeather() async {
@@ -109,10 +112,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
 Future<void> _fetchUnreadNotificationCount() async {
   final data = await NotificationService().fetchNotifications(widget.token);
 
+  if (!mounted) return;
   setState(() {
+    _notifications = data;
     unreadNotificationCount =
         data.where((n) => n.unread).length;
   });
+}
+
+Future<void> _syncUpcomingRideReminderNotifications() async {
+  final upcomingRide = widget.userData?['upcomingRide'];
+  if (upcomingRide is! Map<String, dynamic>) return;
+
+  final startTimeRaw = upcomingRide['startTime']?.toString();
+  if (startTimeRaw == null || startTimeRaw.isEmpty) return;
+
+  final parsedStartTime = DateTime.tryParse(startTimeRaw);
+  if (parsedStartTime == null) return;
+
+  await NotificationService().notifyRideReminders(
+    token: widget.token,
+    rideTitle: upcomingRide['title']?.toString() ?? "Ride",
+    rideId: upcomingRide['uuid']?.toString(),
+    startTime: parsedStartTime.toLocal(),
+  );
 }
   @override
   Widget build(BuildContext context) {
@@ -186,20 +209,24 @@ final cleanedSubtitle = rawSubtitle.contains("•")
               size: 22,
             ),
             onPressed: () async {
-              await Navigator.push(
+              final result = await Navigator.push<List<NotificationItem>>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => NotificationsScreen(
-                    onClose: () {
-                      Navigator.pop(context);
-                    },
+                    onClose: () {},
                     token: widget.token,
+                    initialNotifications: _notifications,
                   ),
                 ),
               );
 
-              /// 🔥 OPTIONAL: refresh count after coming back
-              _fetchUnreadNotificationCount();
+              if (result != null && mounted) {
+                setState(() {
+                  _notifications = result;
+                  unreadNotificationCount =
+                      result.where((n) => n.unread).length;
+                });
+              }
             },
           ),
         ),

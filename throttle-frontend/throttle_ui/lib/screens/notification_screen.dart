@@ -5,11 +5,13 @@ import '../services/notification_service.dart';
 class NotificationsScreen extends StatefulWidget {
   final VoidCallback onClose;
   final String token;
+  final List<NotificationItem>? initialNotifications;
 
   const NotificationsScreen({
     super.key,
     required this.onClose,
     required this.token,
+    this.initialNotifications,
   });
 
   @override
@@ -23,7 +25,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    loadNotifications();
+    if (widget.initialNotifications != null) {
+      notifications = List<NotificationItem>.from(widget.initialNotifications!);
+      loading = false;
+    } else {
+      loadNotifications();
+    }
   }
 
   Future<void> loadNotifications() async {
@@ -117,7 +124,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                   IconButton(
                     icon: const Icon(Icons.close),
-                    onPressed: widget.onClose,
+                    onPressed: () {
+                      Navigator.pop(context, notifications);
+                      widget.onClose();
+                    },
                   ),
                 ],
               ),

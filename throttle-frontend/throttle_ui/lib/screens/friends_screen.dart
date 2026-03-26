@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/screens/public_profile_screen.dart';
+import 'package:throttle_ui/services/notification_service.dart';
 import 'package:throttle_ui/utils/app_colors.dart';
 
 class FriendsScreen extends StatefulWidget {
@@ -217,8 +217,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                   ),
-                  onPressed: () {
-                    /// TODO: call add friend API
+                  onPressed: () async {
+                    await NotificationService().notifyFriendRequestSent(
+                      recipientName: user["name"],
+                    );
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Friend request sent to ${user["name"]}"),
+                      ),
+                    );
                   },
                   child: const Text("Add", style: TextStyle(color: AppColors.white)),
                 ),
