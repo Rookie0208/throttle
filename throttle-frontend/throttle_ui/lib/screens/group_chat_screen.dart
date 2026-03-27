@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/core/globals.dart';
 import 'package:throttle_ui/screens/create_subgroup_screen.dart';
 import 'package:throttle_ui/screens/group_info_sheet.dart';
 import 'package:throttle_ui/screens/invite_member_screen.dart';
@@ -65,7 +66,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       List data = id == widget.group["uuid"]
           ? [
               {
-                "sender": "Mike",
+                "senderId": "uuid--123",
+                "senderName": "Mike",
                 "message": "Main group message",
                 "time": "08:00 AM",
               },
@@ -99,7 +101,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         setState(() {
           messages.add({
             "group": data["groupId"],
-            "sender": data["senderId"],
+            "senderId": data["senderId"],
+            "senderName": data["senderName"],
             "message": data["message"],
             "time": TimeOfDay.now().format(context),
           });
@@ -138,7 +141,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   /// ================= UI =================
   Widget _buildMessage(Map<String, dynamic> msg) {
-    bool isMe = msg["sender"] == "You";
+    bool isMe = msg["senderId"] == UserSession.userId;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -154,7 +157,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           children: [
             if (!isMe)
               Text(
-                msg["sender"],
+                msg["senderName"],
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
             Text(msg["message"], style: const TextStyle(color: Colors.white)),
