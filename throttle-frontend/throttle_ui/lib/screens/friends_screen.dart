@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/services/notification_service.dart';
-import 'package:throttle_ui/utils/app_colors.dart';
+import 'package:stomp_dart_client/stomp_dart_client.dart';
+import '../services/friend_service.dart';
+import '../services/user_service.dart';
+import '../services/auth_service.dart';
+import '../services/logger_service.dart';
+import '../utils/constants.dart';
+import 'public_profile_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -10,228 +15,507 @@ class FriendsScreen extends StatefulWidget {
 }
 
 class _FriendsScreenState extends State<FriendsScreen> {
-  List friends = []; // your API friends
-  List suggested = []; // recommended users
+  String _ctx(String action, [Map<String, Object?> fields = const {}]) {
+    final suffix = fields.entries.map((e) => '${e.key}=${e.value}').join(' ');
+    return suffix.isEmpty
+        ? '[FRIEND_SCREEN] action=$action'
+        : '[FRIEND_SCREEN] action=$action $suffix';
+  }
+
+  List friends = [];
+  List pendingRequests = [];
+  List suggested = [];
 
   String query = "";
+  bool isLoading = true;
+  String? myUuid;
+  StompClient? stompClient;
 
   @override
   void initState() {
     super.initState();
-
-    /// TODO: Replace with API calls
-    loadData();
+    _loadAllData().then((_) => _connectWebSocket());
   }
 
-  void loadData() {
-    /// Dummy data
-    friends = []; // try empty & non-empty
+  void _connectWebSocket() async {
+    if (myUuid == null) {
+      await Logger.warn(_ctx('socket_skip', {'reason': 'missing_user'}));
+      return;
+    }
 
-    suggested = [
-      {
-        "name": "Amit Rawat",
-        "bio": "Loves long rides 🏍️",
-      },
-      {
-        "name": "Sara Khan",
-        "bio": "Weekend rider",
-      },
-    ];
+    final token = await AuthService.getToken();
+    final socketUrl = AppConstants.baseUrl
+        .replaceAll('http://', 'ws://')
+        .replaceAll('https://', 'wss://')
+        .replaceAll('/api/v1', '/ws-friends');
 
-    setState(() {});
+    stompClient = StompClient(
+      config: StompConfig(
+        url: socketUrl,
+        webSocketConnectHeaders: {
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+        onConnect: (StompFrame frame) {
+          Logger.info(_ctx('socket_connected', {'userId': myUuid}));
+          stompClient?.subscribe(
+            destination: '/topic/friends/$myUuid',
+            callback: (StompFrame frame) {
+              Logger.info(_ctx('socket_refresh', {'userId': myUuid}));
+              _loadAllData();
+            },
+          );
+        },
+        onWebSocketError: (dynamic error) {
+          Logger.error(_ctx('socket_error', {'userId': myUuid}), error);
+        },
+        onStompError: (StompFrame frame) {
+          Logger.warn(
+            _ctx('socket_protocol_error', {
+              'userId': myUuid,
+              'body': frame.body,
+            }),
+          );
+        },
+        onDisconnect: (StompFrame frame) {
+          Logger.info(_ctx('socket_disconnected', {'userId': myUuid}));
+        },
+      ),
+    );
+    stompClient?.activate();
+  }
+
+  @override
+  void dispose() {
+    stompClient?.deactivate();
+    super.dispose();
+  }
+
+  Future<void> _loadAllData() async {
+    await Logger.info(_ctx('load_data_start'));
+    setState(() => isLoading = true);
+
+    final me = await UserService.getMe();
+    if (me != null && me['id'] != null) {
+      myUuid = me['id'];
+      await Logger.info(_ctx('load_data_identity', {'userId': myUuid}));
+
+      final results = await Future.wait([
+        FriendService.getFriends(myUuid!),
+        FriendService.getPendingRequests(),
+        FriendService.getRecommendations(myUuid!),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          friends = results[0];
+          pendingRequests = results[1];
+          suggested = results[2];
+          isLoading = false;
+        });
+      }
+      await Logger.info(
+        _ctx('load_data_success', {
+          'friends': friends.length,
+          'pending': pendingRequests.length,
+          'suggested': suggested.length,
+        }),
+      );
+    } else {
+      await Logger.warn(_ctx('load_data_failed', {'reason': 'missing_user'}));
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _acceptRequest(int requestId) async {
+    await Logger.info(_ctx('tap_accept_request', {'requestId': requestId}));
+    final success = await FriendService.acceptRequest(requestId);
+    if (success) {
+      _loadAllData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Friend request accepted')),
+        );
+      }
+    }
+  }
+
+  void _rejectRequest(int requestId) async {
+    await Logger.info(_ctx('tap_reject_request', {'requestId': requestId}));
+    final success = await FriendService.rejectRequest(requestId);
+    if (success) {
+      _loadAllData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Friend request rejected')),
+        );
+      }
+    }
+  }
+
+  void _sendRequest(String receiverUuid) async {
+    await Logger.info(_ctx('tap_send_request', {'target': receiverUuid}));
+    final success = await FriendService.sendRequest(receiverUuid);
+    if (success) {
+      if (mounted) {
+        setState(() {
+          suggested = suggested.map((user) {
+            if (user['uuid'] == receiverUuid) {
+              return {...Map<String, dynamic>.from(user), 'requestSent': true};
+            }
+            return user;
+          }).toList();
+        });
+      }
+      _loadAllData();
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Friend request sent')));
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send request or already exists'),
+          ),
+        );
+      }
+    }
   }
 
   List get filteredFriends {
+    if (query.isEmpty) return friends;
     return friends
-        .where((f) =>
-            f["name"].toLowerCase().contains(query.toLowerCase()))
+        .where(
+          (f) => (f["firstName"] ?? "").toLowerCase().contains(
+            query.toLowerCase(),
+          ),
+        )
         .toList();
   }
 
   List get filteredSuggested {
+    if (query.isEmpty) return suggested;
     return suggested
-        .where((f) =>
-            f["name"].toLowerCase().contains(query.toLowerCase()))
+        .where(
+          (f) => (f["firstName"] ?? "").toLowerCase().contains(
+            query.toLowerCase(),
+          ),
+        )
         .toList();
+  }
+
+  void _openPublicProfile(Map user) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            PublicProfileScreen(user: Map<String, dynamic>.from(user)),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    bool hasFriends = friends.isNotEmpty;
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        title: const Text("Friends"),
-      ),
-      body: Column(
-        children: [
-
-          /// ================= SEARCH =================
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TextField(
-              style: const TextStyle(color: AppColors.textPrimary),
-              onChanged: (val) {
-                setState(() => query = val);
-              },
-              decoration: const InputDecoration(
-                hintText: "Search riders...",
-                hintStyle: TextStyle(color: AppColors.textHint),
-                border: InputBorder.none,
-                icon: Icon(Icons.search, color: AppColors.textHint),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: const Color(0xff0f1114),
+        appBar: AppBar(
+          backgroundColor: const Color(0xff1a1c20),
+          title: const Text("Friends"),
+          bottom: TabBar(
+            indicatorColor: const Color(0xfffe6603),
+            labelColor: const Color(0xfffe6603),
+            unselectedLabelColor: Colors.white54,
+            tabs: [
+              const Tab(text: "My Friends"),
+              Tab(
+                text: pendingRequests.isNotEmpty
+                    ? "Requests (${pendingRequests.length})"
+                    : "Requests",
               ),
-            ),
+              const Tab(text: "Discover"),
+            ],
           ),
-
-          /// ================= LIST =================
-          Expanded(
-            child: hasFriends
-                ? _buildFriendsList()
-                : _buildSuggestedList(),
-          )
-        ],
+        ),
+        body: isLoading
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xfffe6603)),
+              )
+            : TabBarView(
+                children: [
+                  _buildFriendsTab(),
+                  _buildRequestsTab(),
+                  _buildDiscoverTab(),
+                ],
+              ),
       ),
     );
   }
 
-  /// ================= FRIENDS LIST =================
-  Widget _buildFriendsList() {
-    final data = query.isEmpty ? friends : filteredFriends;
-
-    if (data.isEmpty) {
-      return const Center(
-        child: Text(
-          "No matching friends",
-          style: TextStyle(color: AppColors.textMuted),
-        ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+  Widget _buildFriendsTab() {
+    return Column(
       children: [
-        const Text(
-          "Your Friends",
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.bold,
-          ),
+        _buildSearchBar(),
+        Expanded(
+          child: filteredFriends.isEmpty
+              ? const Center(
+                  child: Text(
+                    "No friends found",
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount: filteredFriends.length,
+                  itemBuilder: (ctx, i) =>
+                      _userCard(filteredFriends[i], type: UserCardType.friend),
+                ),
         ),
-        const SizedBox(height: 10),
-
-        ...data.map((f) => _userCard(f, isFriend: true)).toList(),
       ],
     );
   }
 
-  /// ================= SUGGESTED =================
-  Widget _buildSuggestedList() {
-    final data = query.isEmpty ? suggested : filteredSuggested;
-
-    if (data.isEmpty) {
+  Widget _buildRequestsTab() {
+    if (pendingRequests.isEmpty) {
       return const Center(
         child: Text(
-          "No riders found",
-          style: TextStyle(color: AppColors.textMuted),
+          "No pending requests",
+          style: TextStyle(color: Colors.white54),
         ),
       );
     }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      itemCount: pendingRequests.length,
+      itemBuilder: (ctx, i) => _requestCard(pendingRequests[i]),
+    );
+  }
 
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+  Widget _buildDiscoverTab() {
+    return Column(
       children: [
-        const Text(
-          "Suggested Riders",
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.bold,
-          ),
+        _buildSearchBar(),
+        Expanded(
+          child: filteredSuggested.isEmpty
+              ? const Center(
+                  child: Text(
+                    "No recommendations found",
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  itemCount: filteredSuggested.length,
+                  itemBuilder: (ctx, i) => _userCard(
+                    filteredSuggested[i],
+                    type: UserCardType.suggested,
+                  ),
+                ),
         ),
-        const SizedBox(height: 10),
-
-        ...data.map((f) => _userCard(f)).toList(),
       ],
     );
   }
 
-  /// ================= USER CARD =================
-  Widget _userCard(Map user, {bool isFriend = false}) {
+  Widget _buildSearchBar() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xff1a1c20),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        style: const TextStyle(color: Colors.white),
+        onChanged: (val) => setState(() => query = val),
+        decoration: const InputDecoration(
+          hintText: "Search riders...",
+          hintStyle: TextStyle(color: Colors.white38),
+          border: InputBorder.none,
+          icon: Icon(Icons.search, color: Colors.white38),
+        ),
+      ),
+    );
+  }
+
+  Widget _userCard(Map user, {required UserCardType type}) {
+    String name = "${user['firstName'] ?? ''} ${user['lastName'] ?? ''}".trim();
+    if (name.isEmpty) name = "Unknown Rider";
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: const Color(0xff1a1c20),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-
-          /// AVATAR
           CircleAvatar(
-            backgroundColor: AppColors.primary,
-            child: Text(
-              user["name"][0],
-              style: const TextStyle(color: AppColors.textPrimary),
-            ),
+            backgroundColor: const Color(0xfffe6603),
+            backgroundImage: user['profileImage'] != null
+                ? NetworkImage(user['profileImage'])
+                : null,
+            child: user['profileImage'] == null
+                ? Text(
+                    name[0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
+                  )
+                : null,
           ),
-
           const SizedBox(width: 12),
-
-          /// INFO
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user["name"],
+                  name,
                   style: const TextStyle(
-                    color: AppColors.white,
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Text(
-                  user["bio"] ?? "",
-                  style: const TextStyle(color: AppColors.textMuted),
-                ),
+                if (user['mutualFriends'] != null &&
+                    (user['mutualFriends'] as int) > 0)
+                  Text(
+                    "${user['mutualFriends']} Mutual Friends",
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                    ),
+                  )
+                else if (user['city'] != null)
+                  Text(
+                    user['city'],
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                    ),
+                  ),
               ],
             ),
           ),
-
-          /// ACTION BUTTON
-          isFriend
-              ? TextButton(
-                  onPressed: () {
-                    // MaterialPageRoute route = MaterialPageRoute(builder: PublicProfileScreen(user: user));
-                    // Navigator.push(context, route);
-                  },
-                  child: const Text("View", style: TextStyle(color: AppColors.textMuted)),
-                )
-              : ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+          if (type == UserCardType.suggested)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton(
+                  onPressed: () => _openPublicProfile(user),
+                  child: const Text(
+                    "Profile",
+                    style: TextStyle(color: Colors.white54),
                   ),
-                  onPressed: () async {
-                    await NotificationService().notifyFriendRequestSent(
-                      recipientName: user["name"],
-                    );
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Friend request sent to ${user["name"]}"),
-                      ),
-                    );
-                  },
-                  child: const Text("Add", style: TextStyle(color: AppColors.white)),
                 ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    disabledBackgroundColor: Colors.grey,
+                    backgroundColor: user['requestSent'] == true
+                        ? Colors.grey
+                        : const Color(0xfffe6603),
+                  ),
+                  onPressed: user['requestSent'] == true
+                      ? null
+                      : () => _sendRequest(user['uuid']),
+                  child: Text(
+                    user['requestSent'] == true ? "Sent" : "Add",
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            )
+          else
+            TextButton(
+              onPressed: () => _openPublicProfile(user),
+              child: const Text(
+                "View Profile",
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _requestCard(Map req) {
+    String name =
+        "${req['senderFirstName'] ?? ''} ${req['senderLastName'] ?? ''}".trim();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xff1a1c20),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: const Color(0xfffe6603),
+            backgroundImage: req['senderProfileImage'] != null
+                ? NetworkImage(req['senderProfileImage'])
+                : null,
+            child: req['senderProfileImage'] == null
+                ? Text(
+                    name[0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (req['mutualCount'] != null && req['mutualCount'] > 0)
+                  Text(
+                    "${req['mutualCount']} Mutual Friends",
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => _openPublicProfile({
+              'uuid': req['senderUuid'],
+              'firstName': req['senderFirstName'],
+              'lastName': req['senderLastName'],
+              'profileImage': req['senderProfileImage'],
+            }),
+            child: const Text(
+              "Profile",
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Colors.green),
+            onPressed: () => _acceptRequest(req['requestId']),
+          ),
+          IconButton(
+            icon: const Icon(Icons.cancel, color: Colors.redAccent),
+            onPressed: () => _rejectRequest(req['requestId']),
+          ),
         ],
       ),
     );
   }
 }
+
+enum UserCardType { friend, suggested }

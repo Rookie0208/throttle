@@ -10,19 +10,26 @@ class ApiService {
   static bool _isRefreshing = false;
   static Completer<bool>? _refreshCompleter;
 
-  static Future<dynamic> get(String endpoint, {bool authorized = false}) async {
+  static Future<dynamic> get(
+    String endpoint, {
+    bool authorized = false,
+    Map<String, String>? headers,
+  }) async {
     return _requestWithRetry(() async {
-      Map<String, String> headers = {"Content-Type": "application/json"};
+      Map<String, String> requestHeaders = {
+        "Content-Type": "application/json",
+        ...?headers,
+      };
       if (authorized) {
         final token = await AuthService.getToken();
         if (token != null) {
-          headers["Authorization"] = "Bearer $token";
+          requestHeaders["Authorization"] = "Bearer $token";
         }
       }
 
       final response = await http.get(
         Uri.parse("${AppConstants.baseUrl}$endpoint"),
-        headers: headers,
+        headers: requestHeaders,
       );
 
       return response;
@@ -33,20 +40,24 @@ class ApiService {
     String endpoint,
     Map<String, dynamic> body, {
     bool authorized = false,
+    Map<String, String>? headers,
   }) async {
     return _requestWithRetry(() async {
-      Map<String, String> headers = {"Content-Type": "application/json"};
+      Map<String, String> requestHeaders = {
+        "Content-Type": "application/json",
+        ...?headers,
+      };
 
       if (authorized) {
         final token = await AuthService.getToken();
         if (token != null) {
-          headers["Authorization"] = "Bearer $token";
+          requestHeaders["Authorization"] = "Bearer $token";
         }
       }
 
       final response = await http.post(
         Uri.parse("${AppConstants.baseUrl}$endpoint"),
-        headers: headers,
+        headers: requestHeaders,
         body: jsonEncode(body),
       );
 
@@ -58,21 +69,52 @@ class ApiService {
     String endpoint,
     Map<String, dynamic> body, {
     bool authorized = false,
+    Map<String, String>? headers,
   }) async {
     return _requestWithRetry(() async {
-      Map<String, String> headers = {"Content-Type": "application/json"};
+      Map<String, String> requestHeaders = {
+        "Content-Type": "application/json",
+        ...?headers,
+      };
 
       if (authorized) {
         final token = await AuthService.getToken();
         if (token != null) {
-          headers["Authorization"] = "Bearer $token";
+          requestHeaders["Authorization"] = "Bearer $token";
         }
       }
 
       final response = await http.put(
         Uri.parse("${AppConstants.baseUrl}$endpoint"),
-        headers: headers,
+        headers: requestHeaders,
         body: jsonEncode(body),
+      );
+
+      return response;
+    });
+  }
+
+  static Future<dynamic> delete(
+    String endpoint, {
+    bool authorized = false,
+    Map<String, String>? headers,
+  }) async {
+    return _requestWithRetry(() async {
+      Map<String, String> requestHeaders = {
+        "Content-Type": "application/json",
+        ...?headers,
+      };
+
+      if (authorized) {
+        final token = await AuthService.getToken();
+        if (token != null) {
+          requestHeaders["Authorization"] = "Bearer $token";
+        }
+      }
+
+      final response = await http.delete(
+        Uri.parse("${AppConstants.baseUrl}$endpoint"),
+        headers: requestHeaders,
       );
 
       return response;
@@ -81,7 +123,8 @@ class ApiService {
 
   /// Wraps an HTTP request with automatic token refresh logic
   static Future<dynamic> _requestWithRetry(
-      Future<http.Response> Function() requestFunc) async {
+    Future<http.Response> Function() requestFunc,
+  ) async {
     // 1. Await any in-progress refresh before making the request
     if (_isRefreshing && _refreshCompleter != null) {
       await _refreshCompleter!.future;
@@ -93,7 +136,9 @@ class ApiService {
     // 3. If unauthorized (expired token), try to refresh
     if (response.statusCode == 401) {
       if (!_isRefreshing) {
-        Logger.info("Initiating token refresh flow over ApiService due to 401 Unauthorized");
+        Logger.info(
+          "Initiating token refresh flow over ApiService due to 401 Unauthorized",
+        );
         _isRefreshing = true;
         _refreshCompleter = Completer<bool>();
 
@@ -103,7 +148,9 @@ class ApiService {
         _refreshCompleter!.complete(success);
 
         if (success) {
-          Logger.info("Token refreshed globally, retrying the failed 401 request");
+          Logger.info(
+            "Token refreshed globally, retrying the failed 401 request",
+          );
           // Retry the request after successful refresh
           response = await requestFunc();
         } else {
@@ -112,7 +159,9 @@ class ApiService {
           await AuthService.logout();
         }
       } else {
-        Logger.info("Another request is already refreshing the token, waiting...");
+        Logger.info(
+          "Another request is already refreshing the token, waiting...",
+        );
         // Another request is already refreshing the token, wait for it
         bool success = await _refreshCompleter!.future;
         if (success) {
