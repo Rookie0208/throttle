@@ -189,7 +189,7 @@ public class UserService {
                                 + String.format("%02d", activeRide.getStartTime().getMinute()),
                         activeRide.getStartTime().getHour() + ":"
                                 + String.format("%02d", activeRide.getStartTime().getMinute()),
-                        (int) participantRepo.countByRide_Id(activeRide.getId()),
+                        (int) rideParticipantRepository.countByRide_Id(activeRide.getId()),
                         activeRide.getStartTime().toString())));
 
         userRides.stream()
@@ -208,7 +208,7 @@ public class UserService {
                                     + String.format("%02d", ur.getStartTime().getMinute()),
                             ur.getStartTime().getHour() + ":"
                                     + String.format("%02d", ur.getStartTime().getMinute()),
-                            (int) participantRepo.countByRide_Id(ur.getId()),
+                            (int) rideParticipantRepository.countByRide_Id(ur.getId()),
                             ur.getStartTime().toString()));
                 });
 
