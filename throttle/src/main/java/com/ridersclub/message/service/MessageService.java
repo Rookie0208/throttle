@@ -18,5 +18,5 @@ public interface MessageService {
 
     void markMessagesAsRead(String userUuid, String groupUuid);
 
-    void processMessage(MessageDTO message);
+    void processMessage(MessageDTO message, String senderUuid);
 }

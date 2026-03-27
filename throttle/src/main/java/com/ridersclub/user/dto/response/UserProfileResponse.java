@@ -4,12 +4,16 @@ import java.util.List;
 
 import com.ridersclub.user.entity.User;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Data
 @NoArgsConstructor
+@Getter
+@Setter
 public class UserProfileResponse {
     private String id;
     private String firstName;

@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class MessageDTO {
-    private Long groupId;
-    private Long senderId;
+    private String groupId;
+    private String senderId;
 
     private String message;
     private String mediaUrl;
