@@ -92,12 +92,24 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (result["data"] != null &&
             result["data"]["requiresRegistration"] == true) {
           if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => OtpScreen(googleData: result["data"]),
-              ),
-            );
+            if (result["data"]["otpSent"] == true) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OtpScreen(googleData: result["data"]),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SignupScreen(
+                    isGoogleRegistration: true,
+                    googleData: result["data"],
+                  ),
+                ),
+              );
+            }
           }
         }
       } else {
@@ -140,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      await Logger.warn("This is the second data : "+result.toString());
+      await Logger.warn("This is the second data : " + result.toString());
       if (result["success"]) {
         // Smooth slide transition
         Navigator.pushReplacement(
@@ -213,12 +225,24 @@ class _LoginScreenState extends State<LoginScreen> {
         else if (result["data"] != null &&
             result["data"]["requiresRegistration"] == true) {
           if (mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => OtpScreen(googleData: result["data"]),
-              ),
-            );
+            if (result["data"]["otpSent"] == true) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => OtpScreen(googleData: result["data"]),
+                ),
+              );
+            } else {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SignupScreen(
+                    isGoogleRegistration: true,
+                    googleData: result["data"],
+                  ),
+                ),
+              );
+            }
           }
         }
       } else {

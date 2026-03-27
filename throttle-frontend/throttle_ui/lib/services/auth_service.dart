@@ -46,7 +46,24 @@ class AuthService {
         body: jsonEncode(body),
       );
 
-      return _handleResponse(response);
+      final decoded = jsonDecode(response.body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = decoded["data"];
+        if (data != null) {
+          final token = data["token"];
+          final refreshToken = data["refreshToken"];
+          if (token != null && refreshToken != null) {
+            await saveTokens(token, refreshToken);
+          }
+        }
+        return {"success": true, "data": data};
+      } else {
+        return {
+          "success": false,
+          "message": decoded["message"] ?? "Registration failed",
+        };
+      }
     } catch (e) {
       return {"success": false, "message": "Network error: $e"};
     }
@@ -322,19 +339,7 @@ class AuthService {
     } catch(e) {}
   }
 
-  // ================= HANDLE RESPONSE =================
-  static Map<String, dynamic> _handleResponse(http.Response response) {
-    final data = jsonDecode(response.body);
 
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return {"success": true, "data": data};
-    } else {
-      return {
-        "success": false,
-        "message": data["message"] ?? "Something went wrong",
-      };
-    }
-  }
 
   // ================= GENDER FROM PRONOUN =================
   static String _getGenderFromPronoun(String? pronoun) {

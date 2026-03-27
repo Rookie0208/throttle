@@ -641,7 +641,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       ),
                                       SizedBox(height: 16),
                                       Text(
-                                        "No Ride History",
+                                        "Your journey begins here",
                                         style: TextStyle(
                                           color: AppColors.white,
                                           fontSize: 18,
