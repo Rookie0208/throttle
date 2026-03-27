@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class MessageDTO {
     private String groupId;
     private String senderId;
+    private String senderName;
 
     private String message;
     private String mediaUrl;

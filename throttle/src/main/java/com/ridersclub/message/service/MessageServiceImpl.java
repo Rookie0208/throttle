@@ -159,8 +159,9 @@ public class MessageServiceImpl implements MessageService {
 
                 return MessageDTO.builder()
                                 .uuid(msg.getUuid())
-                                .groupId(msg.getGroup().getId().toString())
-                                .senderId(msg.getSender().getId().toString())
+                                .groupId(msg.getGroup().getUuid())
+                                .senderId(msg.getSender().getUuid())
+                                .senderName(msg.getSender().getFirstName())
                                 .message(msg.getMessage())
                                 .mediaUrl(msg.getMediaUrl())
                                 .messageType(msg.getMessageType().name())

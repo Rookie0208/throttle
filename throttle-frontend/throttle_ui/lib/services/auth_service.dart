@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:throttle_ui/core/globals.dart';
 import 'logger_service.dart';
 
 class AuthService {
@@ -242,6 +243,8 @@ class AuthService {
   static Future<void> saveTokens(String token, String refreshToken) async {
     await _storage.write(key: _tokenKey, value: token);
     await _storage.write(key: _refreshTokenKey, value: refreshToken);
+
+    UserSession.init(token);
   }
 
   // ================= GET TOKENS =================
