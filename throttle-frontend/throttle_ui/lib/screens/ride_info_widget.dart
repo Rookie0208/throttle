@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class RideInfoWidget extends StatelessWidget {
   final Map<String, dynamic> group;
@@ -16,9 +17,9 @@ class RideInfoWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Ride Status: $rideStatus", style: const TextStyle(color: Colors.white)),
+          Text("Ride Status: $rideStatus", style: const TextStyle(color: AppColors.textPrimary)),
           const SizedBox(height: 10),
-          Text("Editable by you: ${isEditable ? "Yes" : "No"}", style: const TextStyle(color: Colors.white38)),
+          Text("Editable by you: ${isEditable ? "Yes" : "No"}", style: const TextStyle(color: AppColors.textHint)),
           const SizedBox(height: 20),
           isEditable
               ? ElevatedButton(

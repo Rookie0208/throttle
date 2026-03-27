@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class PublicProfileScreen extends StatelessWidget {
 
@@ -13,9 +14,9 @@ class PublicProfileScreen extends StatelessWidget {
         "${user["firstName"] ?? ""} ${user["lastName"] ?? ""}".trim();
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text("Rider Profile"),
       ),
       body: ListView(
@@ -26,7 +27,7 @@ class PublicProfileScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xff1a1c20),
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -34,11 +35,11 @@ class PublicProfileScreen extends StatelessWidget {
 
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: const Color(0xfffe6603),
+                  backgroundColor: AppColors.primary,
                   child: Text(
                     name.isNotEmpty ? name[0] : "R",
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -55,7 +56,7 @@ class PublicProfileScreen extends StatelessWidget {
                       Text(
                         name,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -65,7 +66,7 @@ class PublicProfileScreen extends StatelessWidget {
 
                       Text(
                         user["bio"] ?? "Motorcycle enthusiast",
-                        style: const TextStyle(color: Colors.white70),
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
 
                       const SizedBox(height: 6),
@@ -76,7 +77,7 @@ class PublicProfileScreen extends StatelessWidget {
                           Text(
                             "${user["followersCount"] ?? 0} Followers",
                             style: const TextStyle(
-                              color: Colors.white70,
+                              color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -86,7 +87,7 @@ class PublicProfileScreen extends StatelessWidget {
                           Text(
                             "${user["followingCount"] ?? 0} Following",
                             style: const TextStyle(
-                              color: Colors.white70,
+                              color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -100,7 +101,7 @@ class PublicProfileScreen extends StatelessWidget {
                 ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xfffe6603),
+                    backgroundColor: AppColors.primary,
                   ),
                   child: const Text("Follow"),
                 )
@@ -136,7 +137,7 @@ class PublicProfileScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xff1a1c20),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -145,7 +146,7 @@ class PublicProfileScreen extends StatelessWidget {
             Text(
               value,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -153,7 +154,7 @@ class PublicProfileScreen extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                color: Colors.white70,
+                color: AppColors.textSecondary,
                 fontSize: 12,
               ),
             ),

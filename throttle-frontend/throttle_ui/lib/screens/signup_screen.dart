@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/login_screen.dart';
 import 'package:throttle_ui/screens/main_screen.dart';
 import 'package:throttle_ui/services/auth_service.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class SignupScreen extends StatefulWidget {
   final bool isGoogleRegistration;
@@ -182,14 +183,14 @@ class _SignupScreenState extends State<SignupScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isSelected
-                  ? const Color(0xfffe6603)
-                  : const Color(0xff1a1c20),
+                  ? AppColors.primary
+                  : AppColors.surface,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               e,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected ? AppColors.white : AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -211,21 +212,21 @@ class _SignupScreenState extends State<SignupScreen> {
       keyboardType: type,
       readOnly: hint == "Email" && widget.isGoogleRegistration,
       obscureText: isPassword ? obscurePassword : false,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38),
+        hintStyle: const TextStyle(color: AppColors.textHint),
         enabledBorder: const UnderlineInputBorder(
           borderSide: BorderSide(color: Colors.grey, width: 0.6),
         ),
         focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xfffe6603), width: 1),
+          borderSide: BorderSide(color: AppColors.primary, width: 1),
         ),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
                   obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: Colors.white54,
+                  color: AppColors.textMuted,
                 ),
                 onPressed: () {
                   setState(() {
@@ -242,14 +243,14 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xff0f1115),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
             LinearProgressIndicator(
               value: (step + 1) / 3,
               backgroundColor: Colors.grey.shade900,
-              color: const Color(0xfffe6603),
+              color: AppColors.primary,
             ),
             Expanded(
               child: PageView(
@@ -283,7 +284,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         const Text(
                           "Pronoun",
                           style: TextStyle(
-                            color: Colors.white70,
+                            color: AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -316,7 +317,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         const Text(
                           "Bike Type",
                           style: TextStyle(
-                            color: Colors.white70,
+                            color: AppColors.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -352,12 +353,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: ElevatedButton(
                       onPressed: next,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xfffe6603),
+                        backgroundColor: AppColors.primary,
                       ),
                       child: const Text(
                         "CONTINUE",
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -369,7 +370,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       onPressed: back,
                       child: const Text(
                         "Back",
-                        style: TextStyle(color: Colors.white54),
+                        style: TextStyle(color: AppColors.textMuted),
                       ),
                     ),
                 ],
@@ -395,7 +396,7 @@ class _SignupScreenState extends State<SignupScreen> {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.white,
               ),
             ),
             const SizedBox(height: 40),

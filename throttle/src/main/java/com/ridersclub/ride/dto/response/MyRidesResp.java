@@ -36,6 +36,7 @@ public class MyRidesResp {
     private Integer maxRiders;
 
     private String createdByUuid;
+    private String createdByName;
     private String captainUuid;
 
     private Visibility visibility;
