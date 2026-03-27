@@ -2,10 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/models/notification_model.dart';
 import 'package:throttle_ui/services/auth_service.dart';
+import 'package:throttle_ui/services/logger_service.dart';
+import 'package:throttle_ui/utils/constants.dart';
 
 class NotificationService {
-  static const String baseUrl = "http://localhost:8080/api/v1";
-  static const String _eventEndpoint = "$baseUrl/notifications/events";
+  static String get baseUrl => AppConstants.baseUrl;
+  static String get _eventEndpoint => "$baseUrl/notifications/events";
   static final List<Map<String, dynamic>> _pendingNotificationEvents = [];
   static final List<NotificationItem> _localNotifications = [];
   static final Set<String> _sentEventKeys = {};
@@ -16,35 +18,33 @@ class NotificationService {
       final response = await http.get(
         Uri.parse("$baseUrl/notifications/my"),
         headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
       );
-      print("url : "+"$baseUrl/notifications/my");
-      print("STATUS CODE: ${response.statusCode}");
-      print("BODY: ${response.body}");
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print("PARSED DATA: $data");
-        // If there is no "data" or it's empty, return an empty list
         final list = data["data"];
 
-      final remoteNotifications = list == null || list.isEmpty
-          ? <NotificationItem>[]
-          : List<NotificationItem>.from(
-              list.map((e) => NotificationItem.fromJson(e)),
-            );
+        final remoteNotifications = list == null || list.isEmpty
+            ? <NotificationItem>[]
+            : List<NotificationItem>.from(
+                list.map((e) => NotificationItem.fromJson(e)),
+              );
 
-      return _mergeNotifications(remoteNotifications);
-    }
-      return _mergeNotifications(const []); // Return local notifications for non-200 responses
+        return _mergeNotifications(remoteNotifications);
+      }
+
+      Logger.warn(
+        "Failed to fetch notifications: ${response.statusCode} ${response.body}",
+      );
+      return _mergeNotifications(const []);
     } catch (e) {
-      print("ERROR: $e");
-      return _mergeNotifications(const []); // Return local notifications if error occurs
+      Logger.error("Error fetching notifications: $e");
+      return _mergeNotifications(const []);
     }
   }
 
-/// MARK AS READ / UNREAD
   Future<bool> markAsRead(int notificationId, bool read, String token) async {
     if (notificationId < 0) {
       final localIndex = _localNotifications.indexWhere(
@@ -64,13 +64,12 @@ class NotificationService {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
         },
-        body: jsonEncode({
-          "read": read, // true = mark read, false = mark unread
-        }),
+        body: jsonEncode({"read": read}),
       );
 
       return response.statusCode == 200;
     } catch (e) {
+      Logger.error("Error updating notification read status: $e");
       return false;
     }
   }
@@ -191,23 +190,6 @@ class NotificationService {
     );
   }
 
-  String _formatCountdown(Duration difference) {
-    final totalMinutes = difference.inMinutes;
-    if (totalMinutes <= 0) {
-      return "less than a minute";
-    }
-    if (totalMinutes < 60) {
-      return "$totalMinutes min";
-    }
-
-    final hours = totalMinutes ~/ 60;
-    final minutes = totalMinutes % 60;
-    if (minutes == 0) {
-      return "$hours hour${hours == 1 ? "" : "s"}";
-    }
-    return "$hours hour${hours == 1 ? "" : "s"} $minutes min";
-  }
-
   Future<void> notifyPreRideInfoUpdated({
     String? token,
     required String rideTitle,
@@ -217,7 +199,8 @@ class NotificationService {
       type: "PRE_RIDE_UPDATED",
       title: "Pre-ride info updated",
       message: "Captain updated the pre-ride information for $rideTitle.",
-      dedupeKey: "pre_ride_updated::$rideTitle::${DateTime.now().millisecondsSinceEpoch ~/ 60000}",
+      dedupeKey:
+          "pre_ride_updated::$rideTitle::${DateTime.now().millisecondsSinceEpoch ~/ 60000}",
       metadata: {"rideTitle": rideTitle},
     );
   }
@@ -266,6 +249,23 @@ class NotificationService {
 
   List<Map<String, dynamic>> pendingNotificationEvents() {
     return List<Map<String, dynamic>>.from(_pendingNotificationEvents);
+  }
+
+  String _formatCountdown(Duration difference) {
+    final totalMinutes = difference.inMinutes;
+    if (totalMinutes <= 0) {
+      return "less than a minute";
+    }
+    if (totalMinutes < 60) {
+      return "$totalMinutes min";
+    }
+
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    if (minutes == 0) {
+      return "$hours hour${hours == 1 ? "" : "s"}";
+    }
+    return "$hours hour${hours == 1 ? "" : "s"} $minutes min";
   }
 
   Future<void> _queueNotificationEvent({

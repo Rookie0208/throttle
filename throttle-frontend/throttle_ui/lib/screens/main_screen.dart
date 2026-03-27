@@ -135,18 +135,9 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.two_wheeler),
             label: "Rides",
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.groups),
-            label: "Clubs",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            label: "Friends",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: "Profile",
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.groups), label: "Clubs"),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),
       floatingActionButton: FloatingActionButton(

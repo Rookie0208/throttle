@@ -41,12 +41,15 @@ class AuthServiceTest {
     @Mock
     private RefreshTokenService refreshTokenService;
 
+    @Mock
+    private org.springframework.data.neo4j.core.Neo4jClient neo4jClient;
+
     private AuthService authService;
 
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-        authService = new AuthService(userService, passwordEncoder, jwtService, otpService, refreshTokenService);
+        authService = new AuthService(userService, passwordEncoder, jwtService, otpService, refreshTokenService, neo4jClient);
     }
 
     @Test

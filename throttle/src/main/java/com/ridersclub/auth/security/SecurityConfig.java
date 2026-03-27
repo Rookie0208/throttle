@@ -2,6 +2,8 @@ package com.ridersclub.auth.security;
 
 import java.util.List;
 
+import com.ridersclub.config.TraceIdFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -18,9 +20,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     private JwtAuthFilter jwtAuthFilter;
+    private TraceIdFilter traceIdFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, TraceIdFilter traceIdFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.traceIdFilter = traceIdFilter;
     }
 
     @Bean
@@ -33,15 +37,29 @@ public class SecurityConfig {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**", "/api/v1/logs/**")
+                        .requestMatchers("/api/v1/auth/**", "/api/v1/rides/**", "/swagger-ui/**", "/api/v1/logs/**", "/ws-friends/**", "/ws-friends", "/api/v1/friends/sync-graph", "/api/v1/friends/debug/graph")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/rides/**")
                         .hasAnyRole("CAPTAIN", "ADMIN", "RIDER")
                         .anyRequest().authenticated())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-        ;
+                .addFilterBefore(traceIdFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtAuthFilter, TraceIdFilter.class);
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<JwtAuthFilter> jwtAuthFilterRegistration(JwtAuthFilter jwtAuthFilter) {
+        FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>(jwtAuthFilter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<TraceIdFilter> traceIdFilterRegistration(TraceIdFilter traceIdFilter) {
+        FilterRegistrationBean<TraceIdFilter> registration = new FilterRegistrationBean<>(traceIdFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
