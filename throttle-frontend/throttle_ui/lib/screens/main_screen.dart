@@ -101,7 +101,7 @@ class _MainScreenState extends State<MainScreen> {
             label: "Rides",
           ),
           BottomNavigationBarItem(icon: Icon(Icons.groups), label: "Clubs"),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Friends"),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),

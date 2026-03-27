@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/screens/notification_screen.dart';
 import 'package:throttle_ui/services/notification_service.dart';
+import 'package:throttle_ui/services/user_service.dart';
+import 'package:throttle_ui/utils/constants.dart';
 import '../utils/string_extensions.dart';
 import '../services/location_service.dart';
 import '../services/weather_service.dart';
 import '../services/logger_service.dart';
+
 class AppColors {
   static const primary = Color(0xfffe6603);
   static const background = Color(0xff0f1114);
@@ -29,12 +33,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? _weatherData;
   bool _isLoadingWeather = true;
   int unreadNotificationCount = 0;
+  String? _userUuid;
+  StompClient? _notificationClient;
 
   @override
   void initState() {
     super.initState();
     _fetchLocationAndWeather();
-    _fetchUnreadNotificationCount();
+    _initializeNotifications();
+  }
+
+  @override
+  void dispose() {
+    _notificationClient?.deactivate();
+    super.dispose();
+  }
+
+  Future<void> _initializeNotifications() async {
+    await _resolveUserUuid();
+    await _fetchUnreadNotificationCount();
+    _connectNotificationSocket();
+  }
+
+  Future<void> _resolveUserUuid() async {
+    final widgetUserId = widget.userData?['id'];
+    if (widgetUserId is String && widgetUserId.isNotEmpty) {
+      _userUuid = widgetUserId;
+      return;
+    }
+
+    final me = await UserService.getMe();
+    final userId = me?['id'];
+    if (userId is String && userId.isNotEmpty) {
+      _userUuid = userId;
+    }
+  }
+
+  void _connectNotificationSocket() {
+    if (_userUuid == null || widget.token.isEmpty) {
+      return;
+    }
+
+    final socketUrl = AppConstants.baseUrl
+        .replaceAll('http://', 'ws://')
+        .replaceAll('https://', 'wss://')
+        .replaceAll('/api/v1', '/ws-friends');
+
+    _notificationClient?.deactivate();
+    _notificationClient = StompClient(
+      config: StompConfig(
+        url: socketUrl,
+        webSocketConnectHeaders: {'Authorization': 'Bearer ${widget.token}'},
+        onConnect: (StompFrame frame) {
+          _notificationClient?.subscribe(
+            destination: '/topic/notifications/$_userUuid',
+            callback: (StompFrame frame) {
+              _fetchUnreadNotificationCount();
+            },
+          );
+        },
+        onWebSocketError: (dynamic error) {
+          Logger.warn('Notification websocket error: $error');
+        },
+        onStompError: (StompFrame frame) {
+          Logger.warn('Notification STOMP error: ${frame.body}');
+        },
+      ),
+    );
+    _notificationClient?.activate();
   }
 
   Future<void> _fetchLocationAndWeather() async {
@@ -45,7 +111,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           position.latitude,
           position.longitude,
         );
-        
+
         final weather = await WeatherService.getCurrentWeather(
           position.latitude,
           position.longitude,
@@ -113,14 +179,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-Future<void> _fetchUnreadNotificationCount() async {
-  final data = await NotificationService().fetchNotifications(widget.token);
+  Future<void> _fetchUnreadNotificationCount() async {
+    final data = await NotificationService().fetchNotifications(widget.token);
+    if (!mounted) return;
 
-  setState(() {
-    unreadNotificationCount =
-        data.where((n) => n.unread).length;
-  });
-}
+    setState(() {
+      unreadNotificationCount = data.where((n) => n.unread).length;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -167,72 +234,75 @@ Future<void> _fetchUnreadNotificationCount() async {
 
                     /// RIGHT SIDE ICONS
                     Row(
-  children: [
-    Stack(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: IconButton(
-            icon: const Icon(
-              Icons.notifications_none,
-              color: AppColors.textPrimary,
-              size: 22,
-            ),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => NotificationsScreen(
-                    onClose: () {
-                      Navigator.pop(context);
-                    },
-                    token: widget.token,
-                  ),
-                ),
-              );
+                      children: [
+                        Stack(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.notifications_none,
+                                  color: AppColors.textPrimary,
+                                  size: 22,
+                                ),
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => NotificationsScreen(
+                                        onClose: () {
+                                          Navigator.pop(context);
+                                        },
+                                        token: widget.token,
+                                      ),
+                                    ),
+                                  );
 
-              /// 🔥 OPTIONAL: refresh count after coming back
-              _fetchUnreadNotificationCount();
-            },
-          ),
-        ),
+                                  /// 🔥 OPTIONAL: refresh count after coming back
+                                  _fetchUnreadNotificationCount();
+                                },
+                              ),
+                            ),
 
-        /// 🔥 SHOW COUNT (only if > 0)
-        if (unreadNotificationCount > 0)
-          Positioned(
-            right: 6,
-            top: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 18,
-                minHeight: 18,
-              ),
-              child: Center(
-                child: Text(
-                  unreadNotificationCount > 99
-                      ? "99+"
-                      : "$unreadNotificationCount",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  ],
-)
+                            /// 🔥 SHOW COUNT (only if > 0)
+                            if (unreadNotificationCount > 0)
+                              Positioned(
+                                right: 6,
+                                top: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 18,
+                                    minHeight: 18,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      unreadNotificationCount > 99
+                                          ? "99+"
+                                          : "$unreadNotificationCount",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -335,7 +405,8 @@ Future<void> _fetchUnreadNotificationCount() async {
               const SizedBox(height: 30),
 
               /// UPCOMING RIDE CARD
-              if (widget.userData != null && widget.userData!['upcomingRide'] != null)
+              if (widget.userData != null &&
+                  widget.userData!['upcomingRide'] != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
@@ -357,7 +428,8 @@ Future<void> _fetchUnreadNotificationCount() async {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          widget.userData!['upcomingRide']['title']?.toString() ??
+                          widget.userData!['upcomingRide']['title']
+                                  ?.toString() ??
                               "Upcoming Ride",
                           style: const TextStyle(
                             color: AppColors.textPrimary,
@@ -367,7 +439,8 @@ Future<void> _fetchUnreadNotificationCount() async {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          widget.userData!['upcomingRide']['subtitle']?.toString() ??
+                          widget.userData!['upcomingRide']['subtitle']
+                                  ?.toString() ??
                               "",
                           style: const TextStyle(
                             color: AppColors.textSecondary,
@@ -393,7 +466,9 @@ Future<void> _fetchUnreadNotificationCount() async {
                   ),
                   child: _isLoadingWeather
                       ? const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
                         )
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -410,10 +485,12 @@ Future<void> _fetchUnreadNotificationCount() async {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          _weatherData?['description'] ?? "Weather Unavailable",
+                                          _weatherData?['description'] ??
+                                              "Weather Unavailable",
                                           style: const TextStyle(
                                             color: AppColors.textPrimary,
                                             fontWeight: FontWeight.w500,
@@ -437,7 +514,9 @@ Future<void> _fetchUnreadNotificationCount() async {
                             ),
                             const SizedBox(width: 16),
                             Text(
-                              _weatherData != null ? "${_weatherData!['temperature']}°" : "--°",
+                              _weatherData != null
+                                  ? "${_weatherData!['temperature']}°"
+                                  : "--°",
                               style: const TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 22,
@@ -457,17 +536,26 @@ Future<void> _fetchUnreadNotificationCount() async {
 
   IconData _getIconData(String? iconName) {
     if (iconName == null) return Icons.cloud;
-    
+
     switch (iconName) {
-      case 'cloud_off': return Icons.wb_sunny;
-      case 'cloud': return Icons.cloud;
-      case 'foggy': return Icons.foggy;
-      case 'grain': return Icons.grain;
-      case 'ac_unit': return Icons.ac_unit;
-      case 'water_drop': return Icons.water_drop;
-      case 'tsunami': return Icons.waves; // Generic closest for rain shower
-      case 'thunderstorm': return Icons.thunderstorm;
-      default: return Icons.cloud;
+      case 'cloud_off':
+        return Icons.wb_sunny;
+      case 'cloud':
+        return Icons.cloud;
+      case 'foggy':
+        return Icons.foggy;
+      case 'grain':
+        return Icons.grain;
+      case 'ac_unit':
+        return Icons.ac_unit;
+      case 'water_drop':
+        return Icons.water_drop;
+      case 'tsunami':
+        return Icons.waves; // Generic closest for rain shower
+      case 'thunderstorm':
+        return Icons.thunderstorm;
+      default:
+        return Icons.cloud;
     }
   }
 }

@@ -38,6 +38,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
+    private final org.springframework.data.neo4j.core.Neo4jClient neo4jClient;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -49,12 +50,32 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             OtpService otpService,
-            RefreshTokenService refreshTokenService) {
+            RefreshTokenService refreshTokenService,
+            org.springframework.data.neo4j.core.Neo4jClient neo4jClient) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.otpService = otpService;
         this.refreshTokenService = refreshTokenService;
+        this.neo4jClient = neo4jClient;
+    }
+
+    /** Async Neo4j dual-write — MERGE so it's safe to call multiple times */
+    private void syncUserToNeo4j(String uuid, String firstName, String lastName) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                neo4jClient.query(
+                        "MERGE (u:User {id: $id}) " +
+                        "SET u.firstName = $firstName, u.lastName = $lastName")
+                        .bind(uuid).to("id")
+                        .bind(firstName != null ? firstName : "").to("firstName")
+                        .bind(lastName != null ? lastName : "").to("lastName")
+                        .run();
+                log.info("Neo4j node created/updated for user {}", uuid);
+            } catch (Exception e) {
+                log.error("Failed to sync user {} to Neo4j: {}", uuid, e.getMessage());
+            }
+        });
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -94,7 +115,9 @@ public class AuthService {
         user.setActive(true);
 
         User saved = userService.save(user);
-        boolean verificationRequired = true; // adjust logic as needed
+        syncUserToNeo4j(saved.getUuid(), saved.getFirstName(), saved.getLastName());
+
+        boolean verificationRequired = true;
         String verificationType = verificationRequired ? "EMAIL" : "NONE";
         
         long expiresIn = 900L;
@@ -173,6 +196,7 @@ public class AuthService {
         user.setActive(true);
 
         User saved = userService.save(user);
+        syncUserToNeo4j(saved.getUuid(), saved.getFirstName(), saved.getLastName());
         log.info("Completed Google registration for new user: {}", request.getEmail());
 
         long expiresIn = 900L;
