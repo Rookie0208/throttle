@@ -63,11 +63,18 @@ class AuthServiceTest {
         saved.setId(1L);
         saved.setUuid(UUID.randomUUID().toString());
         when(userService.save(ArgumentMatchers.any(User.class))).thenReturn(saved);
+        when(jwtService.generate(anyString(), anyMap(), anyLong())).thenReturn("token123");
+
+        com.ridersclub.auth.entity.RefreshToken rt = new com.ridersclub.auth.entity.RefreshToken();
+        rt.setToken("refresh123");
+        when(refreshTokenService.createRefreshToken(saved.getId())).thenReturn(rt);
 
         RegisterResponse resp = authService.register(req);
         assertNotNull(resp);
         assertEquals(saved.getUuid().toString(), resp.userId());
         assertTrue(resp.verificationRequired());
+        assertEquals("token123", resp.token());
+        assertEquals("refresh123", resp.refreshToken());
     }
 
     @Test

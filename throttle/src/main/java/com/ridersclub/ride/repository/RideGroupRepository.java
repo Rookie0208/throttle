@@ -20,6 +20,7 @@ public interface RideGroupRepository extends JpaRepository<RideGroup, Long> {
     List<RideGroup> findByParentGroupUuid(String parentGroupUuid);
 
     Optional<RideGroup> findByRideAndParentGroupIsNull(Ride r);
+    Optional<RideGroup> findByRideAndParentGroupAndName(Ride ride, RideGroup parentGroup, String name);
 
     @Query("""
     SELECT g 

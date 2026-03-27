@@ -3,7 +3,7 @@ import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/public_rides_screen.dart';
 import 'package:throttle_ui/services/group_service.dart';
 import 'group_chat_screen.dart';
-import 'package:throttle_ui/screens/group_chat_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class GroupsScreen extends StatefulWidget {
   final String token;
@@ -20,6 +20,34 @@ class _GroupsScreenState extends State<GroupsScreen>
   bool isLoading = true;
   late TabController _tabController;
 
+  Map<String, dynamic> _normalizeRide(Map<String, dynamic> ride) {
+    final now = DateTime.now();
+    final rawStatus = (ride["status"] ?? "UNKNOWN").toString();
+    final startTime = DateTime.tryParse((ride["startTime"] ?? "").toString())?.toLocal();
+
+    final isCompleted = rawStatus == "COMPLETED" || rawStatus == "ENDED";
+    final isCancelled = rawStatus == "CANCELLED";
+    final isInProgress = rawStatus == "IN_PROGRESS";
+    final isExpiredPending = startTime != null &&
+        startTime.isBefore(now) &&
+        !isCompleted &&
+        !isCancelled &&
+        !isInProgress;
+
+    final effectiveRideStatus = isExpiredPending ? "CANCELLED" : rawStatus;
+    final sectionStatus =
+        (isCompleted || isCancelled || isExpiredPending) ? "archive" : "active";
+
+    return {
+      ...ride,
+      "id": ride["uuid"],
+      "name": ride["title"],
+      "rideStatus": effectiveRideStatus,
+      "status": sectionStatus,
+      "members": []
+    };
+  }
+
   Widget _buildEmptyState() {
   return Center(
     child: Column(
@@ -28,14 +56,14 @@ class _GroupsScreenState extends State<GroupsScreen>
         const Icon(
           Icons.motorcycle,
           size: 70,
-          color: Colors.white30,
+          color: AppColors.white30,
         ),
         const SizedBox(height: 20),
 
         const Text(
           "No rides yet",
           style: TextStyle(
-            color: Colors.white,
+            color: AppColors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
@@ -45,7 +73,7 @@ class _GroupsScreenState extends State<GroupsScreen>
 
         const Text(
           "Join a ride or create your own.",
-          style: TextStyle(color: Colors.white54),
+          style: TextStyle(color: AppColors.textMuted),
         ),
 
         const SizedBox(height: 25),
@@ -69,12 +97,12 @@ class _GroupsScreenState extends State<GroupsScreen>
 
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xfffe6603),
+                backgroundColor: AppColors.primary,
               ),
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => PlanRideScreen(token: widget.token)));
               },
-              child: const Text("Create Ride", style: TextStyle(color: Colors.white),),
+              child: const Text("Create Ride", style: TextStyle(color: AppColors.white),),
             ),
           ],
         )
@@ -99,20 +127,8 @@ class _GroupsScreenState extends State<GroupsScreen>
       List<Map<String, dynamic>> rides =
           List<Map<String, dynamic>>.from(result["data"]);
 
-      List<Map<String, dynamic>> mappedGroups = rides.map((ride) {
-        String rideStatus = ride["status"] ?? "UNKNOWN";
-
-        return {
-          ...ride,
-          "id": ride["uuid"],
-          "name": ride["title"],
-          "rideStatus": rideStatus,
-          "status": (rideStatus == "COMPLETED" || rideStatus == "ENDED")
-              ? "archive"
-              : "active",
-          "members": []
-        };
-      }).toList();
+      List<Map<String, dynamic>> mappedGroups =
+          rides.map(_normalizeRide).toList();
 
       setState(() {
         groups = mappedGroups;
@@ -178,9 +194,9 @@ void _loadDummyData() {
         padding: const EdgeInsets.all(14),
         margin: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xff1a1c20),
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white24),
+          border: Border.all(color: AppColors.white24),
         ),
         child: Row(
           children: [
@@ -189,13 +205,13 @@ void _loadDummyData() {
               width: 45,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: const Color(0xfffe6603).withOpacity(0.1),
+                color: AppColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
                 group["name"][0], // first letter
                 style: const TextStyle(
-                  color: Color(0xfffe6603),
+                  color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -205,14 +221,14 @@ void _loadDummyData() {
               child: Text(
                 group["name"],
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
             Text(
               group["rideStatus"], // show ride status
-              style: const TextStyle(color: Colors.white38),
+              style: const TextStyle(color: AppColors.textHint),
             ),
           ],
         ),
@@ -230,9 +246,9 @@ void _loadDummyData() {
    // If no rides exist
 if (groups.isEmpty) {
   return Scaffold(
-    backgroundColor: const Color(0xff0f1114),
+    backgroundColor: AppColors.background,
     appBar: AppBar(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       title: const Text("Rides"),
     ),
     body: _buildEmptyState(),
@@ -244,15 +260,15 @@ final activeGroups = groups.where((g) => g["status"] == "active").toList();
 final completedGroups = groups.where((g) => g["status"] == "archive").toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff0f1114),
+        backgroundColor: AppColors.background,
         title: const Text("Rides"),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xfffe6603),
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.white,
+          unselectedLabelColor: AppColors.textSecondary,
           tabs: const [
             Tab(text: "Active"),
             Tab(text: "Completed"),

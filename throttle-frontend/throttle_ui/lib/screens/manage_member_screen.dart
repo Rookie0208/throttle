@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class ManageMembersScreen extends StatelessWidget {
 
@@ -14,10 +15,10 @@ class ManageMembersScreen extends StatelessWidget {
     List members = group["members"] ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Manage Members"),
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
       ),
       body: ListView.builder(
         itemCount: members.length,
@@ -26,8 +27,8 @@ class ManageMembersScreen extends StatelessWidget {
           var m = members[index];
 
           return ListTile(
-            title: Text(m["name"], style: const TextStyle(color: Colors.white)),
-            subtitle: Text(m["role"], style: const TextStyle(color: Colors.white70)),
+            title: Text(m["name"], style: const TextStyle(color: AppColors.textPrimary)),
+            subtitle: Text(m["role"], style: const TextStyle(color: AppColors.textSecondary)),
             trailing: PopupMenuButton(
               itemBuilder: (_) => [
                 const PopupMenuItem(value: "remove", child: Text("Remove")),

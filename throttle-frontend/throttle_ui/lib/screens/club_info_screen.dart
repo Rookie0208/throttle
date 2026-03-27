@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class ClubInfoScreen extends StatelessWidget {
   final Map<String, dynamic> club;
@@ -16,9 +17,9 @@ class ClubInfoScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
+        backgroundColor: AppColors.surface,
         title: const Text("Club Info"),
       ),
       body: ListView(
@@ -31,7 +32,7 @@ class ClubInfoScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xff1a1c20),
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -40,7 +41,7 @@ class ClubInfoScreen extends StatelessWidget {
                 Text(
                   club["name"],
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -50,13 +51,13 @@ class ClubInfoScreen extends StatelessWidget {
                   children: [
                     Text(
                       "${club["members"]} members",
-                      style: const TextStyle(color: Colors.white54),
+                      style: const TextStyle(color: AppColors.textMuted),
                     ),
                     const SizedBox(width: 12),
                     const Text(
                       "Public Club",
                       style: TextStyle(
-                        color: Color(0xfffe6603),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w500,
                       ),
                     )
@@ -65,7 +66,7 @@ class ClubInfoScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 const Text(
                   "Founded: Jan 2024",
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
+                  style: TextStyle(color: AppColors.textHint, fontSize: 12),
                 )
               ],
             ),
@@ -79,7 +80,7 @@ class ClubInfoScreen extends StatelessWidget {
           const Text(
             "Performance Stats",
             style: TextStyle(
-              color: Color(0xfffe6603),
+              color: AppColors.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -109,7 +110,7 @@ class ClubInfoScreen extends StatelessWidget {
           const Text(
             "Club Ranking",
             style: TextStyle(
-              color: Color(0xfffe6603),
+              color: AppColors.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -128,7 +129,7 @@ class ClubInfoScreen extends StatelessWidget {
           const Text(
             "Engagement",
             style: TextStyle(
-              color: Color(0xfffe6603),
+              color: AppColors.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -146,7 +147,7 @@ class ClubInfoScreen extends StatelessWidget {
           const Text(
             "Members",
             style: TextStyle(
-              color: Color(0xfffe6603),
+              color: AppColors.primary,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -161,26 +162,26 @@ class ClubInfoScreen extends StatelessWidget {
               margin: const EdgeInsets.symmetric(vertical: 6),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xff1a1c20),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
                   if (isCaptain)
                     const Icon(Icons.emoji_events,
-                        color: Color(0xfffe6603), size: 18),
+                        color: AppColors.primary, size: 18),
                   if (isCaptain) const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       name,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: AppColors.textPrimary),
                     ),
                   ),
                   if (isCaptain)
                     const Text(
                       "Captain",
                       style: TextStyle(
-                          color: Colors.white54, fontSize: 12),
+                          color: AppColors.textMuted, fontSize: 12),
                     ),
                 ],
               ),
@@ -195,7 +196,7 @@ class ClubInfoScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -204,7 +205,7 @@ class ClubInfoScreen extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.white,
               fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
@@ -214,7 +215,7 @@ class ClubInfoScreen extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white54,
+              color: AppColors.textMuted,
               fontSize: 11,
             ),
           ),
@@ -228,17 +229,17 @@ class ClubInfoScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white70)),
+          Text(title, style: const TextStyle(color: AppColors.textSecondary)),
           Text(
             value,
             style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontWeight: FontWeight.bold),
           ),
         ],

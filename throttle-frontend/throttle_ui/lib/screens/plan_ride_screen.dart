@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/ride_service.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class PlanRideScreen extends StatefulWidget {
   final String token;
@@ -13,16 +14,18 @@ class PlanRideScreen extends StatefulWidget {
 }
 
 class _PlanRideScreenState extends State<PlanRideScreen> {
-  final bgColor = const Color(0xff0f1115);
-  final cardColor = const Color(0xff1a1c20);
+  final bgColor = AppColors.background;
+  final cardColor = AppColors.surface;
   final softCardColor = const Color(0xff14161a);
-  final primaryColor = const Color(0xfffe6603);
+  final primaryColor = AppColors.primary;
 
   String rideType = "SOLO";
   String difficulty = "EASY";
 
   DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
-  TimeOfDay selectedTime = TimeOfDay.now();
+  TimeOfDay selectedTime = TimeOfDay.fromDateTime(
+    DateTime.now().add(const Duration(hours: 1)),
+  );
 
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
@@ -34,7 +37,9 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   List<String> selectedFriends = [];
   bool isLoading = false;
 
-  DateTime selectedStartTime = DateTime.now().add(const Duration(hours: 1));
+  DateTime selectedStartTime = DateTime.now().add(
+    const Duration(days: 1, hours: 1),
+  );
   double startLat = 0.0;
   double startLng = 0.0;
   double endLat = 0.0;
@@ -44,6 +49,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
   final String mapboxToken =
       "sk.eyJ1IjoiYW1pdHJhd2F0MjYxMiIsImEiOiJjbW1jNmZhZjQwMnNnMnJxdzJzNjJ0amk2In0.7524zGVXx4-Qq41E_LKOTg";
+
+  @override
+  void initState() {
+    super.initState();
+    _syncSelectedStartTime();
+  }
 
   @override
   void dispose() {
@@ -63,7 +74,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         Text(
           text,
           style: const TextStyle(
-            color: Colors.white,
+            color: AppColors.white,
             fontSize: 18,
             fontWeight: FontWeight.w800,
           ),
@@ -73,7 +84,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
           Text(
             subtitle,
             style: const TextStyle(
-              color: Colors.white54,
+              color: AppColors.textMuted,
               fontSize: 12.5,
               height: 1.25,
             ),
@@ -90,7 +101,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: cardColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: AppColors.white10),
       ),
       child: child,
     );
@@ -112,14 +123,14 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         decoration: BoxDecoration(
           color: softCardColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: AppColors.white10),
         ),
         child: Row(
           crossAxisAlignment:
               maxLines > 1 ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(icon, color: Colors.white54, size: 18),
+              Icon(icon, color: AppColors.textMuted, size: 18),
               const SizedBox(width: 10),
             ],
             Expanded(
@@ -128,11 +139,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 enabled: !disabled,
                 maxLines: maxLines,
                 keyboardType: keyboardType,
-                style: const TextStyle(color: Colors.white, fontSize: 14.5),
+                style: const TextStyle(color: AppColors.white, fontSize: 14.5),
                 decoration: InputDecoration(
                   hintText: hint,
                   hintStyle: const TextStyle(
-                    color: Colors.white38,
+                    color: AppColors.textHint,
                     fontSize: 13.5,
                   ),
                   border: InputBorder.none,
@@ -164,7 +175,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 height: 28,
                 width: 28,
                 decoration: BoxDecoration(
-                  color: isDone || isActive ? primaryColor : Colors.white10,
+                  color: isDone || isActive ? primaryColor : AppColors.white10,
                   shape: BoxShape.circle,
                   boxShadow: isActive
                       ? [
@@ -178,11 +189,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 ),
                 child: Center(
                   child: isDone
-                      ? const Icon(Icons.check, color: Colors.white, size: 15)
+                      ? const Icon(Icons.check, color: AppColors.white, size: 15)
                       : Text(
                           "${index + 1}",
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 12,
                           ),
@@ -193,7 +204,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               Text(
                 steps[index],
                 style: TextStyle(
-                  color: isActive ? Colors.white : Colors.white54,
+                  color: isActive ? AppColors.white : AppColors.textMuted,
                   fontSize: 10.5,
                   fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 ),
@@ -216,13 +227,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     if (picked != null) {
       setState(() {
         selectedDate = picked;
-        selectedStartTime = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          selectedTime.hour,
-          selectedTime.minute,
-        );
+        _syncSelectedStartTime();
       });
     }
   }
@@ -234,17 +239,37 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     );
 
     if (picked != null) {
+      final candidate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        picked.hour,
+        picked.minute,
+      );
+      if (!candidate.isAfter(DateTime.now())) {
+        showError("Please choose a future date and time");
+        return;
+      }
       setState(() {
         selectedTime = picked;
-        selectedStartTime = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          selectedTime.hour,
-          selectedTime.minute,
-        );
+        _syncSelectedStartTime();
       });
     }
+  }
+
+  void _syncSelectedStartTime() {
+    selectedStartTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+  }
+
+  bool _hasValidFutureStartTime() {
+    _syncSelectedStartTime();
+    return selectedStartTime.isAfter(DateTime.now());
   }
 
   void openInviteFriendsModal() {
@@ -276,7 +301,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     const Text(
                       "Invite Club Members",
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.white,
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
@@ -294,12 +319,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                             decoration: BoxDecoration(
                               color: softCardColor,
                               borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.white10),
+                              border: Border.all(color: AppColors.white10),
                             ),
                             child: ListTile(
                               title: Text(
                                 member,
-                                style: const TextStyle(color: Colors.white),
+                                style: const TextStyle(color: AppColors.textPrimary),
                               ),
                               trailing: Checkbox(
                                 value: isSelected,
@@ -416,6 +441,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       }
     }
 
+    if (currentStep == 3 && !_hasValidFutureStartTime()) {
+      showError("Please choose a future date and time");
+      return false;
+    }
+
     return true;
   }
 
@@ -452,6 +482,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       showError("Max Riders is required for group rides");
       return;
     }
+    if (!_hasValidFutureStartTime()) {
+      showError("Please choose a future date and time");
+      return;
+    }
 
     setState(() => isLoading = true);
 
@@ -461,7 +495,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       "rideType": rideType,
       "routeType": "HIGHWAY",
       "difficulty": difficulty,
-      "startTime": selectedStartTime.toUtc().toIso8601String(),
+      "startTime": selectedStartTime.toIso8601String(),
       "visibility": "PUBLIC",
       "maxRiders": rideType == "GROUP"
           ? int.parse(maxRidersController.text)
@@ -484,6 +518,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
     final result = await RideService.createRide(rideData, widget.token);
 
+    if (!mounted) return;
     setState(() => isLoading = false);
 
     if (result["success"]) {
@@ -510,7 +545,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
             color: selected ? primaryColor : softCardColor,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: selected ? primaryColor : Colors.white10,
+              color: selected ? primaryColor : AppColors.white10,
             ),
             boxShadow: selected
                 ? [
@@ -524,12 +559,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
           ),
           child: Column(
             children: [
-              Icon(icon, color: Colors.white, size: 22),
+              Icon(icon, color: AppColors.white, size: 22),
               const SizedBox(height: 7),
               Text(
                 label,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.white,
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
@@ -547,7 +582,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: softCardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: AppColors.white10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -560,7 +595,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white54,
+              color: AppColors.textMuted,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
             ),
@@ -571,7 +606,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.white,
               fontSize: 13.5,
               fontWeight: FontWeight.w700,
               height: 1.25,
@@ -656,12 +691,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 decoration: BoxDecoration(
                   color: softCardColor,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white10),
+                  border: Border.all(color: AppColors.white10),
                 ),
                 child: const Center(
                   child: Text(
                     "Route preview goes here",
-                    style: TextStyle(color: Colors.white38, fontSize: 13),
+                    style: TextStyle(color: AppColors.textHint, fontSize: 13),
                   ),
                 ),
               ),
@@ -724,7 +759,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: softCardColor,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: AppColors.white10),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -732,7 +767,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                             const Text(
                               "Date",
                               style: TextStyle(
-                                color: Colors.white54,
+                                color: AppColors.textMuted,
                                 fontSize: 11.5,
                               ),
                             ),
@@ -740,7 +775,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                             Text(
                               "${selectedDate.toLocal()}".split(" ")[0],
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -758,7 +793,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: softCardColor,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: Colors.white10),
+                          border: Border.all(color: AppColors.white10),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -766,7 +801,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                             const Text(
                               "Time",
                               style: TextStyle(
-                                color: Colors.white54,
+                                color: AppColors.textMuted,
                                 fontSize: 11.5,
                               ),
                             ),
@@ -774,7 +809,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                             Text(
                               selectedTime.format(context),
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -789,7 +824,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               const Text(
                 "Difficulty",
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: AppColors.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -808,14 +843,14 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                           color: selected ? primaryColor : softCardColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: selected ? primaryColor : Colors.white10,
+                            color: selected ? primaryColor : AppColors.white10,
                           ),
                         ),
                         child: Center(
                           child: Text(
                             level,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.white,
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
                             ),
@@ -835,7 +870,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     decoration: BoxDecoration(
                       color: softCardColor,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white10),
+                      border: Border.all(color: AppColors.white10),
                     ),
                     child: Row(
                       children: [
@@ -848,7 +883,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                           ),
                           child: const Icon(
                             Icons.person_add_alt_1,
-                            color: Color(0xfffe6603),
+                            color: AppColors.primary,
                             size: 18,
                           ),
                         ),
@@ -859,7 +894,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                                 ? "Invite club members"
                                 : "${selectedFriends.length} riders selected",
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.white,
                               fontWeight: FontWeight.w600,
                               fontSize: 13.5,
                             ),
@@ -867,7 +902,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         ),
                         const Icon(
                           Icons.chevron_right,
-                          color: Colors.white54,
+                          color: AppColors.textMuted,
                         ),
                       ],
                     ),
@@ -938,7 +973,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   decoration: BoxDecoration(
                     color: softCardColor,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white10),
+                    border: Border.all(color: AppColors.white10),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -946,7 +981,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       const Text(
                         "Description",
                         style: TextStyle(
-                          color: Colors.white54,
+                          color: AppColors.textMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -955,7 +990,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       Text(
                         descriptionController.text.trim(),
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.white,
                           fontSize: 13.5,
                           height: 1.35,
                         ),
@@ -981,7 +1016,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         border: const Border(
-          top: BorderSide(color: Colors.white10),
+          top: BorderSide(color: AppColors.white10),
         ),
       ),
       child: Row(
@@ -991,7 +1026,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               child: OutlinedButton(
                 onPressed: isLoading ? null : previousStep,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white24),
+                  side: const BorderSide(color: AppColors.white24),
                   minimumSize: const Size.fromHeight(46),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -999,7 +1034,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 ),
                 child: const Text(
                   "Back",
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: AppColors.textSecondary),
                 ),
               ),
             ),
@@ -1014,7 +1049,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       : nextStep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
+                foregroundColor: AppColors.white,
                 minimumSize: const Size.fromHeight(46),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -1026,7 +1061,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       width: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: AppColors.white,
                       ),
                     )
                   : Text(
@@ -1057,7 +1092,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
             decoration: BoxDecoration(
               color: bgColor,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(color: AppColors.white10),
             ),
             child: Column(
               children: [
@@ -1066,7 +1101,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: AppColors.white24,
                     borderRadius: BorderRadius.circular(20),
                   ),
                 ),
@@ -1079,7 +1114,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         child: Text(
                           "Create Ride",
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppColors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1087,7 +1122,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                        icon: const Icon(Icons.close, color: AppColors.textSecondary),
                       ),
                     ],
                   ),

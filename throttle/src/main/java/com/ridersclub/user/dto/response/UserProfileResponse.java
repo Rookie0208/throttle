@@ -30,6 +30,7 @@ public class UserProfileResponse {
     private List<UserBikeDto> bikes;
     private List<UserAchievementDto> achievements;
     private List<RideSummaryDto> recentRides;
+    private UpcomingRideDto todayRide;
     private UpcomingRideDto upcomingRide;
 
     public UserProfileResponse(User user) {
@@ -76,8 +77,12 @@ public class UserProfileResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UpcomingRideDto {
+        private String uuid;
         private String id;
         private String title;
         private String subtitle; // e.g. "8 Riders • Feb 15 • 7:30 AM"
+        private String time;
+        private Integer riders;
+        private String startTime;
     }
 }

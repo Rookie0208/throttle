@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'signup_screen.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class OtpScreen extends StatefulWidget {
   final Map<String, dynamic> googleData;
@@ -35,6 +37,7 @@ class _OtpScreenState extends State<OtpScreen> {
       final result = await AuthService.verifyOtp(email: email, otp: otpStr);
 
       if (result['success'] == true) {
+        await NotificationService().notifyAccountVerified(email: email);
         // Correct OTP, now go to Signup Screen to complete profile
         if (mounted) {
           Navigator.pushReplacement(
@@ -62,12 +65,12 @@ class _OtpScreenState extends State<OtpScreen> {
     final email = widget.googleData['email'] ?? '';
     
     return Scaffold(
-      backgroundColor: const Color(0xff0f1115),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppColors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -83,31 +86,31 @@ class _OtpScreenState extends State<OtpScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: AppColors.white,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
                 "We sent a 6-digit code to $email. Enter it below to continue.",
-                style: const TextStyle(fontSize: 16, color: Colors.white70),
+                style: const TextStyle(fontSize: 16, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 40),
               TextField(
                 controller: otpController,
                 keyboardType: TextInputType.number,
                 maxLength: 6,
-                style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 10),
+                style: const TextStyle(color: AppColors.white, fontSize: 24, letterSpacing: 10),
                 textAlign: TextAlign.center,
                 decoration: InputDecoration(
                   counterText: "",
                   hintText: "••••••",
-                  hintStyle: const TextStyle(color: Colors.white38),
+                  hintStyle: const TextStyle(color: AppColors.textHint),
                   enabledBorder: OutlineInputBorder(
                     borderSide: const BorderSide(color: Colors.grey, width: 1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: Color(0xfffe6603), width: 1.5),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -118,19 +121,19 @@ class _OtpScreenState extends State<OtpScreen> {
                 child: ElevatedButton(
                   onPressed: isLoading ? null : verify,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xfffe6603),
+                    backgroundColor: AppColors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(35),
                     ),
                   ),
                   child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
+                      ? const CircularProgressIndicator(color: AppColors.white)
                       : const Text(
                           "Verify OTP",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppColors.white,
                           ),
                         ),
                 ),

@@ -1,16 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/dashboard_screen.dart';
 import 'package:fl_chart/fl_chart.dart'; // For charts
-
-
-class AppColors {
-  static const primary = Color(0xfffe6603);
-  static const background = Color(0xff0f1114);
-  static const card = Color(0xff16181d);
-  static const textPrimary = Colors.white;
-  static const textSecondary = Colors.white70;
-  static const border = Colors.white12;
-}
+import 'package:throttle_ui/utils/app_colors.dart';
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -86,7 +77,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           child: Text(
                             "Analytics",
                             style: TextStyle(
-                              color: activeTab == "analytics" ? Colors.white : Colors.white70,
+                              color: activeTab == "analytics" ? AppColors.white : AppColors.textSecondary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -108,7 +99,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           child: Text(
                             "Gamification",
                             style: TextStyle(
-                              color: activeTab == "gamification" ? Colors.white : Colors.white70,
+                              color: activeTab == "gamification" ? AppColors.white : AppColors.textSecondary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -141,7 +132,7 @@ class _StatsScreenState extends State<StatsScreen> {
                           child: Text(
                             range,
                             style: TextStyle(
-                              color: selected ? AppColors.primary : Colors.white70,
+                              color: selected ? AppColors.primary : AppColors.textSecondary,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -178,7 +169,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     border: Border.all(color: AppColors.border),
                   ),
                   child: const Center(
-                    child: Text("Speed Trends Chart Here", style: TextStyle(color: Colors.white70)),
+                    child: Text("Speed Trends Chart Here", style: TextStyle(color: AppColors.textSecondary)),
                   ),
                 ),
               ),
@@ -246,7 +237,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.border),
                   ),
-                  child: const Center(child: Text("Streak / Challenges / Badges here", style: TextStyle(color: Colors.white70))),
+                  child: const Center(child: Text("Streak / Challenges / Badges here", style: TextStyle(color: AppColors.textSecondary))),
                 ),
               ),
             ],
