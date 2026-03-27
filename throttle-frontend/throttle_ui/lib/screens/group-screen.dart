@@ -3,7 +3,6 @@ import 'package:throttle_ui/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/screens/public_rides_screen.dart';
 import 'package:throttle_ui/services/group_service.dart';
 import 'group_chat_screen.dart';
-import 'package:throttle_ui/screens/group_chat_screen.dart';
 import 'package:throttle_ui/utils/app_colors.dart';
 
 class GroupsScreen extends StatefulWidget {
@@ -20,6 +19,34 @@ class _GroupsScreenState extends State<GroupsScreen>
   List<Map<String, dynamic>> groups = [];
   bool isLoading = true;
   late TabController _tabController;
+
+  Map<String, dynamic> _normalizeRide(Map<String, dynamic> ride) {
+    final now = DateTime.now();
+    final rawStatus = (ride["status"] ?? "UNKNOWN").toString();
+    final startTime = DateTime.tryParse((ride["startTime"] ?? "").toString())?.toLocal();
+
+    final isCompleted = rawStatus == "COMPLETED" || rawStatus == "ENDED";
+    final isCancelled = rawStatus == "CANCELLED";
+    final isInProgress = rawStatus == "IN_PROGRESS";
+    final isExpiredPending = startTime != null &&
+        startTime.isBefore(now) &&
+        !isCompleted &&
+        !isCancelled &&
+        !isInProgress;
+
+    final effectiveRideStatus = isExpiredPending ? "CANCELLED" : rawStatus;
+    final sectionStatus =
+        (isCompleted || isCancelled || isExpiredPending) ? "archive" : "active";
+
+    return {
+      ...ride,
+      "id": ride["uuid"],
+      "name": ride["title"],
+      "rideStatus": effectiveRideStatus,
+      "status": sectionStatus,
+      "members": []
+    };
+  }
 
   Widget _buildEmptyState() {
   return Center(
@@ -100,20 +127,8 @@ class _GroupsScreenState extends State<GroupsScreen>
       List<Map<String, dynamic>> rides =
           List<Map<String, dynamic>>.from(result["data"]);
 
-      List<Map<String, dynamic>> mappedGroups = rides.map((ride) {
-        String rideStatus = ride["status"] ?? "UNKNOWN";
-
-        return {
-          ...ride,
-          "id": ride["uuid"],
-          "name": ride["title"],
-          "rideStatus": rideStatus,
-          "status": (rideStatus == "COMPLETED" || rideStatus == "ENDED")
-              ? "archive"
-              : "active",
-          "members": []
-        };
-      }).toList();
+      List<Map<String, dynamic>> mappedGroups =
+          rides.map(_normalizeRide).toList();
 
       setState(() {
         groups = mappedGroups;

@@ -25,6 +25,13 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   String searchQuery = "";
   int _refreshCounter = 0; // Add this for refreshing the members list
 
+  bool get _isGroupLocked {
+    final groupStatus = (widget.rideGroup["status"] ?? "").toString().toLowerCase();
+    final rideStatus = (widget.rideGroup["rideStatus"] ?? "").toString().toUpperCase();
+    return groupStatus == "archive" ||
+        {"CANCELLED", "COMPLETED", "ENDED"}.contains(rideStatus);
+  }
+
   String? _currentUserUuidFromToken() {
     try {
       final parts = widget.token.split('.');
@@ -63,6 +70,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   bool _canManageMembers(String currentUserRole) {
+    if (_isGroupLocked) return false;
     return currentUserRole == "CAPTAIN" || currentUserRole == "ADMIN";
   }
 
@@ -273,6 +281,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   bool _canEditPreRide(String currentUserRole) {
+    if (_isGroupLocked) return false;
     return currentUserRole == "CAPTAIN" || currentUserRole == "ADMIN";
   }
 
@@ -280,11 +289,12 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    bool enabled = true,
   }) {
     return Expanded(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Column(
@@ -294,18 +304,23 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 width: 54,
                 height: 54,
                 decoration: BoxDecoration(
-                  color: AppColors.overlay,
+                  color: enabled ? AppColors.overlay : AppColors.surfaceMuted,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.white10),
                 ),
-                child: Icon(icon, color: AppColors.primary),
+                child: Icon(
+                  icon,
+                  color: enabled ? AppColors.primary : AppColors.textHint,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: enabled
+                      ? AppColors.textSecondary
+                      : AppColors.textHint,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -522,6 +537,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   void _editDescription() {
+    if (_isGroupLocked) {
+      _showMessage("This group is locked", isError: true);
+      return;
+    }
     TextEditingController controller = TextEditingController(
       text: widget.rideGroup["description"],
     );
@@ -653,6 +672,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   _quickAction(
                     icon: Icons.campaign_outlined,
                     label: "Announcement",
+                    enabled: !_isGroupLocked,
                     onTap: () {
                       _showMessage(
                         "Announcement flow can be connected here when the backend is ready.",
@@ -663,6 +683,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   _quickAction(
                     icon: Icons.person_add_alt_1,
                     label: "Add Members",
+                    enabled: !_isGroupLocked,
                     onTap: () {
                       _showMessage(
                         "Add members flow can be connected here when the invite flow is ready.",
@@ -759,6 +780,12 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
+                  if (_isGroupLocked)
+                    const Text(
+                      "This group is archived. Editing is disabled.",
+                      style: TextStyle(color: AppColors.textHint),
+                    ),
+                  if (_isGroupLocked) const SizedBox(height: 8),
                   Text(
                     preRideInfo.isEmpty
                         ? "No pre-ride briefing has been added yet."
@@ -1569,7 +1596,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: _editDescription,
+                onTap: _isGroupLocked ? null : _editDescription,
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -1599,7 +1626,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               ),
               SwitchListTile(
                 value: true,
-                onChanged: (_) {},
+                onChanged: _isGroupLocked ? null : (_) {},
                 title: const Text(
                   "Notifications",
                   style: TextStyle(color: AppColors.white),

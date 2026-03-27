@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/models/notification_model.dart';
+import 'package:throttle_ui/screens/group_chat_screen.dart';
 import 'package:throttle_ui/screens/notification_screen.dart';
 import 'package:throttle_ui/services/notification_service.dart';
 import '../utils/string_extensions.dart';
@@ -24,10 +25,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int unreadNotificationCount = 0;
   List<NotificationItem> _notifications = [];
 
+  Map<String, dynamic> get _userData => widget.userData ?? const {};
+
+  Map<String, dynamic>? _mapValue(String key) {
+    final value = _userData[key];
+    return value is Map<String, dynamic> ? value : null;
+  }
+
+  List<Map<String, dynamic>> _mapListValue(String key) {
+    final value = _userData[key];
+    if (value is! List) return const [];
+    return value.whereType<Map<String, dynamic>>().toList();
+  }
+
+  String _cleanSubtitle(Map<String, dynamic>? ride) {
+    final rawSubtitle = ride?['subtitle']?.toString() ?? "";
+    return rawSubtitle.contains("•")
+        ? rawSubtitle.split("•").skip(1).join("•").trim()
+        : rawSubtitle;
+  }
+
+  DateTime? _rideStartTime(Map<String, dynamic>? ride) {
+    final raw = ride?['startTime']?.toString();
+    if (raw == null || raw.isEmpty) return null;
+    return DateTime.tryParse(raw)?.toLocal();
+  }
+
+  bool _isSameDay(DateTime? a, DateTime? b) {
+    if (a == null || b == null) return false;
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _upcomingRideDateLabel(Map<String, dynamic>? ride) {
+    final startTime = _rideStartTime(ride);
+    if (startTime == null) {
+      return _cleanSubtitle(ride);
+    }
+    final month = startTime.month.toString().padLeft(2, '0');
+    final day = startTime.day.toString().padLeft(2, '0');
+    return "$day/$month/${startTime.year}";
+  }
+
+  void _openRideGroup(Map<String, dynamic> ride, {String rideStatus = "SCHEDULED"}) {
+    final group = {
+      "uuid": ride["uuid"] ?? ride["id"],
+      "id": ride["uuid"] ?? ride["id"],
+      "name": ride["title"] ?? "Ride",
+      "title": ride["title"] ?? "Ride",
+      "status": rideStatus == "CANCELLED" || rideStatus == "COMPLETED"
+          ? "archive"
+          : "active",
+      "rideStatus": rideStatus,
+      "description": ride["subtitle"] ?? "",
+      "visibility": "PUBLIC",
+      "members": <Map<String, dynamic>>[],
+    };
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GroupChatScreen(
+          group: group,
+          token: widget.token,
+        ),
+      ),
+    );
+  }
+
+  String _sectionHeading(Map<String, dynamic>? ride) {
+    final subtitle = ride?['subtitle']?.toString().toUpperCase() ?? "";
+    if (subtitle.contains("IN PROGRESS")) {
+      return "In Progress";
+    }
+    return "Today's Plan";
+  }
+
   @override
   void initState() {
     super.initState();
-    print("userData : "+widget.userData.toString());
     _fetchLocationAndWeather();
     _fetchUnreadNotificationCount();
     _syncUpcomingRideReminderNotifications();
@@ -139,16 +214,24 @@ Future<void> _syncUpcomingRideReminderNotifications() async {
 }
   @override
   Widget build(BuildContext context) {
-    final miles = widget.userData?['weeklyMiles'] ?? 0;
-    final avg = widget.userData?['weeklyAvgMph'] ?? 0;
-    final duration = widget.userData?['weeklyDuration'] ?? 0;
-    final rawSubtitle =
-    widget.userData!['upcomingRide']['subtitle'] ?? "";
-
-/// 🔥 Remove "10 Riders •"
-final cleanedSubtitle = rawSubtitle.contains("•")
-    ? rawSubtitle.split("•").skip(1).join("•").trim()
-    : rawSubtitle;
+    final miles = _userData['weeklyMiles'] ?? 0;
+    final avg = _userData['weeklyAvgMph'] ?? 0;
+    final duration = _userData['weeklyDuration'] ?? 0;
+    final todayRide = _mapValue('todayRide');
+    final upcomingRide = _mapValue('upcomingRide');
+    final recentRides = _mapListValue('recentRides');
+    final achievements = _mapListValue('achievements');
+    final todayPlanRide = todayRide ??
+        (_isSameDay(_rideStartTime(upcomingRide), DateTime.now())
+            ? upcomingRide
+            : null);
+    final showUpcomingRide = upcomingRide != null &&
+        !_isSameDay(_rideStartTime(upcomingRide), _rideStartTime(todayPlanRide)) &&
+        !_isSameDay(_rideStartTime(upcomingRide), DateTime.now());
+    final cleanedTodaySubtitle = _cleanSubtitle(todayPlanRide);
+    final upcomingDateLabel = _upcomingRideDateLabel(upcomingRide);
+    final latestCompletedRide =
+        recentRides.isNotEmpty ? recentRides.first : null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -180,7 +263,7 @@ final cleanedSubtitle = rawSubtitle.contains("•")
                         const SizedBox(height: 4),
                         Text(
                           widget.userData != null
-                              ? "${(widget.userData!['firstName'] ?? '').toString().toCapitalized()} ${(widget.userData!['lastName'] ?? '').toString().toCapitalized()}"
+                              ? "${(_userData['firstName'] ?? '').toString().toCapitalized()} ${(_userData['lastName'] ?? '').toString().toCapitalized()}"
                                     .trim()
                               : "Guest",
                           style: TextStyle(
@@ -327,8 +410,8 @@ Padding(
   child: Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
-        "Today's Plan",
+      Text(
+        _sectionHeading(todayRide),
         style: TextStyle(
           color: AppColors.textPrimary,
           fontWeight: FontWeight.w600,
@@ -336,7 +419,7 @@ Padding(
       ),
       const SizedBox(height: 12),
 
-      if (widget.userData?['todayRide'] == null)
+      if (todayPlanRide == null)
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -351,48 +434,170 @@ Padding(
           ),
         )
       else
+        GestureDetector(
+          onTap: () => _openRideGroup(
+            todayPlanRide,
+            rideStatus: todayRide != null ? "IN_PROGRESS" : "SCHEDULED",
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.map, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        todayPlanRide['title']?.toString() ?? "Ride",
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        cleanedTodaySubtitle,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+    ],
+  ),
+),
+
+const SizedBox(height: 25),
+
+/// UPCOMING RIDE
+Padding(
+  padding: const EdgeInsets.symmetric(horizontal: 20),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        "Upcoming Ride",
+        style: TextStyle(
+          color: AppColors.textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(height: 12),
+      if (!showUpcomingRide)
         Container(
+          width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.border),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(.1),
-                  borderRadius: BorderRadius.circular(12),
+          child: const Text(
+            "No upcoming rides yet.",
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        )
+      else
+        GestureDetector(
+          onTap: () => _openRideGroup(upcomingRide, rideStatus: "SCHEDULED"),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.directions_bike, color: AppColors.primary),
                 ),
-                child: const Icon(Icons.map, color: AppColors.primary),
-              ),
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.userData!['todayRide']['title'] ?? "Ride",
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        upcomingRide['title']?.toString() ?? "Ride",
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-  cleanedSubtitle, // 👉 now shows: "MAR 27 • 17:46"
-  style: const TextStyle(
-    color: AppColors.textSecondary,
-    fontSize: 12,
-  ),
-),
-                  ],
+                      const SizedBox(height: 6),
+                      Text(
+                        upcomingDateLabel,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.schedule,
+                            size: 13,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            upcomingRide['time']?.toString() ?? "",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Icon(
+                            Icons.people,
+                            size: 13,
+                            color: AppColors.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            "${(upcomingRide['riders'] ?? 1) == 0 ? 1 : upcomingRide['riders']} joined",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              )
-            ],
+                const Icon(Icons.chevron_right, color: AppColors.textHint),
+              ],
+            ),
           ),
         ),
     ],
@@ -400,7 +605,7 @@ Padding(
 ),
 
 /// RECENT RIDE
-if ((widget.userData?['recentRides'] ?? []).isNotEmpty) ...[
+if (latestCompletedRide != null) ...[
   const SizedBox(height: 25),
 
   Padding(
@@ -432,7 +637,7 @@ if ((widget.userData?['recentRides'] ?? []).isNotEmpty) ...[
 
               Expanded(
                 child: Text(
-                  widget.userData!['recentRides'].last['title'] ?? "Ride",
+                  latestCompletedRide['title']?.toString() ?? "Ride",
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontWeight: FontWeight.w500,
@@ -448,7 +653,7 @@ if ((widget.userData?['recentRides'] ?? []).isNotEmpty) ...[
 ],
 
 /// ACHIEVEMENT
-if ((widget.userData?['achievements'] ?? []).isNotEmpty) ...[
+if (achievements.isNotEmpty) ...[
   const SizedBox(height: 25),
 
   Padding(
@@ -480,7 +685,7 @@ if ((widget.userData?['achievements'] ?? []).isNotEmpty) ...[
 
               Expanded(
                 child: Text(
-                  widget.userData!['achievements'].last['title'] ??
+                  achievements.last['title']?.toString() ??
                       "Achievement",
                   style: const TextStyle(
                     color: AppColors.textPrimary,
@@ -532,107 +737,6 @@ if (!(miles == 0 && avg == 0 && duration == 0)) ...[
   ),
 ],
               const SizedBox(height: 15),
-
-           /// UPCOMING RIDE CARD
-if (widget.userData?['upcomingRide'] != null) ...[
-  const SizedBox(height: 25),
-
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: GestureDetector(
-      onTap: () {
-        // 👉 Navigate to ride group
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            /// ICON
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.directions_bike, color: AppColors.primary),
-            ),
-
-            const SizedBox(width: 14),
-
-            /// CONTENT
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  /// 🔥 TITLE (BIGGER NOW)
-                  Text(
-                    widget.userData!['upcomingRide']['title'] ?? "Ride",
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  /// SUBTITLE
-                  Text(
-  cleanedSubtitle, // 👉 now shows: "MAR 27 • 17:46"
-  style: const TextStyle(
-    color: AppColors.textSecondary,
-    fontSize: 12,
-  ),
-),
-
-                  const SizedBox(height: 10),
-
-                  /// 🔥 INFO ROW (FIXED)
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule, size: 13, color: AppColors.textMuted),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.userData!['upcomingRide']['time'] ?? "",
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      const Icon(Icons.people, size: 13, color: AppColors.textMuted),
-                      const SizedBox(width: 4),
-
-                      /// ✅ FIX: ensure minimum 1 rider (captain)
-                      Text(
-                        "${(widget.userData!['upcomingRide']['riders'] ?? 1) == 0 ? 1 : widget.userData!['upcomingRide']['riders']} joined",
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            /// ARROW
-            const Icon(Icons.chevron_right, color: AppColors.textHint),
-          ],
-        ),
-      ),
-    ),
-  ),
-],
 
               const SizedBox(height: 25),
 

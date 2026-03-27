@@ -33,6 +33,7 @@ import com.ridersclub.user.entity.User;
 import com.ridersclub.common.Utils.ApiConstants;
 
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping(ApiConstants.Rides.BASE)
@@ -47,7 +48,7 @@ public class RideController {
     private RideGroupRepository rideGroupRepository;
 
     @PostMapping(ApiConstants.Rides.CREATE)
-    public ResponseEntity<ApiResponse<RideResponse>> createRide(@RequestBody CreateRideRequest request,
+    public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid @RequestBody CreateRideRequest request,
             Authentication authentication) throws AccessDeniedException {
         RideResponse response = null;
         String userId = (String) authentication.getPrincipal();
@@ -57,6 +58,12 @@ public class RideController {
             Ride ride = rideService.createRide(request, userId);
             response = new RideResponse(ride.getUuid());
             logger.info("Ride created with rideID: {}", ride.getUuid());
+        } catch (IllegalArgumentException e) {
+            logger.warn("invalid ride creation request", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.failure(
+                            new ApiErrors("RIDE_VALIDATION_FAILED", e.getMessage(), "/api/v1/rides/create"),
+                            e.getMessage()));
         } catch (Exception e) {
             logger.error("error creating ride", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

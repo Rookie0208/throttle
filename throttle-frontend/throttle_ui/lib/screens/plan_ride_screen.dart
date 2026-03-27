@@ -23,7 +23,9 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   String difficulty = "EASY";
 
   DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
-  TimeOfDay selectedTime = TimeOfDay.now();
+  TimeOfDay selectedTime = TimeOfDay.fromDateTime(
+    DateTime.now().add(const Duration(hours: 1)),
+  );
 
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
@@ -35,7 +37,9 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   List<String> selectedFriends = [];
   bool isLoading = false;
 
-  DateTime selectedStartTime = DateTime.now().add(const Duration(hours: 1));
+  DateTime selectedStartTime = DateTime.now().add(
+    const Duration(days: 1, hours: 1),
+  );
   double startLat = 0.0;
   double startLng = 0.0;
   double endLat = 0.0;
@@ -45,6 +49,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
   final String mapboxToken =
       "sk.eyJ1IjoiYW1pdHJhd2F0MjYxMiIsImEiOiJjbW1jNmZhZjQwMnNnMnJxdzJzNjJ0amk2In0.7524zGVXx4-Qq41E_LKOTg";
+
+  @override
+  void initState() {
+    super.initState();
+    _syncSelectedStartTime();
+  }
 
   @override
   void dispose() {
@@ -217,13 +227,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     if (picked != null) {
       setState(() {
         selectedDate = picked;
-        selectedStartTime = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          selectedTime.hour,
-          selectedTime.minute,
-        );
+        _syncSelectedStartTime();
       });
     }
   }
@@ -235,17 +239,37 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     );
 
     if (picked != null) {
+      final candidate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        picked.hour,
+        picked.minute,
+      );
+      if (!candidate.isAfter(DateTime.now())) {
+        showError("Please choose a future date and time");
+        return;
+      }
       setState(() {
         selectedTime = picked;
-        selectedStartTime = DateTime(
-          selectedDate.year,
-          selectedDate.month,
-          selectedDate.day,
-          selectedTime.hour,
-          selectedTime.minute,
-        );
+        _syncSelectedStartTime();
       });
     }
+  }
+
+  void _syncSelectedStartTime() {
+    selectedStartTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+  }
+
+  bool _hasValidFutureStartTime() {
+    _syncSelectedStartTime();
+    return selectedStartTime.isAfter(DateTime.now());
   }
 
   void openInviteFriendsModal() {
@@ -417,6 +441,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       }
     }
 
+    if (currentStep == 3 && !_hasValidFutureStartTime()) {
+      showError("Please choose a future date and time");
+      return false;
+    }
+
     return true;
   }
 
@@ -453,6 +482,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       showError("Max Riders is required for group rides");
       return;
     }
+    if (!_hasValidFutureStartTime()) {
+      showError("Please choose a future date and time");
+      return;
+    }
 
     setState(() => isLoading = true);
 
@@ -485,6 +518,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
     final result = await RideService.createRide(rideData, widget.token);
 
+    if (!mounted) return;
     setState(() => isLoading = false);
 
     if (result["success"]) {

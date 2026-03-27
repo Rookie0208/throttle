@@ -67,6 +67,10 @@ public class RideService {
                 User currentUser = userRepository.findByUuid(currentUserUUId)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+                if (request.getStartTime() == null || !request.getStartTime().isAfter(LocalDateTime.now())) {
+                        throw new IllegalArgumentException("Ride start time must be in the future");
+                }
+
                 Ride ride = new Ride();
                 ride.setTitle(request.getTitle());
                 ride.setDescription(request.getDescription());

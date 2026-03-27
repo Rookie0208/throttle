@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:throttle_ui/screens/create_subgroup_screen.dart';
 import 'package:throttle_ui/screens/group_info_sheet.dart';
 import 'package:throttle_ui/screens/invite_member_screen.dart';
-import 'package:throttle_ui/screens/ride_start_screen.dart';
 import 'package:throttle_ui/services/sub_groups_service.dart';
 import 'package:throttle_ui/utils/app_colors.dart';
 
@@ -36,6 +35,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   bool loadingMessages = true;
 
   String currentUserRole = "MEMBER"; // TODO: replace from backend
+
+  bool get _isGroupLocked {
+    final groupStatus = (widget.group["status"] ?? "").toString().toLowerCase();
+    final rideStatus = (widget.group["rideStatus"] ?? "").toString().toUpperCase();
+    return groupStatus == "archive" ||
+        {"CANCELLED", "COMPLETED", "ENDED"}.contains(rideStatus);
+  }
 
   /// ================= FETCH SUBGROUPS =================
   Future<void> fetchSubGroups() async {
@@ -95,6 +101,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   /// ================= SEND =================
   void sendMessage() {
+    if (_isGroupLocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("This group is locked")),
+      );
+      return;
+    }
     final text = messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -313,11 +325,13 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           _subGroupBar(),
 
           if (!isActive)
-            const Padding(
-              padding: EdgeInsets.all(8),
+            Padding(
+              padding: const EdgeInsets.all(8),
               child: Text(
-                "Messaging disabled",
-                style: TextStyle(color: AppColors.textSecondary),
+                _isGroupLocked
+                    ? "This group is locked. Editing and messaging are disabled."
+                    : "Messaging disabled",
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ),
 
@@ -344,6 +358,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       break;
 
     case 'invite':
+      if (_isGroupLocked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("This group is locked")),
+        );
+        return;
+      }
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -356,6 +376,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       break;
 
     case 'subgroup':
+      if (_isGroupLocked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("This group is locked")),
+        );
+        return;
+      }
       _openSubGroupCreation();
       break;
 
