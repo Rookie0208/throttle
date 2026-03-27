@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/utils/app_colors.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 
@@ -18,33 +19,52 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with SingleTickerProviderStateMixin {
   List<NotificationItem> notifications = [];
   bool loading = true;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     if (widget.initialNotifications != null) {
-      notifications = List<NotificationItem>.from(widget.initialNotifications!);
+      notifications = _recentNotifications(widget.initialNotifications!);
       loading = false;
     } else {
       loadNotifications();
     }
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   Future<void> loadNotifications() async {
     final data = await NotificationService().fetchNotifications(widget.token);
 
     setState(() {
-      notifications = data;
+      notifications = _recentNotifications(data);
       loading = false;
     });
   }
 
+  List<NotificationItem> _recentNotifications(List<NotificationItem> items) {
+    final now = DateTime.now();
+    final cutoff = now.subtract(const Duration(days: 7));
+
+    return items.where((item) {
+      final date = DateTime.tryParse(item.time)?.toLocal();
+      return date != null && !date.isBefore(cutoff);
+    }).toList()
+      ..sort((a, b) => b.time.compareTo(a.time));
+  }
+
   int get unreadCount => notifications.where((n) => n.unread).length;
 
-  /// ================= MARK READ/UNREAD =================
   void toggleRead(NotificationItem n, bool markRead) {
     setState(() {
       n.unread = !markRead;
@@ -53,32 +73,76 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     NotificationService().markAsRead(n.id, markRead, widget.token);
   }
 
-  /// ================= TIME FORMAT =================
   String formatTime(String isoTime) {
     final dt = DateTime.parse(isoTime).toLocal();
-    return "${dt.day}/${dt.month} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+    return "${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+  }
+
+  String _sectionKey(NotificationItem n) {
+    final dt = DateTime.parse(n.time).toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(dt.year, dt.month, dt.day);
+    final difference = today.difference(date).inDays;
+
+    if (difference == 0) return "Today";
+    if (difference == 1) return "Yesterday";
+    return "Last 7 Days";
+  }
+
+  Map<String, List<NotificationItem>> _groupByDate(List<NotificationItem> items) {
+    final grouped = <String, List<NotificationItem>>{
+      "Today": [],
+      "Yesterday": [],
+      "Last 7 Days": [],
+    };
+
+    for (final item in items) {
+      grouped[_sectionKey(item)]!.add(item);
+    }
+
+    return grouped;
+  }
+
+  Widget _buildNotificationList(List<NotificationItem> items) {
+    if (items.isEmpty) {
+      return const Center(
+        child: Text(
+          "No notifications",
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      );
+    }
+
+    final grouped = _groupByDate(items);
+    final sections = ["Today", "Yesterday", "Last 7 Days"];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        for (final section in sections)
+          if (grouped[section]!.isNotEmpty) ...[
+            Text(
+              section,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 10),
+            ...grouped[section]!.map(_notificationCard),
+            const SizedBox(height: 18),
+          ],
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (notifications.isEmpty) {
-      return Scaffold(
-        body: Container(
-          color: const Color.fromARGB(255, 20, 19, 19), // dark background
-          child: const Center(
-            child: Text(
-              "No notifications",
-              style: TextStyle(
-                color: Colors.white, // white text
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ),
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -86,21 +150,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final read = notifications.where((n) => !n.unread).toList();
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            /// HEADER WITH COUNT BADGE
-            Container(
-              padding: const EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
               child: Row(
                 children: [
                   const Text(
                     "Notifications",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(width: 8),
-
-                  /// 🔥 COUNT BADGE
                   if (unreadCount > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -108,22 +174,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red,
+                      color: AppColors.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         "$unreadCount",
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.black,
                           fontSize: 12,
                         ),
                       ),
                     ),
-
                   const Spacer(),
-
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: const Icon(Icons.close, color: AppColors.white),
                     onPressed: () {
                       Navigator.pop(context, notifications);
                       widget.onClose();
@@ -132,31 +196,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ],
               ),
             ),
-
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.white.withOpacity(.04),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.white12),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  indicatorPadding: const EdgeInsets.all(4),
+                  indicator: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x447D39EB),
+                        blurRadius: 12,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  labelColor: AppColors.white,
+                  unselectedLabelColor: AppColors.textMuted,
+                  dividerColor: Colors.transparent,
+                  tabs: [
+                    Tab(text: "Unread (${unread.length})"),
+                    Tab(text: "Read (${read.length})"),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16),
+              child: TabBarView(
+                controller: _tabController,
                 children: [
-                  /// ================= UNREAD =================
-                  if (unread.isNotEmpty) ...[
-                    const Text(
-                      "Unread",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-                    ...unread.map((n) => _notificationCard(n)),
-                    const SizedBox(height: 20),
-                  ],
-
-                  /// ================= READ =================
-                  if (read.isNotEmpty) ...[
-                    const Text(
-                      "Read",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-                    ...read.map((n) => _notificationCard(n)),
-                  ],
+                  _buildNotificationList(unread),
+                  _buildNotificationList(read),
                 ],
               ),
             ),
@@ -168,98 +247,107 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _notificationCard(NotificationItem n) {
     return Dismissible(
-      key: Key(n.id.toString()),
-
-      /// 👉 RIGHT = MARK READ
+      key: Key("${n.id}_${n.unread}"),
       background: Container(
+        margin: const EdgeInsets.only(bottom: 10),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
-        color: Colors.green,
-        child: const Icon(Icons.mark_email_read, color: Colors.white),
+        decoration: BoxDecoration(
+          color: AppColors.secondary,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.mark_email_read, color: AppColors.black),
       ),
-
-      /// 👉 LEFT = MARK UNREAD
       secondaryBackground: Container(
+        margin: const EdgeInsets.only(bottom: 10),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        color: Colors.orange,
-        child: const Icon(Icons.mark_email_unread, color: Colors.white),
+        decoration: BoxDecoration(
+          color: AppColors.highlight,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Icon(Icons.mark_email_unread, color: AppColors.black),
       ),
-
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           toggleRead(n, true);
         } else {
           toggleRead(n, false);
         }
-        return false; // don't remove item
+        return false;
       },
-
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          // KEEP your existing unread blue color scheme
           color: n.unread
-              ? Colors.blue.withOpacity(.05)
-              : Colors.blue.withOpacity(.02),
+              ? AppColors.primary.withOpacity(.05)
+              : AppColors.surfaceSoft,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: n.unread
-                ? Colors.blue.withOpacity(.3) // original unread border
-                : Colors.blue.withOpacity(.15), // subtle for read
+                ? AppColors.primary.withOpacity(.3)
+                : AppColors.primary.withOpacity(.15),
           ),
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  n.title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: n.unread
-                        ? const Color.fromARGB(255, 242, 242, 242)
-                        : const Color.fromARGB(221, 73, 73, 73),
-                  ),
-                ),
-
-                /// BUTTONS
-                Row(
-                  children: [
-                    if (n.unread)
-                      TextButton(
-                        onPressed: () => toggleRead(n, true),
-                        child: const Text("Mark as Read"),
-                      ),
-                    if (!n.unread)
-                      TextButton(
-                        onPressed: () => toggleRead(n, false),
-                        child: const Text("Mark as Unread"),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 4),
-
-            Text(
-              n.desc,
-              style: TextStyle(
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
                 color: n.unread
-                    ? const Color.fromARGB(255, 255, 255, 255)
-                    : Colors.grey[600], // subtle difference
+                    ? AppColors.secondary.withOpacity(.14)
+                    : AppColors.white.withOpacity(.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                n.unread ? Icons.notifications_active : Icons.notifications_none,
+                color: n.unread ? AppColors.secondary : AppColors.white70,
+                size: 20,
               ),
             ),
-
-            const SizedBox(height: 6),
-
-            Text(
-              formatTime(n.time),
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    n.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: n.unread ? AppColors.white : AppColors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    n.desc,
+                    style: TextStyle(
+                      color: n.unread ? AppColors.white : AppColors.white70,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    formatTime(n.time),
+                    style: const TextStyle(fontSize: 11, color: AppColors.textHint),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: n.unread ? "Mark as read" : "Mark as unread",
+              onPressed: () => toggleRead(n, n.unread),
+              icon: Icon(
+                n.unread ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                color: n.unread ? AppColors.secondary : AppColors.highlight,
+                size: 20,
+              ),
             ),
           ],
         ),

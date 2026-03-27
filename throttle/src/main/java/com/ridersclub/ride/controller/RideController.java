@@ -17,10 +17,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
+import com.ridersclub.ride.dto.request.RideAnnouncementRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.response.RideResponse;
@@ -28,6 +30,7 @@ import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.repository.RideGroupRepository;
+import com.ridersclub.ride.service.RideParticipantService;
 import com.ridersclub.ride.service.RideService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.common.Utils.ApiConstants;
@@ -46,6 +49,8 @@ public class RideController {
 
     @Autowired
     private RideGroupRepository rideGroupRepository;
+    @Autowired
+    private RideParticipantService rideParticipantService;
 
     @PostMapping(ApiConstants.Rides.CREATE)
     public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid @RequestBody CreateRideRequest request,
@@ -133,6 +138,16 @@ public class RideController {
         return ApiResponse.success(null, "Stats saved");
     }
 
+    @PostMapping("/{id}/announcement")
+    public ApiResponse<?> publishAnnouncement(
+            @PathVariable String id,
+            @Valid @RequestBody RideAnnouncementRequest request,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        rideParticipantService.publishAnnouncement(id, request.getMessage(), userUuid);
+        return ApiResponse.success(null, "Announcement sent successfully");
+    }
+
     /**
      * Subgroup related APIs
      * final payload = {
@@ -159,9 +174,20 @@ public class RideController {
     }
 
     @GetMapping("/{groupUuid}/subgroups")
-    public ApiResponse<?> getSubGroups(@PathVariable String groupUuid) {
+    public ApiResponse<?> getSubGroups(@PathVariable String groupUuid, Authentication authentication) {
 
-        return ApiResponse.success(rideService.getSubGroups(groupUuid), "Subgroups");
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(rideService.getSubGroups(groupUuid, userUuid), "Subgroups");
+    }
+
+    @DeleteMapping("/{id}/members/{userId}")
+    public ApiResponse<?> removeMember(
+            @PathVariable String id,
+            @PathVariable String userId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideParticipantService.removeMember(id, userId, currentUserUuid);
+        return ApiResponse.success(null, "Rider removed successfully");
     }
 
 }

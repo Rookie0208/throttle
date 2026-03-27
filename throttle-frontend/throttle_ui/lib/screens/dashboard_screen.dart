@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/models/notification_model.dart';
 import 'package:throttle_ui/screens/group_chat_screen.dart';
 import 'package:throttle_ui/screens/notification_screen.dart';
@@ -24,6 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoadingWeather = true;
   int unreadNotificationCount = 0;
   List<NotificationItem> _notifications = [];
+  NotificationItem? _dashboardAnnouncement;
 
   Map<String, dynamic> get _userData => widget.userData ?? const {};
 
@@ -186,13 +188,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 Future<void> _fetchUnreadNotificationCount() async {
   final data = await NotificationService().fetchNotifications(widget.token);
+  final dashboardAnnouncement = await _pickDashboardAnnouncement(data);
 
   if (!mounted) return;
   setState(() {
     _notifications = data;
+    _dashboardAnnouncement = dashboardAnnouncement;
     unreadNotificationCount =
         data.where((n) => n.unread).length;
   });
+}
+
+Future<NotificationItem?> _pickDashboardAnnouncement(
+  List<NotificationItem> notifications,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final announcement = notifications
+      .where((item) => item.type == "ANNOUNCEMENT_PUBLISHED")
+      .cast<NotificationItem?>()
+      .firstWhere((item) => item != null, orElse: () => null);
+
+  if (announcement == null) return null;
+
+  final seenKey = "seen_dashboard_announcement_${announcement.id}";
+  final hasSeen = prefs.getBool(seenKey) ?? false;
+  if (hasSeen) return null;
+
+  await prefs.setBool(seenKey, true);
+  return announcement;
 }
 
 Future<void> _syncUpcomingRideReminderNotifications() async {
@@ -403,7 +426,67 @@ Future<void> _syncUpcomingRideReminderNotifications() async {
                 ),
               ),
 
-const SizedBox(height: 25),
+              if (_dashboardAnnouncement != null) ...[
+                const SizedBox(height: 25),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0x337D39EB), Color(0x22C6FF33)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.primary.withOpacity(.35)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(.14),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.campaign_rounded,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _dashboardAnnouncement!.title,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                _dashboardAnnouncement!.desc,
+                                style: const TextStyle(
+                                  color: AppColors.textSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 25),
+              ],
+              if (_dashboardAnnouncement == null) const SizedBox(height: 25),
               /// TODAY'S PLAN
 Padding(
   padding: const EdgeInsets.symmetric(horizontal: 20),

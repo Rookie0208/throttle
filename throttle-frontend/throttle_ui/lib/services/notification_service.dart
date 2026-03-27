@@ -110,6 +110,26 @@ class NotificationService {
     );
   }
 
+  Future<void> sendRideAnnouncement({
+    required String token,
+    required String rideUuid,
+    required String message,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$baseUrl/rides/$rideUuid/announcement"),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+      body: jsonEncode({"message": message}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = response.body.isEmpty ? {} : jsonDecode(response.body);
+      throw Exception(data["message"] ?? "Failed to send announcement");
+    }
+  }
+
   Future<void> notifyRideReminders({
     String? token,
     required String rideTitle,
@@ -120,13 +140,14 @@ class NotificationService {
     final difference = startTime.difference(now);
 
     if (difference.inSeconds <= 0) return;
+    final countdownLabel = _formatCountdown(difference);
 
     if (difference.inHours <= 24) {
       await _queueNotificationEvent(
         token: token,
         type: "RIDE_STARTING_SOON_24H",
         title: "Upcoming ride",
-        message: "\"$rideTitle\" starts in ${difference.inHours} hour${difference.inHours == 1 ? "" : "s"}.",
+        message: "\"$rideTitle\" starts in $countdownLabel.",
         dedupeKey: "ride_24h::${rideId ?? rideTitle}",
         metadata: {
           "rideId": rideId,
@@ -137,17 +158,11 @@ class NotificationService {
     }
 
     if (difference.inMinutes <= 120) {
-      final hours = difference.inHours;
-      final minutes = difference.inMinutes.remainder(60);
-      final timeLeft = hours > 0
-          ? "$hours hour${hours == 1 ? "" : "s"} ${minutes > 0 ? "$minutes min" : ""}".trim()
-          : "$minutes min";
-
       await _queueNotificationEvent(
         token: token,
         type: "RIDE_STARTING_SOON_2H",
         title: "Ride starts soon",
-        message: "\"$rideTitle\" starts in $timeLeft.",
+        message: "\"$rideTitle\" starts in $countdownLabel.",
         dedupeKey: "ride_2h::${rideId ?? rideTitle}",
         metadata: {
           "rideId": rideId,
@@ -174,6 +189,23 @@ class NotificationService {
         "meetingPoint": meetingPoint,
       },
     );
+  }
+
+  String _formatCountdown(Duration difference) {
+    final totalMinutes = difference.inMinutes;
+    if (totalMinutes <= 0) {
+      return "less than a minute";
+    }
+    if (totalMinutes < 60) {
+      return "$totalMinutes min";
+    }
+
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    if (minutes == 0) {
+      return "$hours hour${hours == 1 ? "" : "s"}";
+    }
+    return "$hours hour${hours == 1 ? "" : "s"} $minutes min";
   }
 
   Future<void> notifyPreRideInfoUpdated({

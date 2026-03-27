@@ -94,6 +94,118 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     );
   }
 
+  Future<void> _openAnnouncementComposer(String currentUserRole) async {
+    if (_isGroupLocked) {
+      _showMessage("This group is locked", isError: true);
+      return;
+    }
+
+    if (!_canManageMembers(currentUserRole)) {
+      _showMessage("Only captain/admin can publish announcements", isError: true);
+      return;
+    }
+
+    final controller = TextEditingController();
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "New announcement",
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                "Share an update with everyone in this ride.",
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                maxLines: 4,
+                maxLength: 500,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: InputDecoration(
+                  hintText: "Type announcement message",
+                  hintStyle: const TextStyle(color: AppColors.textHint),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(sheetContext),
+                    child: const Text("Cancel"),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final message = controller.text.trim();
+                      if (message.isEmpty) {
+                        _showMessage("Announcement message is required", isError: true);
+                        return;
+                      }
+
+                      try {
+                        await NotificationService().sendRideAnnouncement(
+                          token: widget.token,
+                          rideUuid: widget.rideGroup["uuid"],
+                          message: message,
+                        );
+                        if (!sheetContext.mounted || !mounted) return;
+                        Navigator.pop(sheetContext);
+                        _showMessage("Announcement sent");
+                      } catch (e) {
+                        _showMessage(
+                          e.toString().replaceFirst("Exception: ", ""),
+                          isError: true,
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                    ),
+                    child: const Text(
+                      "Send",
+                      style: TextStyle(color: AppColors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _refreshMembers() async {
     if (!mounted) return;
     setState(() {
@@ -385,23 +497,63 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0x337D39EB), Color(0x22C6FF33)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withOpacity(0.35)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Meeting Point",
-            style: TextStyle(
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(
+              Icons.place_rounded,
               color: AppColors.primary,
-              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            meetingPoint,
-            style: const TextStyle(
-              color: AppColors.white,
-              fontSize: 16,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Meeting Point",
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  meetingPoint,
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -622,7 +774,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     final creatorName = creatorUser != null
         ? "${creatorUser["firstName"] ?? ""} ${creatorUser["lastName"] ?? ""}"
               .trim()
-        : widget.rideGroup["createdByName"] ?? "Unknown";
+        : (widget.rideGroup["createdByName"]?.toString().trim().isNotEmpty ?? false)
+            ? widget.rideGroup["createdByName"].toString().trim()
+            : "Unknown";
 
     final createdAt = widget.rideGroup["createdAt"];
 
@@ -672,11 +826,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   _quickAction(
                     icon: Icons.campaign_outlined,
                     label: "Announcement",
-                    enabled: !_isGroupLocked,
+                    enabled: !_isGroupLocked && _canManageMembers(currentUserRole),
                     onTap: () {
-                      _showMessage(
-                        "Announcement flow can be connected here when the backend is ready.",
-                      );
+                      _openAnnouncementComposer(currentUserRole);
                     },
                   ),
                   const SizedBox(width: 10),
@@ -1727,28 +1879,35 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               const SizedBox(height: 30),
 
               /// EXIT GROUP
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                onPressed: () {
-                  final myRole = widget.rideGroup["myRole"];
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: const BorderSide(color: Colors.redAccent),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () {
+                    final myRole = widget.rideGroup["myRole"];
 
-                  if (myRole == "CAPTAIN") {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Assign a new captain before leaving"),
-                      ),
-                    );
-                    return;
-                  }
+                    if (myRole == "CAPTAIN") {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Assign a new captain before leaving"),
+                        ),
+                      );
+                      return;
+                    }
 
-                  // call exit API
-                },
-                child: const Text(
-                  "Exit Group",
-                  style: TextStyle(color: AppColors.white),
+                    // call exit API
+                  },
+                  child: const Text("Exit Group"),
                 ),
               ),
             ],

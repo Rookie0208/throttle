@@ -1,87 +1,93 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'theme_controller.dart';
 
 class AppTheme {
-  static ThemeData get darkTheme {
+  static ThemeData buildTheme(AppThemeConfig config) {
+    final textSecondary = Color.lerp(config.textPrimary, config.background, 0.25)!;
+    final textMuted = Color.lerp(config.textPrimary, config.background, 0.45)!;
+    final border = Color.lerp(config.primary, config.surface, 0.65)!;
+    final borderSoft = Color.lerp(config.surface, config.textPrimary, 0.15)!;
+
     return ThemeData(
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Roboto',
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.primary,
-        surface: AppColors.surface,
-        secondary: AppColors.primary,
+      scaffoldBackgroundColor: config.background,
+      fontFamily: config.fontFamily,
+      colorScheme: ColorScheme.dark(
+        primary: config.primary,
+        surface: config.surface,
+        secondary: config.secondary,
         error: AppColors.error,
       ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: config.background,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: AppColors.textPrimary,
+          color: config.textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
-        iconTheme: IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: config.textPrimary),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surface,
-        hintStyle: const TextStyle(color: AppColors.textMuted),
-        labelStyle: const TextStyle(color: AppColors.textSecondary),
+        fillColor: config.surface,
+        hintStyle: TextStyle(color: textMuted),
+        labelStyle: TextStyle(color: textSecondary),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 14,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primary),
+          borderSide: BorderSide(color: config.primary),
         ),
       ),
-      cardColor: AppColors.surface,
+      cardColor: config.surface,
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: config.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surface,
-        contentTextStyle: const TextStyle(color: AppColors.textPrimary),
+        backgroundColor: config.surface,
+        contentTextStyle: TextStyle(color: config.textPrimary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
         behavior: SnackBarBehavior.floating,
       ),
-      listTileTheme: const ListTileThemeData(
-        iconColor: AppColors.textPrimary,
-        textColor: AppColors.textPrimary,
+      listTileTheme: ListTileThemeData(
+        iconColor: config.textPrimary,
+        textColor: config.textPrimary,
       ),
-      iconTheme: const IconThemeData(color: AppColors.textPrimary),
-      dividerColor: AppColors.border,
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primary,
+      iconTheme: IconThemeData(color: config.textPrimary),
+      dividerColor: border,
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: config.surface,
+        selectedItemColor: config.primary,
         unselectedItemColor: AppColors.grey,
         type: BottomNavigationBarType.fixed,
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: config.primary,
         foregroundColor: AppColors.white,
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.borderSoft),
+          foregroundColor: config.textPrimary,
+          side: BorderSide(color: borderSoft),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -89,7 +95,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: config.primary,
           foregroundColor: AppColors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -98,23 +104,23 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: config.primary,
         ),
       ),
-      textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: AppColors.textPrimary),
-        bodyMedium: TextStyle(color: AppColors.textSecondary),
-        bodySmall: TextStyle(color: AppColors.textMuted),
+      textTheme: TextTheme(
+        bodyLarge: TextStyle(color: config.textPrimary),
+        bodyMedium: TextStyle(color: textSecondary),
+        bodySmall: TextStyle(color: textMuted),
         titleLarge: TextStyle(
-          color: AppColors.textPrimary,
+          color: config.textPrimary,
           fontWeight: FontWeight.bold,
         ),
         titleMedium: TextStyle(
-          color: AppColors.textPrimary,
+          color: config.textPrimary,
           fontWeight: FontWeight.w600,
         ),
         labelMedium: TextStyle(
-          color: AppColors.textSecondary,
+          color: textSecondary,
         ),
       ),
     );

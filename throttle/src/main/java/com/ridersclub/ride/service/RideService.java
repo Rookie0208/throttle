@@ -21,6 +21,7 @@ import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
+import com.ridersclub.common.enums.Visibility;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
@@ -140,6 +141,7 @@ public class RideService {
                         captainMember.setRole("ADMIN");
 
                         groupMemberRepository.save(captainMember);
+                        createTeamMembersSubGroup(saved, savedGroup, currentUser);
                 }
 
                 notificationService.createAndSend(
@@ -153,6 +155,28 @@ public class RideService {
                 System.out.println("notification published");
 
                 return saved;
+        }
+
+        private RideGroup createTeamMembersSubGroup(Ride ride, RideGroup mainGroup, User creator) {
+                RideGroup teamMembersGroup = new RideGroup();
+                teamMembersGroup.setUuid(UUID.randomUUID().toString());
+                teamMembersGroup.setRide(ride);
+                teamMembersGroup.setParentGroup(mainGroup);
+                teamMembersGroup.setName("Team members");
+                teamMembersGroup.setCreatedBy(creator);
+                teamMembersGroup.setVisibility(Visibility.PRIVATE);
+                teamMembersGroup.setMembersCanSendMessages(true);
+                teamMembersGroup.setMembersCanAddMembers(false);
+
+                RideGroup savedTeamMembersGroup = rideGroupRepository.save(teamMembersGroup);
+
+                GroupMember creatorMember = new GroupMember();
+                creatorMember.setGroup(savedTeamMembersGroup);
+                creatorMember.setUser(creator);
+                creatorMember.setRole("ADMIN");
+                groupMemberRepository.save(creatorMember);
+
+                return savedTeamMembersGroup;
         }
 
         public RideGroup createSubGroup(CreateSubGroupRequest request, String userUuid) {
@@ -253,9 +277,18 @@ public class RideService {
                                                                                 .locationType(loc.getLocationType())
                                                                                 .sequence(loc.getSequence())
                                                                                 .build())
-                                                                .toList())
+                                                .toList())
                                                 .maxRiders(r.getMaxRiders())
                                                 .createdByUuid(r.getCreatedBy().getUuid())
+                                                .createdByName(
+                                                                ((r.getCreatedBy().getFirstName() != null
+                                                                                ? r.getCreatedBy().getFirstName()
+                                                                                : "")
+                                                                                + " "
+                                                                                + (r.getCreatedBy().getLastName() != null
+                                                                                                ? r.getCreatedBy().getLastName()
+                                                                                                : ""))
+                                                                                                .trim())
                                                 .captainUuid(r.getCaptain() != null ? r.getCaptain().getUuid() : null)
                                                 .visibility(r.getVisibility())
                                                 .status(r.getStatus())
@@ -319,11 +352,16 @@ public class RideService {
                                 "totalDuration", totalDuration);
         }
 
-        public List<SubGroupResponse> getSubGroups(String rideUuid) {
+        public List<SubGroupResponse> getSubGroups(String rideUuid, String userUuid) {
 
                 List<RideGroup> groups = rideGroupRepository.findSubGroupsByRideUuid(rideUuid);
+                User currentUser = userRepository.findByUuid(userUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
 
                 return groups.stream()
+                                .filter(group -> group.getVisibility() == Visibility.PUBLIC
+                                                || groupMemberRepository.existsByGroup_IdAndUser_Id(
+                                                                group.getId(), currentUser.getId()))
                                 .map(group -> SubGroupResponse.builder()
                                                 .uuid(group.getUuid())
                                                 .name(group.getName())

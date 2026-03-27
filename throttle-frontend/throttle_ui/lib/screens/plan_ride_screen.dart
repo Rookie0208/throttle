@@ -495,7 +495,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       "rideType": rideType,
       "routeType": "HIGHWAY",
       "difficulty": difficulty,
-      "startTime": selectedStartTime.toUtc().toIso8601String(),
+      "startTime": selectedStartTime.toIso8601String(),
       "visibility": "PUBLIC",
       "maxRiders": rideType == "GROUP"
           ? int.parse(maxRidersController.text)
