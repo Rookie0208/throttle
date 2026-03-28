@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
+import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
 
 class PublicProfileScreen extends StatefulWidget {
@@ -22,36 +23,63 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   int friendCount = 0;
   bool isLoadingMutual = true;
   bool isActionLoading = true;
+  bool isLoadingProfile = false;
   String relationshipStatus = 'unknown';
   int? incomingRequestId;
+  late Map<String, dynamic> _profile;
 
   @override
   void initState() {
     super.initState();
+    _profile = Map<String, dynamic>.from(widget.user);
+    _fetchProfile();
     _fetchMutualCount();
     _fetchFriendCount();
     _fetchRelationshipStatus();
   }
 
+  String? get _targetUuid => (_profile['uuid'] ?? widget.user['uuid']) as String?;
+
+  Map<String, dynamic> get _displayUser => _profile;
+
+  Future<void> _fetchProfile() async {
+    final uuid = _targetUuid;
+    if (uuid == null || uuid.isEmpty) {
+      return;
+    }
+    setState(() => isLoadingProfile = true);
+    final profile = await UserService.getProfileByUuid(uuid);
+    if (mounted) {
+      setState(() {
+        if (profile != null) {
+          _profile = {..._profile, ...profile, 'uuid': uuid};
+        }
+        isLoadingProfile = false;
+      });
+    }
+  }
+
   Future<void> _fetchFriendCount() async {
-    if (widget.user['uuid'] == null) return;
+    final uuid = _targetUuid;
+    if (uuid == null) return;
     await Logger.info(
-      _ctx('fetch_friend_count', {'target': widget.user['uuid']}),
+      _ctx('fetch_friend_count', {'target': uuid}),
     );
-    final friends = await FriendService.getFriends(widget.user['uuid']);
+    final friends = await FriendService.getFriends(uuid);
     if (mounted) setState(() => friendCount = friends.length);
   }
 
   void _fetchMutualCount() async {
-    if (widget.user['uuid'] == null) {
+    final uuid = _targetUuid;
+    if (uuid == null) {
       setState(() => isLoadingMutual = false);
       return;
     }
     await Logger.info(
-      _ctx('fetch_mutual_count', {'target': widget.user['uuid']}),
+      _ctx('fetch_mutual_count', {'target': uuid}),
     );
     final count = await FriendService.getMutualFriendsCount(
-      widget.user['uuid'],
+      uuid,
     );
     if (mounted) {
       setState(() {
@@ -62,7 +90,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Future<void> _fetchRelationshipStatus() async {
-    if (widget.user['uuid'] == null) {
+    final uuid = _targetUuid;
+    if (uuid == null) {
       if (mounted) {
         setState(() {
           relationshipStatus = 'unknown';
@@ -73,9 +102,9 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     }
 
     await Logger.info(
-      _ctx('fetch_relationship', {'target': widget.user['uuid']}),
+      _ctx('fetch_relationship', {'target': uuid}),
     );
-    final data = await FriendService.getRelationshipStatus(widget.user['uuid']);
+    final data = await FriendService.getRelationshipStatus(uuid);
     if (mounted) {
       setState(() {
         relationshipStatus = (data['status'] ?? 'unknown').toString();
@@ -88,9 +117,9 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Future<void> _sendFriendRequest() async {
-    await Logger.info(_ctx('tap_add_friend', {'target': widget.user['uuid']}));
+    await Logger.info(_ctx('tap_add_friend', {'target': _targetUuid}));
     setState(() => isActionLoading = true);
-    final success = await FriendService.sendRequest(widget.user['uuid']);
+    final success = await FriendService.sendRequest(_targetUuid!);
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -108,7 +137,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     if (incomingRequestId == null) return;
     await Logger.info(
       _ctx('tap_accept_request', {
-        'target': widget.user['uuid'],
+        'target': _targetUuid,
         'requestId': incomingRequestId,
       }),
     );
@@ -131,9 +160,9 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Future<void> _unfriend() async {
-    await Logger.info(_ctx('tap_unfriend', {'target': widget.user['uuid']}));
+    await Logger.info(_ctx('tap_unfriend', {'target': _targetUuid}));
     setState(() => isActionLoading = true);
-    final success = await FriendService.unfriend(widget.user['uuid']);
+    final success = await FriendService.unfriend(_targetUuid!);
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -209,9 +238,11 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = _displayUser;
     final String name =
-        "${widget.user["firstName"] ?? ""} ${widget.user["lastName"] ?? ""}"
+        "${user["firstName"] ?? ""} ${user["lastName"] ?? ""}"
             .trim();
+    final String riderId = (user["riderId"] ?? "").toString();
 
     return Scaffold(
       backgroundColor: const Color(0xff0f1114),
@@ -255,9 +286,20 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (riderId.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          "@$riderId",
+                          style: const TextStyle(
+                            color: Color(0xfffe6603),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Text(
-                        widget.user["bio"] ?? "Motorcycle enthusiast",
+                        user["bio"] ?? "Motorcycle enthusiast",
                         style: const TextStyle(color: Colors.white70),
                       ),
                       const SizedBox(height: 6),
@@ -306,6 +348,14 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             ),
                           ),
                         ),
+                      if (isLoadingProfile)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6),
+                          child: Text(
+                            "Loading profile...",
+                            style: TextStyle(color: Colors.white38, fontSize: 11),
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -316,11 +366,14 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              _stat("Miles", "${widget.user["totalMiles"] ?? 0}"),
+              _stat("Miles", "${user["totalMiles"] ?? 0}"),
               const SizedBox(width: 8),
-              _stat("Rides", "${widget.user["totalRides"] ?? 0}"),
+              _stat("Rides", "${user["totalRides"] ?? 0}"),
               const SizedBox(width: 8),
-              _stat("Badges", "${widget.user["badges"] ?? 0}"),
+              _stat(
+                "Badges",
+                "${(user["achievements"] is List ? (user["achievements"] as List).length : null) ?? user["badges"] ?? 0}",
+              ),
             ],
           ),
         ],

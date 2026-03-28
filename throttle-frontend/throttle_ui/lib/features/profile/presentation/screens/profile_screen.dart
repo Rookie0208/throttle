@@ -80,9 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text("Save", style: TextStyle(color: AppColors.white)),
           ),
@@ -142,7 +140,10 @@ class _ProfileScreenState extends State<ProfileScreen>
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10,
+              ),
             ),
           ],
         ),
@@ -184,7 +185,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 Text(
                   ride["date"]?.toString() ?? "",
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -201,7 +205,10 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               Text(
                 ride["duration"] ?? ride["time"] ?? "",
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -375,6 +382,19 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   ),
                                 ),
                                 const SizedBox(height: 4),
+                                if ((widget.userData?['riderId'] ?? '')
+                                    .toString()
+                                    .isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      "@${widget.userData!['riderId']}",
+                                      style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
                                 GestureDetector(
                                   onTap: _editBio,
                                   child: Row(
@@ -566,64 +586,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               .toList(),
                                         ),
                                 ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  "Recent Rides",
-                                  style: TextStyle(
-                                    color: AppColors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                rideHistory.isEmpty
-                                    ? Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 32,
-                                          horizontal: 16,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surface,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: AppColors.white12,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          children: const [
-                                            Icon(
-                                              Icons.route,
-                                              color: AppColors.white24,
-                                              size: 48,
-                                            ),
-                                            SizedBox(height: 12),
-                                            Text(
-                                              "Your journey begins here",
-                                              style: TextStyle(
-                                                color: AppColors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            SizedBox(height: 6),
-                                            Text(
-                                              "Start tracking your rides to see your history",
-                                              style: TextStyle(
-                                                color: AppColors.textMuted,
-                                                fontSize: 13,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    : Column(
-                                        children: rideHistory
-                                            .map((r) => _buildRideCard(r))
-                                            .toList(),
-                                      ),
                               ],
                             ),
                           ),
@@ -651,7 +613,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       SizedBox(height: 8),
                                       Text(
                                         "Your completed rides will appear here.",
-                                        style: TextStyle(color: AppColors.textMuted),
+                                        style: TextStyle(
+                                          color: AppColors.textMuted,
+                                        ),
                                       ),
                                     ],
                                   ),

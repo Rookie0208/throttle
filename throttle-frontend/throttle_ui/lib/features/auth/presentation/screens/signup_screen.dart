@@ -40,6 +40,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   final firstNameController = TextEditingController();
   final surNameController = TextEditingController();
+  final riderIdController = TextEditingController();
   final bikeModelController = TextEditingController();
   final bikeYearController = TextEditingController();
   final emailController = TextEditingController();
@@ -79,6 +80,25 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
+      if (pronoun.isEmpty) {
+        showError("Please select your pronoun");
+        return;
+      }
+
+      final riderId = riderIdController.text.trim();
+      if (riderId.isEmpty) {
+        showError("Rider ID is required");
+        return;
+      }
+
+      final riderIdPattern = RegExp(r'^[A-Za-z0-9._]{3,30}$');
+      if (!riderIdPattern.hasMatch(riderId)) {
+        showError(
+          "Rider ID must be 3-30 characters and use only letters, numbers, dots, or underscores",
+        );
+        return;
+      }
+
       if (!emailController.text.contains("@")) {
         showError("Enter a valid email");
         return;
@@ -99,6 +119,7 @@ class _SignupScreenState extends State<SignupScreen> {
           email: emailController.text.trim(),
           firstName: firstNameController.text.trim(),
           lastName: surNameController.text.trim(),
+          riderId: riderIdController.text.trim(),
           pronoun: pronoun,
           bikeType: bikeType,
         );
@@ -106,6 +127,7 @@ class _SignupScreenState extends State<SignupScreen> {
         result = await AuthService.register(
           firstName: firstNameController.text.trim(),
           lastName: surNameController.text.trim(),
+          riderId: riderIdController.text.trim(),
           pronoun: pronoun,
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
@@ -265,6 +287,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         thinInput("First Name", firstNameController),
                         const SizedBox(height: 20),
                         thinInput("Last Name", surNameController),
+                        const SizedBox(height: 20),
+                        thinInput("Rider ID", riderIdController),
                         const SizedBox(height: 20),
                         thinInput(
                           "Email",

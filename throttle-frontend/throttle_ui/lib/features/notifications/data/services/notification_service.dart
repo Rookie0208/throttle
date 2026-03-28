@@ -326,18 +326,24 @@ class NotificationService {
   List<NotificationItem> _mergeNotifications(
     List<NotificationItem> remoteNotifications,
   ) {
+    final persistedKeys = remoteNotifications
+        .map(_notificationContentKey)
+        .toSet();
+
+    final pendingLocalNotifications = _localNotifications.where((notification) {
+      return !persistedKeys.contains(_notificationContentKey(notification));
+    });
+
     final merged = <NotificationItem>[
-      ..._localNotifications,
+      ...pendingLocalNotifications,
       ...remoteNotifications,
     ];
 
-    final seen = <String>{};
-    return merged.where((notification) {
-      final key =
-          "${notification.type}::${notification.title}::${notification.desc}";
-      if (seen.contains(key)) return false;
-      seen.add(key);
-      return true;
-    }).toList();
+    merged.sort((a, b) => b.time.compareTo(a.time));
+    return merged;
+  }
+
+  String _notificationContentKey(NotificationItem notification) {
+    return "${notification.type}::${notification.title}::${notification.desc}";
   }
 }

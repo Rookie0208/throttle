@@ -22,6 +22,7 @@ import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.user.entity.User;
+import com.ridersclub.user.service.RiderIdService;
 import com.ridersclub.user.service.UserService;
 
 class AuthServiceTest {
@@ -44,12 +45,22 @@ class AuthServiceTest {
     @Mock
     private org.springframework.data.neo4j.core.Neo4jClient neo4jClient;
 
+    @Mock
+    private RiderIdService riderIdService;
+
     private AuthService authService;
 
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-        authService = new AuthService(userService, passwordEncoder, jwtService, otpService, refreshTokenService, neo4jClient);
+        authService = new AuthService(
+                userService,
+                passwordEncoder,
+                jwtService,
+                otpService,
+                refreshTokenService,
+                neo4jClient,
+                riderIdService);
     }
 
     @Test
@@ -59,12 +70,16 @@ class AuthServiceTest {
         req.setPassword("secret");
         req.setFirstName("John");
         req.setLastName("Doe");
+        req.setRiderId("john.doe");
 
         when(userService.existsByEmail("test@example.com")).thenReturn(false);
+        when(riderIdService.normalizeAndValidateRequested("john.doe")).thenReturn("john.doe");
+        doNothing().when(riderIdService).assertAvailable("john.doe");
         when(passwordEncoder.encode("secret")).thenReturn("encoded");
         User saved = new User();
         saved.setId(1L);
         saved.setUuid(UUID.randomUUID().toString());
+        saved.setRiderId("john.doe");
         when(userService.save(ArgumentMatchers.any(User.class))).thenReturn(saved);
         when(jwtService.generate(anyString(), anyMap(), anyLong())).thenReturn("token123");
 

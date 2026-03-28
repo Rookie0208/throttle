@@ -46,6 +46,37 @@ public class FriendService {
     private final Neo4jClient neo4jClient;
     private final NotificationService notificationService;
 
+    private User getRequiredUser(String userUuid, String label) {
+        return userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new IllegalArgumentException(label + " not found"));
+    }
+
+    private FriendRequest getAuthorizedPendingRequest(String receiverUuid, Long requestId, String action) {
+        FriendRequest request = friendRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Friend request not found"));
+
+        if (!request.getReceiver().getUuid().equals(receiverUuid)) {
+            log.warn("{} action={}_blocked reason=unauthorized receiver={} requestId={}", LOG_PREFIX, action,
+                    receiverUuid, requestId);
+            throw new SecurityException("Not authorized to " + action.replace('_', ' ') + " this request");
+        }
+
+        if (request.getStatus() != FriendRequestStatus.PENDING) {
+            log.warn("{} action={}_blocked reason=not_pending requestId={} status={}", LOG_PREFIX, action, requestId,
+                    request.getStatus());
+            throw new IllegalArgumentException("Friend request is not pending");
+        }
+
+        return request;
+    }
+
+    private Friendship buildFriendship(User user, User friend) {
+        Friendship friendship = new Friendship();
+        friendship.setUser(user);
+        friendship.setFriend(friend);
+        return friendship;
+    }
+
     private void notifyUser(String userUuid) {
         try {
             messagingTemplate.convertAndSend("/topic/friends/" + userUuid, "{\"action\":\"REFRESH\"}");
@@ -76,10 +107,8 @@ public class FriendService {
             throw new IllegalArgumentException("Cannot send a friend request to yourself");
         }
 
-        User sender = userRepository.findByUuid(senderUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Sender not found"));
-        User receiver = userRepository.findByUuid(receiverUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Receiver not found"));
+        User sender = getRequiredUser(senderUuid, "Sender");
+        User receiver = getRequiredUser(receiverUuid, "Receiver");
 
         if (friendshipRepository.existsByUserAndFriend(sender, receiver)) {
             log.warn("{} action=send_request_blocked reason=already_friends sender={} receiver={}", LOG_PREFIX,
@@ -164,20 +193,7 @@ public class FriendService {
     @CacheEvict(value = "user_friends", key = "#receiverUuid")
     public void acceptRequest(String receiverUuid, Long requestId) {
         log.info("{} action=accept_request_start receiver={} requestId={}", LOG_PREFIX, receiverUuid, requestId);
-        FriendRequest request = friendRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("Friend request not found"));
-
-        if (!request.getReceiver().getUuid().equals(receiverUuid)) {
-            log.warn("{} action=accept_request_blocked reason=unauthorized receiver={} requestId={}", LOG_PREFIX,
-                    receiverUuid, requestId);
-            throw new SecurityException("Not authorized to accept this request");
-        }
-
-        if (request.getStatus() != FriendRequestStatus.PENDING) {
-            log.warn("{} action=accept_request_blocked reason=not_pending requestId={} status={}", LOG_PREFIX,
-                    requestId, request.getStatus());
-            throw new IllegalArgumentException("Friend request is not pending");
-        }
+        FriendRequest request = getAuthorizedPendingRequest(receiverUuid, requestId, "accept_request");
 
         request.setStatus(FriendRequestStatus.ACCEPTED);
         friendRequestRepository.save(request);
@@ -191,17 +207,23 @@ public class FriendService {
             receiverName = "your friend";
         }
 
-        Friendship f1 = new Friendship();
-        f1.setUser(sender);
-        f1.setFriend(receiver);
+        List<Friendship> friendshipsToCreate = new ArrayList<>();
+        if (!friendshipRepository.existsByUserAndFriend(sender, receiver)) {
+            friendshipsToCreate.add(buildFriendship(sender, receiver));
+        }
 
-        Friendship f2 = new Friendship();
-        f2.setUser(receiver);
-        f2.setFriend(sender);
+        if (!friendshipRepository.existsByUserAndFriend(receiver, sender)) {
+            friendshipsToCreate.add(buildFriendship(receiver, sender));
+        }
 
-        friendshipRepository.saveAll(List.of(f1, f2));
-        log.info("{} action=friendship_persisted sender={} receiver={} requestId={}", LOG_PREFIX, sender.getUuid(),
-                receiver.getUuid(), requestId);
+        if (!friendshipsToCreate.isEmpty()) {
+            friendshipRepository.saveAll(friendshipsToCreate);
+            log.info("{} action=friendship_persisted sender={} receiver={} requestId={} createdLinks={}", LOG_PREFIX,
+                    sender.getUuid(), receiver.getUuid(), requestId, friendshipsToCreate.size());
+        } else {
+            log.warn("{} action=friendship_already_present sender={} receiver={} requestId={}", LOG_PREFIX,
+                    sender.getUuid(), receiver.getUuid(), requestId);
+        }
 
         evictCache(sender.getUuid());
 
@@ -256,14 +278,7 @@ public class FriendService {
     @Transactional
     public void rejectRequest(String receiverUuid, Long requestId) {
         log.info("{} action=reject_request_start receiver={} requestId={}", LOG_PREFIX, receiverUuid, requestId);
-        FriendRequest request = friendRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("Friend request not found"));
-
-        if (!request.getReceiver().getUuid().equals(receiverUuid)) {
-            log.warn("{} action=reject_request_blocked reason=unauthorized receiver={} requestId={}", LOG_PREFIX,
-                    receiverUuid, requestId);
-            throw new SecurityException("Not authorized to reject this request");
-        }
+        FriendRequest request = getAuthorizedPendingRequest(receiverUuid, requestId, "reject_request");
 
         request.setStatus(FriendRequestStatus.REJECTED);
         friendRequestRepository.save(request);
@@ -275,10 +290,8 @@ public class FriendService {
     @Transactional
     public void unfriend(String userUuid, String targetUserUuid) {
         log.info("{} action=unfriend_start user={} target={}", LOG_PREFIX, userUuid, targetUserUuid);
-        User user = userRepository.findByUuid(userUuid)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        User target = userRepository.findByUuid(targetUserUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Target user not found"));
+        User user = getRequiredUser(userUuid, "User");
+        User target = getRequiredUser(targetUserUuid, "Target user");
 
         if (!friendshipRepository.existsByUserAndFriend(user, target)) {
             log.warn("{} action=unfriend_blocked reason=not_friends user={} target={}", LOG_PREFIX, userUuid,
@@ -358,16 +371,16 @@ public class FriendService {
     @Transactional(readOnly = true)
     @Cacheable(value = "user_friends", key = "#userUuid")
     public List<FriendDto> getFriends(String userUuid) {
-        User user = userRepository.findByUuid(userUuid)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        User user = getRequiredUser(userUuid, "User");
 
         List<Friendship> friendships = friendshipRepository.findByUser(user);
 
-        return friendships.stream().map(f -> {
+        List<FriendDto> friendDtos = friendships.stream().map(f -> {
             User friend = f.getFriend();
             int mutualCount = queryMutualCount(userUuid, friend.getUuid());
             return FriendDto.builder()
                     .uuid(friend.getUuid())
+                    .riderId(friend.getRiderId())
                     .firstName(friend.getFirstName())
                     .lastName(friend.getLastName())
                     .profileImage(friend.getProfileImage())
@@ -375,12 +388,13 @@ public class FriendService {
                     .mutualFriends(mutualCount)
                     .build();
         }).collect(Collectors.toList());
+        log.debug("{} action=get_friends_completed user={} count={}", LOG_PREFIX, userUuid, friendDtos.size());
+        return friendDtos;
     }
 
     @Transactional(readOnly = true)
     public List<PendingRequestDto> getPendingRequests(String receiverUuid) {
-        User receiver = userRepository.findByUuid(receiverUuid)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        User receiver = getRequiredUser(receiverUuid, "User");
         List<PendingRequestDto> pendingRequests = friendRequestRepository.findByReceiverAndStatus(receiver,
                         FriendRequestStatus.PENDING)
                 .stream().map(req -> {
@@ -389,6 +403,7 @@ public class FriendService {
                     return PendingRequestDto.builder()
                             .requestId(req.getId())
                             .senderUuid(sender.getUuid())
+                            .senderRiderId(sender.getRiderId())
                             .senderFirstName(sender.getFirstName())
                             .senderLastName(sender.getLastName())
                             .senderProfileImage(sender.getProfileImage())
@@ -454,6 +469,7 @@ public class FriendService {
                 }
                 mutualResults.add(FriendDto.builder()
                         .uuid(u.getUuid())
+                        .riderId(u.getRiderId())
                         .firstName(u.getFirstName())
                         .lastName(u.getLastName())
                         .profileImage(u.getProfileImage())
@@ -477,6 +493,7 @@ public class FriendService {
                 .limit(20)
                 .map(u -> FriendDto.builder()
                         .uuid(u.getUuid())
+                        .riderId(u.getRiderId())
                         .firstName(u.getFirstName())
                         .lastName(u.getLastName())
                         .profileImage(u.getProfileImage())

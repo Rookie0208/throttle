@@ -27,6 +27,7 @@ import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.user.entity.User;
+import com.ridersclub.user.service.RiderIdService;
 import com.ridersclub.user.service.UserService;
 
 @Slf4j
@@ -39,6 +40,7 @@ public class AuthService {
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
     private final org.springframework.data.neo4j.core.Neo4jClient neo4jClient;
+    private final RiderIdService riderIdService;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -51,13 +53,15 @@ public class AuthService {
             JwtService jwtService,
             OtpService otpService,
             RefreshTokenService refreshTokenService,
-            org.springframework.data.neo4j.core.Neo4jClient neo4jClient) {
+            org.springframework.data.neo4j.core.Neo4jClient neo4jClient,
+            RiderIdService riderIdService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.otpService = otpService;
         this.refreshTokenService = refreshTokenService;
         this.neo4jClient = neo4jClient;
+        this.riderIdService = riderIdService;
     }
 
     /** Async Neo4j dual-write — MERGE so it's safe to call multiple times */
@@ -99,11 +103,14 @@ public class AuthService {
         if (userService.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyExistsException("Email already in use");
         }
+        String normalizedRiderId = riderIdService.normalizeAndValidateRequested(request.getRiderId());
+        riderIdService.assertAvailable(normalizedRiderId);
 
         User user = new User();
         user.setUuid(UUID.randomUUID().toString());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setRiderId(normalizedRiderId);
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setCity(request.getCity());
@@ -179,11 +186,14 @@ public class AuthService {
             log.warn("Attempted to complete Google registration for existing email: {}", request.getEmail());
             throw new EmailAlreadyExistsException("Email already in use");
         }
+        String normalizedRiderId = riderIdService.normalizeAndValidateRequested(request.getRiderId());
+        riderIdService.assertAvailable(normalizedRiderId);
 
         User user = new User();
         user.setUuid(UUID.randomUUID().toString());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setRiderId(normalizedRiderId);
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // Dummy password for OAuth users to
                                                                                 // satisfy DB constraint
