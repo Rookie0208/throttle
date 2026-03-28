@@ -20,6 +20,7 @@ class _AuthScreenState extends State<AuthScreen> {
   // USER CONTROLLERS
   final firstName = TextEditingController();
   final lastName = TextEditingController();
+  final riderId = TextEditingController();
   final pronoun = TextEditingController();
   final role = TextEditingController();
   final email = TextEditingController();
@@ -91,6 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (firstName.text.isEmpty ||
         lastName.text.isEmpty ||
         pronoun.text.isEmpty ||
+        riderId.text.isEmpty ||
         role.text.isEmpty ||
         email.text.isEmpty ||
         password.text.isEmpty) {
@@ -101,6 +103,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final res = await ApiService.post("/auth/register", {
       "firstName": firstName.text,
       "lastName": lastName.text,
+      "riderId": riderId.text.trim().toLowerCase(),
       "pronoun": pronoun.text,
       "role": role.text,
       "email": email.text,
@@ -187,6 +190,7 @@ class _AuthScreenState extends State<AuthScreen> {
           children: [
             input("First Name", firstName),
             input("Last Name", lastName),
+            input("Rider ID", riderId),
             dropdown("Pronoun", pronoun, pronounOptions),
             dropdown("Role", role, roleOptions),
             input("Email", email, type: TextInputType.emailAddress),

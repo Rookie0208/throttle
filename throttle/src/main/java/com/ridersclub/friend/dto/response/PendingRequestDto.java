@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class PendingRequestDto {
     private Long requestId;
     private String senderUuid;
+    private String senderRiderId;
     private String senderFirstName;
     private String senderLastName;
     private String senderProfileImage;

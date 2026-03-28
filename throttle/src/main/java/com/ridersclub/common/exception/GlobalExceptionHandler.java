@@ -13,6 +13,7 @@ import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
+import com.ridersclub.common.exception.RiderIdAlreadyExistsException;
 import com.ridersclub.common.exception.UserNotFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,16 +39,23 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(RuntimeException.class)
   public ResponseEntity<ApiResponse<Void>> runtime(RuntimeException ex, HttpServletRequest request) {
     ApiErrors error = new ApiErrors("RUNTIME_ERROR", ex.getMessage(), request.getRequestURI());
+    log.error("Runtime exception on {}", request.getRequestURI(), ex);
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponse.failure(error, "A runtime error occurred"));
+  }
+
+  @ExceptionHandler(SecurityException.class)
+  public ResponseEntity<ApiResponse<Void>> security(SecurityException ex, HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("FORBIDDEN", ex.getMessage(), request.getRequestURI());
+    log.warn("Security exception on {}: {}", request.getRequestURI(), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(ApiResponse.failure(error, "You are not allowed to perform this action"));
   }
 
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Void>> generic(Exception ex, HttpServletRequest request) {
     ApiErrors error = new ApiErrors("INTERNAL_SERVER_ERROR", ex.getMessage(), request.getRequestURI());
     log.error("Unhandled exception: ", ex);
-    System.out.println("INTERNAL_SERVER_ERROR: " + ex.getMessage());
-    System.out.println("Request URI: " + request.getRequestURI());
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ApiResponse.failure(error, "An unexpected error occurred"));
   }
@@ -60,12 +68,19 @@ public class GlobalExceptionHandler {
         .body(ApiResponse.failure(error, "Email already in use"));
   }
 
+  @ExceptionHandler(RiderIdAlreadyExistsException.class)
+  public ResponseEntity<ApiResponse<Void>> handleRiderIdConflict(RiderIdAlreadyExistsException ex,
+      HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("RIDER_ID_EXISTS", ex.getMessage(), request.getRequestURI());
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(ApiResponse.failure(error, "Rider ID already in use"));
+  }
+
   @ExceptionHandler(InvalidCredentialsException.class)
   public ResponseEntity<ApiResponse<Void>> handleInvalidCredentials(InvalidCredentialsException ex,
       HttpServletRequest request) {
     ApiErrors error = new ApiErrors("AUTH_INVALID_CREDENTIALS", ex.getMessage(), request.getRequestURI());
-    System.out.println("Invalid credentials: " + ex.getMessage());
-    System.out.println("Request URI: " + request.getRequestURI());
+    log.warn("Invalid credentials on {}: {}", request.getRequestURI(), ex.getMessage());
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(ApiResponse.failure(error, "Invalid credentials"));
   }
