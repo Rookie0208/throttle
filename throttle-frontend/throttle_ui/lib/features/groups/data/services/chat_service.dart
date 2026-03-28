@@ -1,0 +1,102 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:stomp_dart_client/stomp_dart_client.dart';
+import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
+
+class ChatService {
+  late StompClient stompClient;
+  bool isConnected = false;
+
+  late String _groupId;
+
+  static Future<List<dynamic>> fetchMessages(String groupId) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse("http://localhost:8080/api/v1/chat/$groupId"),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    throw Exception("Failed to load messages");
+  }
+
+  void connect({
+    required String groupId,
+    required String token,
+    required Function(dynamic) onMessageReceived,
+  }) {
+    _groupId = groupId;
+
+    stompClient = StompClient(
+      config: StompConfig.sockJS(
+        url: 'http://localhost:8080/ws-friends',
+        stompConnectHeaders: {'Authorization': 'Bearer $token'},
+
+        reconnectDelay: const Duration(seconds: 5),
+
+        onConnect: (frame) {
+          print("✅ STOMP CONNECTED");
+          isConnected = true;
+
+          /// subscribe
+          stompClient.subscribe(
+            destination: '/topic/group.$groupId',
+            callback: (frame) {
+              print("📩 RAW FRAME: ${frame.body}");
+
+              if (frame.body != null) {
+                onMessageReceived(jsonDecode(frame.body!));
+              }
+            },
+          );
+        },
+
+        onWebSocketError: (error) {
+          print("❌ WS ERROR: $error");
+        },
+
+        onStompError: (frame) {
+          print("❌ STOMP ERROR: ${frame.body}");
+        },
+
+        onDisconnect: (_) {
+          print("🔌 DISCONNECTED");
+          isConnected = false;
+        },
+      ),
+    );
+
+    stompClient.activate();
+  }
+
+  /// ✅ CORRECT SEND METHOD
+  void sendMessage({required String groupId, required String text}) {
+    if (!isConnected) {
+      print("⚠️ NOT CONNECTED YET");
+      return;
+    }
+
+    final message = {
+      "groupId": _groupId,
+      "message": text,
+      "mediaUrl": null,
+      "messageType": "TEXT",
+      "uuid": DateTime.now().millisecondsSinceEpoch.toString(),
+    };
+
+    print("🚀 SENDING: $message");
+
+    stompClient.send(destination: '/app/chat.send', body: jsonEncode(message));
+  }
+
+  void disconnect() {
+    stompClient.deactivate();
+  }
+}

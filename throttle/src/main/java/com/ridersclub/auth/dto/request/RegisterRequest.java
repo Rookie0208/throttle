@@ -31,6 +31,9 @@ public class RegisterRequest {
     @Email
     private String email;
 
+    @Size(max = 50)
+    private String username;
+
     @NotBlank
     @Size(min = 3, max = 30)
     @Pattern(regexp = "^[A-Za-z0-9._]+$", message = "Rider ID can only contain letters, numbers, dots, and underscores")

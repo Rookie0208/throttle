@@ -5,7 +5,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.ridersclub.common.Utils.NormalizeUtil;
 import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.RouteType;
 import com.ridersclub.common.enums.Status;
@@ -22,12 +22,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -109,19 +109,25 @@ public class Ride {
     @Column(nullable = false)
     private OffsetDateTime updatedAt;
 
-    @PrePersist
-    public void onCreate() {
-        this.createdAt = OffsetDateTime.now();
-        this.updatedAt = OffsetDateTime.now();
-    }
-
-    @PreUpdate
-    public void onUpdate() {
-        this.updatedAt = OffsetDateTime.now();
-    }
-
     public void addLocation(RideLocation location) {
         locations.add(location);
         location.setRide(this);
+    }
+
+    @PrePersist
+    public void beforeSave() {
+        this.createdAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now();
+
+        // normalize
+        title = NormalizeUtil.trim(title);
+    }
+
+    @PreUpdate
+    public void beforeUpdate() {
+        this.updatedAt = OffsetDateTime.now();
+
+        // normalize
+        title = NormalizeUtil.trim(title);
     }
 }

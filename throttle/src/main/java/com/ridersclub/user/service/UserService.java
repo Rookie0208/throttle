@@ -49,6 +49,11 @@ public class UserService {
         return userRepository.existsByEmail(email);
     }
 
+    @Transactional(readOnly = true)
+    public boolean existsByUsername(String username) {
+        return userRepository.existsByUsername(username);
+    }
+
     public User save(User user) {
         return userRepository.save(user);
     }

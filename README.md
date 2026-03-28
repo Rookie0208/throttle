@@ -15,15 +15,15 @@ The project consists of:
 
 Throttle/
 │
-├── throttle_ui/              → Flutter Mobile App
+├── throttle_ui/ → Flutter Mobile App
 │
-└── throttle_backend/         → Spring Boot Backend
-     ├── controller/
-     ├── service/
-     ├── repository/
-     ├── model/
-     ├── security/
-     └── config/
+└── throttle_backend/ → Spring Boot Backend
+├── controller/
+├── service/
+├── repository/
+├── model/
+├── security/
+└── config/
 
 ---
 
@@ -47,11 +47,11 @@ lib/
 │
 ├── main.dart
 ├── screens/
-│   ├── onboarding_screen.dart
-│   ├── login_screen.dart
-│   ├── signup_screen.dart
-│   ├── dashboard_screen.dart
-│   └── create_ride_screen.dart
+│ ├── onboarding_screen.dart
+│ ├── login_screen.dart
+│ ├── signup_screen.dart
+│ ├── dashboard_screen.dart
+│ └── create_ride_screen.dart
 │
 ├── models/
 ├── services/
@@ -71,14 +71,14 @@ lib/
 ## ▶️ How to Run Flutter App
 
 1. Navigate to project folder:
--> cd throttle_ui (parallel to pubspec.yaml file)
--> flutter run -d chrome --web-port=8081
+   -> cd throttle_ui (parallel to pubspec.yaml file)
+   -> flutter run -d chrome --web-port=8081
 
 ## How to run db locally in docker
 
-1. keep in paraller to docker-compose file
--> docker exec -it container-id psql -U throttle_user -d throttleDB
--> You can get container id by doing "docker ps"
+1. keep in paraller to -compose file
+   -> docker exec -it container-id psql -U throttle_user -d throttleDB
+   -> You can get container id by doing "docker ps"
 
 Frontend will start at:
 http://localhost:8081
@@ -103,8 +103,7 @@ http://localhost:8081
 
 src/main/java/com/throttle/
 
-The folder structure is based on monolithic architure as a whole but internally divided into micro service architecture.
----
+## The folder structure is based on monolithic architure as a whole but internally divided into micro service architecture.
 
 ## 🛠 Requirements
 
@@ -119,19 +118,18 @@ The folder structure is based on monolithic architure as a whole but internally 
 
 Update `application.properties`:
 
-
 ---
 
 ## ▶️ Run Backend
 
 1. Navigate to backend folder:
--> cd throttle
+   -> cd throttle
 
 2. Build project:
--> mvn clean package
+   -> mvn clean package
 
 3. Run project:
--> mvn spring-boot:run
+   -> mvn spring-boot:run
 
 Backend will start at:
 http://localhost:8080
