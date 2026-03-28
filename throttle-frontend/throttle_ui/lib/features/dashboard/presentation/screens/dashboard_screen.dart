@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/group_chat_screen.dart';
 import 'package:throttle_ui/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
+import 'package:throttle_ui/features/profile/data/services/user_service.dart';
+import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/core/services/weather_service.dart';
@@ -26,6 +29,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int unreadNotificationCount = 0;
   List<NotificationItem> _notifications = [];
   NotificationItem? _dashboardAnnouncement;
+  String? _userUuid;
+  StompClient? _notificationClient;
 
   Map<String, dynamic> get _userData => widget.userData ?? const {};
 
@@ -106,8 +111,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _fetchLocationAndWeather();
-    _fetchUnreadNotificationCount();
+    _initializeNotifications();
     _syncUpcomingRideReminderNotifications();
+  }
+
+  @override
+  void dispose() {
+    _notificationClient?.deactivate();
+    super.dispose();
+  }
+
+  Future<void> _initializeNotifications() async {
+    await _resolveUserUuid();
+    await _fetchUnreadNotificationCount();
+    _connectNotificationSocket();
+  }
+
+  Future<void> _resolveUserUuid() async {
+    final widgetUserId = widget.userData?['id'];
+    if (widgetUserId is String && widgetUserId.isNotEmpty) {
+      _userUuid = widgetUserId;
+      return;
+    }
+
+    final me = await UserService.getMe();
+    final userId = me?['id'];
+    if (userId is String && userId.isNotEmpty) {
+      _userUuid = userId;
+    }
+  }
+
+  void _connectNotificationSocket() {
+    if (_userUuid == null || widget.token.isEmpty) {
+      return;
+    }
+
+    final socketUrl = AppConstants.baseUrl
+        .replaceAll('http://', 'ws://')
+        .replaceAll('https://', 'wss://')
+        .replaceAll('/api/v1', '/ws-friends');
+
+    _notificationClient?.deactivate();
+    _notificationClient = StompClient(
+      config: StompConfig(
+        url: socketUrl,
+        webSocketConnectHeaders: {'Authorization': 'Bearer ${widget.token}'},
+        onConnect: (StompFrame frame) {
+          _notificationClient?.subscribe(
+            destination: '/topic/notifications/$_userUuid',
+            callback: (StompFrame frame) {
+              _fetchUnreadNotificationCount();
+            },
+          );
+        },
+        onWebSocketError: (dynamic error) {
+          Logger.warn('Notification websocket error: $error');
+        },
+        onStompError: (StompFrame frame) {
+          Logger.warn('Notification STOMP error: ${frame.body}');
+        },
+      ),
+    );
+    _notificationClient?.activate();
   }
 
   Future<void> _fetchLocationAndWeather() async {

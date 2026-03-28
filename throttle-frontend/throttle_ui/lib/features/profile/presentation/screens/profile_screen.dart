@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/settings_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
+
 import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';

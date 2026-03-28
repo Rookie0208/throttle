@@ -44,7 +44,7 @@ class BottomNav extends StatelessWidget {
 
           /// STATS
           _navItem(
-            icon: Icons.bar_chart_outlined,
+            icon: Icons.people_outline,
             label: "Stats",
             index: 3,
           ),
