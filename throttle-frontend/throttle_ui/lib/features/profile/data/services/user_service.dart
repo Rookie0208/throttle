@@ -39,6 +39,29 @@ class UserService {
     }
   }
 
+  static Future<Map<String, dynamic>?> getProfileByUuid(String userUuid) async {
+    try {
+      final response = await ApiService.get('/users/$userUuid', authorized: true);
+
+      if (response['status'] == 200 || response['status'] == 201) {
+        final decoded = jsonDecode(response['body']);
+        if (decoded['status'] == "SUCCESS" && decoded['data'] != null) {
+          return decoded['data'];
+        }
+      }
+      await Logger.warn(
+        "Failed to load public profile $userUuid: ${response['status']} ${response['body']}",
+      );
+    } catch (e, stackTrace) {
+      await Logger.error(
+        "Exception thrown while fetching public profile $userUuid.",
+        e,
+        stackTrace,
+      );
+    }
+    return null;
+  }
+
   static Future<bool> updateProfile(Map<String, dynamic> data) async {
     try {
       final response = await ApiService.put('/users/me', data, authorized: true);

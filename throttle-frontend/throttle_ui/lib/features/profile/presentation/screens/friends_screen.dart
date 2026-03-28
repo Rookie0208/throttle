@@ -185,22 +185,26 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   List get filteredFriends {
     if (query.isEmpty) return friends;
+    final normalizedQuery = query.toLowerCase();
     return friends
         .where(
-          (f) => (f["firstName"] ?? "").toLowerCase().contains(
-            query.toLowerCase(),
-          ),
+          (f) =>
+              (f["firstName"] ?? "").toLowerCase().contains(normalizedQuery) ||
+              (f["lastName"] ?? "").toLowerCase().contains(normalizedQuery) ||
+              (f["riderId"] ?? "").toLowerCase().contains(normalizedQuery),
         )
         .toList();
   }
 
   List get filteredSuggested {
     if (query.isEmpty) return suggested;
+    final normalizedQuery = query.toLowerCase();
     return suggested
         .where(
-          (f) => (f["firstName"] ?? "").toLowerCase().contains(
-            query.toLowerCase(),
-          ),
+          (f) =>
+              (f["firstName"] ?? "").toLowerCase().contains(normalizedQuery) ||
+              (f["lastName"] ?? "").toLowerCase().contains(normalizedQuery) ||
+              (f["riderId"] ?? "").toLowerCase().contains(normalizedQuery),
         )
         .toList();
   }
@@ -347,6 +351,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Widget _userCard(Map user, {required UserCardType type}) {
     String name = "${user['firstName'] ?? ''} ${user['lastName'] ?? ''}".trim();
+    final riderId = (user['riderId'] ?? '').toString();
     if (name.isEmpty) name = "Unknown Rider";
 
     return Container(
@@ -382,6 +387,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (riderId.isNotEmpty)
+                  Text(
+                    "@$riderId",
+                    style: const TextStyle(
+                      color: Color(0xfffe6603),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 if (user['mutualFriends'] != null &&
                     (user['mutualFriends'] as int) > 0)
                   Text(
@@ -447,6 +461,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Widget _requestCard(Map req) {
     String name =
         "${req['senderFirstName'] ?? ''} ${req['senderLastName'] ?? ''}".trim();
+    final riderId = (req['senderRiderId'] ?? '').toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -481,6 +496,15 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (riderId.isNotEmpty)
+                  Text(
+                    "@$riderId",
+                    style: const TextStyle(
+                      color: Color(0xfffe6603),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 if (req['mutualCount'] != null && req['mutualCount'] > 0)
                   Text(
                     "${req['mutualCount']} Mutual Friends",
@@ -495,6 +519,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
           TextButton(
             onPressed: () => _openPublicProfile({
               'uuid': req['senderUuid'],
+              'riderId': req['senderRiderId'],
               'firstName': req['senderFirstName'],
               'lastName': req['senderLastName'],
               'profileImage': req['senderProfileImage'],

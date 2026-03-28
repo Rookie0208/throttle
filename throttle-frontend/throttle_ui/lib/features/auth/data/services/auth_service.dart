@@ -16,8 +16,9 @@ class AuthService {
   // ================= REGISTER =================
   static Future<Map<String, dynamic>> register({
     required String firstName,
+    required String riderId,
     String? lastName,
-    String? pronoun,
+    required String pronoun,
     required String email,
     required String password,
     String? bikeType,
@@ -29,8 +30,9 @@ class AuthService {
       final body = {
         "firstName": firstName,
         "lastName": lastName ?? "",
+        "riderId": riderId.trim().toLowerCase(),
         "gender": _getGenderFromPronoun(pronoun),
-        "pronoun": pronoun ?? "",
+        "pronoun": pronoun,
         "email": email,
         "password": password,
         "city": null,
@@ -211,6 +213,7 @@ class AuthService {
     required String email,
     required String firstName,
     required String lastName,
+    required String riderId,
     required String pronoun,
     required String bikeType,
   }) async {
@@ -221,6 +224,7 @@ class AuthService {
         "email": email,
         "firstName": firstName,
         "lastName": lastName,
+        "riderId": riderId.trim().toLowerCase(),
         "gender": _getGenderFromPronoun(pronoun),
         "pronoun": pronoun,
         "bikeType": bikeType,

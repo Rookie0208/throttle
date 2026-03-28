@@ -7,6 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     uuid VARCHAR(100) UNIQUE NOT NULL,
+    rider_id VARCHAR(30) UNIQUE NOT NULL,
     first_name VARCHAR(50),
     last_name VARCHAR(50),
     email VARCHAR(150) UNIQUE NOT NULL,
@@ -24,6 +25,7 @@ CREATE TABLE users (
 );
 
 CREATE INDEX idx_users_uuid ON users(uuid);
+CREATE INDEX idx_users_rider_id ON users(rider_id);
 
 --------------------------------------------------
 -- CLUBS (COMMUNITIES)

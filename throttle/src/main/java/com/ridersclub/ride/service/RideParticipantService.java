@@ -48,6 +48,7 @@ public class RideParticipantService {
     return participants.stream()
             .map(rp -> RideParticipantDto.builder()
                     .userUuid(rp.getUser().getUuid())
+                    .riderId(rp.getUser().getRiderId())
                     .firstName(rp.getUser().getFirstName())
                     .lastName(rp.getUser().getLastName())
                     .profileImage(rp.getUser().getProfileImage())

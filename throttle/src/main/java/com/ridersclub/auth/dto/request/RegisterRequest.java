@@ -7,7 +7,7 @@ import com.ridersclub.common.enums.Gender;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -22,11 +22,19 @@ public class RegisterRequest {
     private String lastName;
 
     private Gender gender;
+
+    @NotBlank
+    @Size(max = 20)
     private String pronoun;
 
     @NotBlank
     @Email
     private String email;
+
+    @NotBlank
+    @Size(min = 3, max = 30)
+    @Pattern(regexp = "^[A-Za-z0-9._]+$", message = "Rider ID can only contain letters, numbers, dots, and underscores")
+    private String riderId;
 
     @NotBlank
     @Size(min = 6, max = 100)

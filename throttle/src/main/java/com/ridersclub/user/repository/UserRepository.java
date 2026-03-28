@@ -1,7 +1,6 @@
 package com.ridersclub.user.repository;
 
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,4 +14,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
 
     Optional<User> findByUuid(String uuid);
+
+    boolean existsByRiderId(String riderId);
+
+    Optional<User> findByRiderId(String riderId);
 }
