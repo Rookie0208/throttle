@@ -27,15 +27,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic"); // where messages are sent
-        config.setApplicationDestinationPrefixes("/app"); // for incoming messages
+        config.enableSimpleBroker("/topic", "/queue");
+        config.setApplicationDestinationPrefixes("/app");
+        config.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .withSockJS(); // optional (keep it)
+        registry.addEndpoint("/ws-friends").setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws-friends").setAllowedOriginPatterns("*").withSockJS();
+        // registry.addEndpoint("/ws-chat").setAllowedOriginPatterns("*").withSockJS();
     }
 
     @Override

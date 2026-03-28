@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - main
+      - master
       - throttle_rohan
       - throttle_amit
-      - master
+      - throttle_abhay
+      - '**'
   pull_request:
     branches:
       - main
+      - master
 
 jobs:
   build-backend:

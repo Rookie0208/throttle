@@ -2,6 +2,7 @@ package com.ridersclub.user.service;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Comparator;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -133,9 +134,10 @@ public class UserService {
                 .findByUser_Id(user.getId());
         List<com.ridersclub.ride.entity.Ride> userRides = rideRepository.findAllById(
                 participants.stream().map(p -> p.getRide().getId()).toList());
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
 
         // Calculate weekly stats from actual rides in the last 7 days
-        java.time.LocalDateTime oneWeekAgo = java.time.LocalDateTime.now().minusDays(7);
+        java.time.LocalDateTime oneWeekAgo = now.minusDays(7);
         List<com.ridersclub.ride.entity.Ride> weeklyRides = userRides.stream()
                 .filter(r -> r.getEndTime() != null && r.getEndTime().isAfter(oneWeekAgo))
                 .toList();
@@ -179,16 +181,40 @@ public class UserService {
                 .toList();
         response.setRecentRides(recentRides);
 
-        // Upcoming ride pushed down to DB
-        rideRepository.findFirstByIdInAndStatusAndStartTimeAfterOrderByStartTimeAsc(
-                joinedRideIds, com.ridersclub.common.enums.Status.SCHEDULED, java.time.LocalDateTime.now())
+        userRides.stream()
+                .filter(r -> r.getStatus() == com.ridersclub.common.enums.Status.IN_PROGRESS)
+                .max(Comparator.comparing(com.ridersclub.ride.entity.Ride::getStartTime))
+                .ifPresent(activeRide -> response.setTodayRide(new UserProfileResponse.UpcomingRideDto(
+                        activeRide.getUuid(),
+                        activeRide.getUuid(),
+                        activeRide.getTitle(),
+                        "IN PROGRESS • " + activeRide.getStartTime().getMonth().name().substring(0, 3) + " "
+                                + activeRide.getStartTime().getDayOfMonth() + " • "
+                                + activeRide.getStartTime().getHour() + ":"
+                                + String.format("%02d", activeRide.getStartTime().getMinute()),
+                        activeRide.getStartTime().getHour() + ":"
+                                + String.format("%02d", activeRide.getStartTime().getMinute()),
+                        (int) rideParticipantRepository.countByRide_Id(activeRide.getId()),
+                        activeRide.getStartTime().toString())));
+
+        userRides.stream()
+                .filter(r -> r.getStartTime() != null && r.getStartTime().isAfter(now))
+                .filter(r -> r.getStatus() != com.ridersclub.common.enums.Status.CANCELLED)
+                .filter(r -> r.getStatus() != com.ridersclub.common.enums.Status.COMPLETED)
+                .filter(r -> r.getStatus() != com.ridersclub.common.enums.Status.ARCHIVED)
+                .min(Comparator.comparing(com.ridersclub.ride.entity.Ride::getStartTime))
                 .ifPresent(ur -> {
                     response.setUpcomingRide(new UserProfileResponse.UpcomingRideDto(
+                            ur.getUuid(),
                             ur.getUuid(),
                             ur.getTitle(),
                             ur.getMaxRiders() + " Riders • " + ur.getStartTime().getMonth().name().substring(0, 3) + " "
                                     + ur.getStartTime().getDayOfMonth() + " • " + ur.getStartTime().getHour() + ":"
-                                    + String.format("%02d", ur.getStartTime().getMinute())));
+                                    + String.format("%02d", ur.getStartTime().getMinute()),
+                            ur.getStartTime().getHour() + ":"
+                                    + String.format("%02d", ur.getStartTime().getMinute()),
+                            (int) rideParticipantRepository.countByRide_Id(ur.getId()),
+                            ur.getStartTime().toString()));
                 });
 
         return response;

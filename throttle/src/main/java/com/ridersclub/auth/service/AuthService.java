@@ -25,6 +25,7 @@ import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.user.entity.User;
+import com.ridersclub.user.service.RiderIdService;
 import com.ridersclub.user.service.UserService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final OtpService otpService;
     private final RefreshTokenService refreshTokenService;
+    private final org.springframework.data.neo4j.core.Neo4jClient neo4jClient;
+    private final RiderIdService riderIdService;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -49,12 +52,34 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
             OtpService otpService,
-            RefreshTokenService refreshTokenService) {
+            RefreshTokenService refreshTokenService,
+            org.springframework.data.neo4j.core.Neo4jClient neo4jClient,
+            RiderIdService riderIdService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.otpService = otpService;
         this.refreshTokenService = refreshTokenService;
+        this.neo4jClient = neo4jClient;
+        this.riderIdService = riderIdService;
+    }
+
+    /** Async Neo4j dual-write — MERGE so it's safe to call multiple times */
+    private void syncUserToNeo4j(String uuid, String firstName, String lastName) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                neo4jClient.query(
+                        "MERGE (u:User {id: $id}) " +
+                                "SET u.firstName = $firstName, u.lastName = $lastName")
+                        .bind(uuid).to("id")
+                        .bind(firstName != null ? firstName : "").to("firstName")
+                        .bind(lastName != null ? lastName : "").to("lastName")
+                        .run();
+                log.info("Neo4j node created/updated for user {}", uuid);
+            } catch (Exception e) {
+                log.error("Failed to sync user {} to Neo4j: {}", uuid, e.getMessage());
+            }
+        });
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -79,6 +104,8 @@ public class AuthService {
         if (userService.existsByEmail(request.getEmail())) {
             throw new EmailAlreadyExistsException("Email already in use");
         }
+        String normalizedRiderId = riderIdService.normalizeAndValidateRequested(request.getRiderId());
+        riderIdService.assertAvailable(normalizedRiderId);
 
         if (userService.existsByUsername(request.getUsername())) {
             throw new EmailAlreadyExistsException("Username already in use");
@@ -88,6 +115,7 @@ public class AuthService {
         user.setUuid(UUID.randomUUID().toString());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setRiderId(normalizedRiderId);
         user.setEmail(request.getEmail());
         user.setUsername(request.getUsername() != null ? request.getUsername() : request.getEmail().split("@")[0]);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -100,9 +128,18 @@ public class AuthService {
         user.setActive(true);
 
         User saved = userService.save(user);
-        boolean verificationRequired = true; // adjust logic as needed
+        syncUserToNeo4j(saved.getUuid(), saved.getFirstName(), saved.getLastName());
+
+        boolean verificationRequired = true;
         String verificationType = verificationRequired ? "EMAIL" : "NONE";
-        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType);
+
+        long expiresIn = 900L;
+        String roleValue = saved.getRole() != null ? saved.getRole().name() : "RIDER";
+        String token = jwtService.generate(saved.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
+        String refreshToken = refreshTokenService.createRefreshToken(saved.getId()).getToken();
+
+        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType, token,
+                refreshToken, expiresIn);
     }
 
     public GoogleAuthResponse verifyGoogleToken(GoogleAuthRequest request) {
@@ -156,13 +193,16 @@ public class AuthService {
             log.warn("Attempted to complete Google registration for existing email: {}", request.getEmail());
             throw new EmailAlreadyExistsException("Email already in use");
         }
+        String normalizedRiderId = riderIdService.normalizeAndValidateRequested(request.getRiderId());
+        riderIdService.assertAvailable(normalizedRiderId);
 
         User user = new User();
         user.setUuid(UUID.randomUUID().toString());
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setRiderId(normalizedRiderId);
         user.setEmail(request.getEmail());
-        user.setUsername(request.getUsername() != null ? request.getUsername() : request.getEmail().split("@")[0]);
+        user.setUsername(request.getRiderId());
         user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString())); // Dummy password for OAuth users to
                                                                                 // satisfy DB constraint
         user.setCity(request.getCity());
@@ -174,6 +214,7 @@ public class AuthService {
         user.setActive(true);
 
         User saved = userService.save(user);
+        syncUserToNeo4j(saved.getUuid(), saved.getFirstName(), saved.getLastName());
         log.info("Completed Google registration for new user: {}", request.getEmail());
 
         long expiresIn = 900L;
