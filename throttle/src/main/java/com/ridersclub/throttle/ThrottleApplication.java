@@ -14,10 +14,12 @@ import com.ridersclub.friend.repository.neo4j.UserNodeRepository;
 @EnableAsync
 @EnableJpaRepositories(basePackages = { "com.ridersclub.user.repository", "com.ridersclub.ride.repository",
         "com.ridersclub.notification.repository", "com.ridersclub.auth.repository",
-        "com.ridersclub.friend.repository" }, excludeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = UserNodeRepository.class))
+        "com.ridersclub.friend.repository",
+        "com.ridersclub.message.repository" }, excludeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = UserNodeRepository.class))
 @EnableNeo4jRepositories(basePackages = "com.ridersclub.friend.repository", includeFilters = @Filter(type = FilterType.ASSIGNABLE_TYPE, classes = UserNodeRepository.class))
 @EntityScan(basePackages = { "com.ridersclub.user.entity", "com.ridersclub.ride.entity",
-        "com.ridersclub.notification.entity", "com.ridersclub.auth.entity", "com.ridersclub.friend.entity" })
+        "com.ridersclub.notification.entity", "com.ridersclub.auth.entity", "com.ridersclub.friend.entity",
+        "com.ridersclub.message.entity" })
 @SpringBootApplication(scanBasePackages = "com.ridersclub")
 public class ThrottleApplication {
 

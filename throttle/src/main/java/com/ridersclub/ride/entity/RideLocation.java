@@ -1,9 +1,12 @@
 package com.ridersclub.ride.entity;
 
+import java.time.LocalDateTime;
+
+import com.ridersclub.common.enums.LocationType;
+import com.ridersclub.user.entity.User;
+
 import jakarta.persistence.Column;
-import jakarta.persistence.Embeddable;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Table;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -13,16 +16,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
-import java.time.LocalDateTime;
-
-import com.ridersclub.common.enums.LocationType;
-import com.ridersclub.user.entity.User;
-
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "ride_locations")
@@ -30,6 +29,7 @@ import lombok.Data;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Data
 public class RideLocation {
 
     @Id

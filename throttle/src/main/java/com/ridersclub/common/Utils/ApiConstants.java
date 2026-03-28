@@ -78,6 +78,14 @@ public class ApiConstants {
         public static final String MARK_AS_READ = "/{id}/read";
     }
 
+    public static final class Message {
+
+        public static final String BASE = API_VERSION + "/messages";
+        public static final String SEND = "/send";
+        public static final String GET_GROUP_MESSAGES = "/{groupUuid}";
+        public static final String MARK_AS_READ = "/read";
+    }
+
     public static final class Users {
         public static final String BASE = API_VERSION + "/users";
         public static final String ME = "/me";
