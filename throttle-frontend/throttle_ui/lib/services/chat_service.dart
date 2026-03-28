@@ -1,12 +1,32 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:stomp_dart_client/stomp.dart';
 import 'package:stomp_dart_client/stomp_config.dart';
+import 'package:throttle_ui/services/auth_service.dart';
 
-class ChatSocket {
+class ChatService {
   late StompClient stompClient;
   bool isConnected = false;
 
   late String _groupId;
+
+  static Future<List<dynamic>> fetchMessages(String groupId) async {
+    final token = await AuthService.getToken();
+
+    final response = await http.get(
+      Uri.parse("http://localhost:8080/api/v1/chat/$groupId"),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    throw Exception("Failed to load messages");
+  }
 
   void connect({
     required String groupId,

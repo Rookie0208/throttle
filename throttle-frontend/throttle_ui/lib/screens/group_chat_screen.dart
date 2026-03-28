@@ -20,7 +20,8 @@ class GroupChatScreen extends StatefulWidget {
 class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
-  late ChatSocket chatSocket;
+  late ChatService
+  chatSocket; // socket is implemented in service file for simplicity
 
   List subGroups = [];
   bool loadingSubGroups = true;
@@ -59,27 +60,35 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
 
     try {
-      /// TODO: Replace with API
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      /// DEMO DATA
-      List data = id == widget.group["uuid"]
-          ? [
-              {
-                "senderId": "uuid--123",
-                "senderName": "Mike",
-                "message": "Main group message",
-                "time": "08:00 AM",
-              },
-            ]
-          : [];
+      final data = await ChatService.fetchMessages(
+        "b34616ca-287f-4449-b74a-59d19672464c",
+      );
 
       setState(() {
-        messages = List<Map<String, dynamic>>.from(data);
+        messages = List<Map<String, dynamic>>.from(
+          data.map(
+            (m) => {
+              "group": m["groupId"],
+              "senderId": m["senderId"],
+              "senderName": m["senderName"],
+              "message": m["message"],
+              "time": m["createdAt"], // backend time
+            },
+          ),
+        );
+
         loadingMessages = false;
       });
+
+      /// auto scroll after loading
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (scrollController.hasClients) {
+          scrollController.jumpTo(scrollController.position.maxScrollExtent);
+        }
+      });
     } catch (e) {
-      loadingMessages = false;
+      print("❌ fetchMessages error: $e");
+      setState(() => loadingMessages = false);
     }
   }
 
@@ -90,7 +99,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     fetchSubGroups();
     fetchMessages(widget.group["uuid"]);
 
-    chatSocket = ChatSocket();
+    chatSocket = ChatService();
 
     chatSocket.connect(
       groupId: "b34616ca-287f-4449-b74a-59d19672464c",
