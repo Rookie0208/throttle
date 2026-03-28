@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
+import 'package:throttle_ui/features/groups/presentation/screens/invite_member_screen.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
@@ -835,10 +836,16 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   _quickAction(
                     icon: Icons.person_add_alt_1,
                     label: "Add Members",
-                    enabled: !_isGroupLocked,
+                    enabled: !_isGroupLocked && _canManageMembers(currentUserRole),
                     onTap: () {
-                      _showMessage(
-                        "Add members flow can be connected here when the invite flow is ready.",
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => InviteMemberScreen(
+                            groupId: widget.rideGroup["uuid"],
+                            token: widget.token,
+                          ),
+                        ),
                       );
                     },
                   ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final VoidCallback onClose;
@@ -76,6 +77,204 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   String formatTime(String isoTime) {
     final dt = DateTime.parse(isoTime).toLocal();
     return "${dt.hour}:${dt.minute.toString().padLeft(2, '0')}";
+  }
+
+  String formatDateTime(String isoTime) {
+    final dt = DateTime.parse(isoTime).toLocal();
+    final hour = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final suffix = dt.hour >= 12 ? "PM" : "AM";
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return "${dt.day}/${dt.month}/${dt.year} • $hour:$minute $suffix";
+  }
+
+  Future<void> _handleNotificationTap(NotificationItem notification) async {
+    if (notification.type != "RIDE_GROUP_INVITE" ||
+        notification.referenceId == null) {
+      return;
+    }
+
+    try {
+      final invitation = await RideService.fetchInvitationDetails(
+        widget.token,
+        notification.referenceId!,
+      );
+      if (!mounted) return;
+
+      if (notification.unread) {
+        toggleRead(notification, true);
+      }
+
+      final action = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: AppColors.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (sheetContext) => _invitationSheet(sheetContext, invitation),
+      );
+
+      if (action == null) return;
+
+      if (action == "accept") {
+        await RideService.acceptInvitation(widget.token, notification.referenceId!);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ride invitation accepted")),
+        );
+      } else if (action == "reject") {
+        await RideService.rejectInvitation(widget.token, notification.referenceId!);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Ride invitation rejected")),
+        );
+      }
+
+      await loadNotifications();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
+      );
+    }
+  }
+
+  Widget _invitationSheet(
+    BuildContext sheetContext,
+    Map<String, dynamic> invitation,
+  ) {
+    final status = (invitation["status"] ?? "PENDING").toString();
+    final isPending = status == "PENDING";
+    final meetingPoint = (invitation["meetingPoint"] ?? "").toString().trim();
+    final description = (invitation["rideDescription"] ?? "").toString().trim();
+    final rideStartTime = invitation["rideStartTime"]?.toString();
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(.08),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.primary.withOpacity(.24)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  invitation["rideTitle"]?.toString() ?? "Ride invitation",
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Invited by ${invitation["inviterName"] ?? "Unknown"}",
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                if (rideStartTime != null && rideStartTime.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  _inviteMetaRow(Icons.schedule, formatDateTime(rideStartTime)),
+                ],
+                if (meetingPoint.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _inviteMetaRow(Icons.place_outlined, meetingPoint),
+                ],
+              ],
+            ),
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              description,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          if (!isPending)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                status == "ACCEPTED"
+                    ? "You already accepted this invitation."
+                    : "You already rejected this invitation.",
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () =>
+                      Navigator.pop(sheetContext, isPending ? "reject" : null),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: isPending ? AppColors.border : AppColors.borderSoft,
+                    ),
+                    foregroundColor: isPending
+                        ? AppColors.textPrimary
+                        : AppColors.textHint,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(isPending ? "Reject" : "Close"),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: isPending
+                      ? () => Navigator.pop(sheetContext, "accept")
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    disabledBackgroundColor: AppColors.surfaceMuted,
+                    disabledForegroundColor: AppColors.textHint,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text("Accept"),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _inviteMetaRow(IconData icon, String label) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppColors.highlight),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+        ),
+      ],
+    );
   }
 
   String _sectionKey(NotificationItem n) {
@@ -276,80 +475,84 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         }
         return false;
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: n.unread
-              ? AppColors.primary.withOpacity(.05)
-              : AppColors.surfaceSoft,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => _handleNotificationTap(n),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
             color: n.unread
-                ? AppColors.primary.withOpacity(.3)
-                : AppColors.primary.withOpacity(.15),
+                ? AppColors.primary.withOpacity(.05)
+                : AppColors.surfaceSoft,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: n.unread
+                  ? AppColors.primary.withOpacity(.3)
+                  : AppColors.primary.withOpacity(.15),
+            ),
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: n.unread
-                    ? AppColors.secondary.withOpacity(.14)
-                    : AppColors.white.withOpacity(.05),
-                borderRadius: BorderRadius.circular(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: n.unread
+                      ? AppColors.secondary.withOpacity(.14)
+                      : AppColors.white.withOpacity(.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  n.unread ? Icons.notifications_active : Icons.notifications_none,
+                  color: n.unread ? AppColors.secondary : AppColors.white70,
+                  size: 20,
+                ),
               ),
-              child: Icon(
-                n.unread ? Icons.notifications_active : Icons.notifications_none,
-                color: n.unread ? AppColors.secondary : AppColors.white70,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    n.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: n.unread ? AppColors.white : AppColors.white70,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      n.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: n.unread ? AppColors.white : AppColors.white70,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    n.desc,
-                    style: TextStyle(
-                      color: n.unread ? AppColors.white : AppColors.white70,
-                      height: 1.3,
+                    const SizedBox(height: 4),
+                    Text(
+                      n.desc,
+                      style: TextStyle(
+                        color: n.unread ? AppColors.white : AppColors.white70,
+                        height: 1.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    formatTime(n.time),
-                    style: const TextStyle(fontSize: 11, color: AppColors.textHint),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      formatTime(n.time),
+                      style: const TextStyle(fontSize: 11, color: AppColors.textHint),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: n.unread ? "Mark as read" : "Mark as unread",
-              onPressed: () => toggleRead(n, n.unread),
-              icon: Icon(
-                n.unread ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
-                color: n.unread ? AppColors.secondary : AppColors.highlight,
-                size: 20,
+              const SizedBox(width: 8),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: n.unread ? "Mark as read" : "Mark as unread",
+                onPressed: () => toggleRead(n, n.unread),
+                icon: Icon(
+                  n.unread ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
+                  color: n.unread ? AppColors.secondary : AppColors.highlight,
+                  size: 20,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

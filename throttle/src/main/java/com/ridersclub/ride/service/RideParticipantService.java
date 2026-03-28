@@ -1,5 +1,6 @@
 package com.ridersclub.ride.service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -8,16 +9,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.RideInvitationStatus;
+import com.ridersclub.common.enums.Status;
 import com.ridersclub.common.enums.Visibility;
+import com.ridersclub.friend.repository.FriendshipRepository;
 import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideGroup;
+import com.ridersclub.ride.entity.RideInvitation;
+import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
 import com.ridersclub.notification.service.NotificationService;
+import com.ridersclub.ride.dto.response.RideInvitationResponse;
 import com.ridersclub.ride.repository.RideParticipantRepository;
 import com.ridersclub.ride.repository.RideRepository;
 import com.ridersclub.ride.dto.response.RideParticipantDto;
 import com.ridersclub.ride.repository.GroupMemberRepository;
+import com.ridersclub.ride.repository.RideInvitationRepository;
 import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
@@ -35,6 +43,10 @@ public class RideParticipantService {
     private GroupMemberRepository groupMemberRepository;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private FriendshipRepository friendshipRepository;
+    @Autowired
+    private RideInvitationRepository rideInvitationRepository;
     @Autowired
     private NotificationService notificationService;
 
@@ -193,6 +205,167 @@ public class RideParticipantService {
                     ride.getId(),
                     "RIDE");
         }
+    }
+
+    @Transactional
+    public RideInvitationResponse inviteMember(String rideUuid, String inviteeUuid, String actorUserUuid) {
+        Ride ride = rideRepository.findByUuid(rideUuid)
+                .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+        RideParticipant actor = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, actorUserUuid)
+                .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
+
+        if (!(actor.getRole() == Role.CAPTAIN || actor.getRole() == Role.ADMIN)) {
+            throw new RuntimeException("Only captain/admin can invite riders");
+        }
+
+        User invitee = userRepository.findByUuid(inviteeUuid)
+                .orElseThrow(() -> new RuntimeException("Friend not found"));
+
+        if (actor.getUser().getUuid().equals(inviteeUuid)) {
+            throw new RuntimeException("You cannot invite yourself");
+        }
+
+        if (!friendshipRepository.existsByUserAndFriend(actor.getUser(), invitee)) {
+            throw new RuntimeException("You can only invite friends to the ride");
+        }
+
+        if (participantRepository.existsByRide_IdAndUser_Id(ride.getId(), invitee.getId())) {
+            throw new RuntimeException("This rider is already part of the group");
+        }
+
+        if (rideInvitationRepository.existsByRide_IdAndInvitee_IdAndStatus(
+                ride.getId(),
+                invitee.getId(),
+                RideInvitationStatus.PENDING)) {
+            throw new RuntimeException("An invitation is already pending for this rider");
+        }
+
+        RideInvitation invitation = new RideInvitation();
+        invitation.setRide(ride);
+        invitation.setInviter(actor.getUser());
+        invitation.setInvitee(invitee);
+        invitation.setStatus(RideInvitationStatus.PENDING);
+
+        RideInvitation savedInvitation = rideInvitationRepository.save(invitation);
+
+        notificationService.createAndSend(
+                invitee.getId(),
+                "RIDE_GROUP_INVITE",
+                "Ride group invitation",
+                formatUserName(actor.getUser()) + " invited you to join \"" + ride.getTitle() + "\".",
+                savedInvitation.getId(),
+                "RIDE_INVITATION");
+
+        return mapInvitationResponse(savedInvitation);
+    }
+
+    @Transactional(readOnly = true)
+    public RideInvitationResponse getInvitationDetails(Long invitationId, String actorUserUuid) {
+        RideInvitation invitation = rideInvitationRepository.findById(invitationId)
+                .orElseThrow(() -> new RuntimeException("Invitation not found"));
+
+        boolean isInvitee = invitation.getInvitee().getUuid().equals(actorUserUuid);
+        boolean isInviter = invitation.getInviter().getUuid().equals(actorUserUuid);
+        if (!isInvitee && !isInviter) {
+            throw new RuntimeException("You are not allowed to view this invitation");
+        }
+
+        return mapInvitationResponse(invitation);
+    }
+
+    @Transactional
+    public void acceptInvitation(Long invitationId, String inviteeUuid) {
+        RideInvitation invitation = rideInvitationRepository.findByIdAndInvitee_Uuid(invitationId, inviteeUuid)
+                .orElseThrow(() -> new RuntimeException("Invitation not found"));
+
+        if (invitation.getStatus() != RideInvitationStatus.PENDING) {
+            throw new RuntimeException("This invitation has already been responded to");
+        }
+
+        Ride ride = invitation.getRide();
+        User invitee = invitation.getInvitee();
+
+        if (!participantRepository.existsByRide_IdAndUser_Id(ride.getId(), invitee.getId())) {
+            participantRepository.save(new RideParticipant(ride, invitee, Role.RIDER, Status.CREATED));
+        }
+
+        RideGroup mainGroup = rideGroupRepository.findByRideAndParentGroupIsNull(ride)
+                .orElseThrow(() -> new RuntimeException("Main group not found"));
+
+        if (!groupMemberRepository.existsByGroup_IdAndUser_Id(mainGroup.getId(), invitee.getId())) {
+            GroupMember member = new GroupMember();
+            member.setGroup(mainGroup);
+            member.setUser(invitee);
+            member.setRole(Role.RIDER.name());
+            groupMemberRepository.save(member);
+        }
+
+        invitation.setStatus(RideInvitationStatus.ACCEPTED);
+        invitation.setRespondedAt(LocalDateTime.now());
+        rideInvitationRepository.save(invitation);
+
+        notificationService.createAndSend(
+                invitation.getInviter().getId(),
+                "RIDE_INVITE_ACCEPTED",
+                "Ride invitation accepted",
+                formatUserName(invitee) + " accepted your invite to \"" + ride.getTitle() + "\".",
+                invitation.getId(),
+                "RIDE_INVITATION");
+    }
+
+    @Transactional
+    public void rejectInvitation(Long invitationId, String inviteeUuid) {
+        RideInvitation invitation = rideInvitationRepository.findByIdAndInvitee_Uuid(invitationId, inviteeUuid)
+                .orElseThrow(() -> new RuntimeException("Invitation not found"));
+
+        if (invitation.getStatus() != RideInvitationStatus.PENDING) {
+            throw new RuntimeException("This invitation has already been responded to");
+        }
+
+        invitation.setStatus(RideInvitationStatus.REJECTED);
+        invitation.setRespondedAt(LocalDateTime.now());
+        rideInvitationRepository.save(invitation);
+
+        notificationService.createAndSend(
+                invitation.getInviter().getId(),
+                "RIDE_INVITE_REJECTED",
+                "Ride invitation rejected",
+                formatUserName(invitation.getInvitee()) + " declined your invite to \"" + invitation.getRide().getTitle() + "\".",
+                invitation.getId(),
+                "RIDE_INVITATION");
+    }
+
+    private RideInvitationResponse mapInvitationResponse(RideInvitation invitation) {
+        Ride ride = invitation.getRide();
+        RideLocation startLocation = ride.getLocations()
+                .stream()
+                .filter(location -> location.getSequence() != null && location.getSequence() == 0)
+                .findFirst()
+                .orElseGet(() -> ride.getLocations().stream().findFirst().orElse(null));
+
+        return RideInvitationResponse.builder()
+                .id(invitation.getId())
+                .rideUuid(ride.getUuid())
+                .rideTitle(ride.getTitle())
+                .rideDescription(ride.getDescription())
+                .rideStartTime(ride.getStartTime())
+                .meetingPoint(startLocation != null ? startLocation.getName() : null)
+                .inviterUuid(invitation.getInviter().getUuid())
+                .inviterName(formatUserName(invitation.getInviter()))
+                .inviteeUuid(invitation.getInvitee().getUuid())
+                .inviteeName(formatUserName(invitation.getInvitee()))
+                .status(invitation.getStatus())
+                .createdAt(invitation.getCreatedAt())
+                .respondedAt(invitation.getRespondedAt())
+                .build();
+    }
+
+    private String formatUserName(User user) {
+        String firstName = user.getFirstName() != null ? user.getFirstName().trim() : "";
+        String lastName = user.getLastName() != null ? user.getLastName().trim() : "";
+        String fullName = (firstName + " " + lastName).trim();
+        return fullName.isEmpty() ? "Someone" : fullName;
     }
 
 }

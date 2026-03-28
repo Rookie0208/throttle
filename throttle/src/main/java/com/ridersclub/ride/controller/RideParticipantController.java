@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ridersclub.common.Utils.ApiConstants;
 import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.ride.dto.request.AssignRoleRequest;
+import com.ridersclub.ride.dto.request.InviteRideMemberRequest;
 import com.ridersclub.ride.service.RideParticipantService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping(ApiConstants.RideParticipant.BASE)
@@ -50,5 +53,44 @@ public class RideParticipantController {
         String currentUserUuid = authentication.getPrincipal().toString();
         participantService.updateRole(rideId, userId, request.getRole(), currentUserUuid);
         return ApiResponse.success(null, "Role updated successfully");
+    }
+
+    @PostMapping(ApiConstants.RideParticipant.INVITE)
+    public ApiResponse<?> inviteMember(
+            @PathVariable String rideId,
+            @Valid @RequestBody InviteRideMemberRequest request,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                participantService.inviteMember(rideId, request.getInviteeUuid(), currentUserUuid),
+                "Ride invitation sent successfully");
+    }
+
+    @GetMapping(ApiConstants.RideParticipant.INVITATION_DETAILS)
+    public ApiResponse<?> getInvitationDetails(
+            @PathVariable Long invitationId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                participantService.getInvitationDetails(invitationId, currentUserUuid),
+                "Invitation details fetched");
+    }
+
+    @PostMapping(ApiConstants.RideParticipant.INVITATION_ACCEPT)
+    public ApiResponse<?> acceptInvitation(
+            @PathVariable Long invitationId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        participantService.acceptInvitation(invitationId, currentUserUuid);
+        return ApiResponse.success(null, "Ride invitation accepted");
+    }
+
+    @PostMapping(ApiConstants.RideParticipant.INVITATION_REJECT)
+    public ApiResponse<?> rejectInvitation(
+            @PathVariable Long invitationId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        participantService.rejectInvitation(invitationId, currentUserUuid);
+        return ApiResponse.success(null, "Ride invitation rejected");
     }
 }
