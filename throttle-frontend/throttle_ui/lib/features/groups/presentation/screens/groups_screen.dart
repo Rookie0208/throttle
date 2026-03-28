@@ -148,35 +148,6 @@ class _GroupsScreenState extends State<GroupsScreen>
   }
 }
 
-// change this dummy data
-void _loadDummyData() {
-  setState(() {
-    groups = [
-      {
-        "id": "1",
-        "name": "Morning Riders",
-        "status": "active",
-        "rideStatus": "CREATED",
-        "members": [
-          {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
-          {"id": "u2", "name": "Sara", "role": "RIDER"},
-          {"id": "u3", "name": "John", "role": "NAVIGATOR"},
-        ]
-      },
-      {
-        "id": "2",
-        "name": "Weekend Warriors",
-        "status": "archive",
-        "rideStatus": "STARTED",
-        "members": [
-          {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
-          {"id": "u5", "name": "Tom", "role": "RIDER"},
-        ]
-      },
-    ];
-    isLoading = false;
-  });
-}
 
   Widget _buildGroupCard(Map<String, dynamic> group) {
     return GestureDetector(

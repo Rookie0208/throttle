@@ -18,9 +18,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 
 import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
+import com.ridersclub.ride.dto.request.AssignRoleRequest;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideAnnouncementRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
@@ -178,6 +180,39 @@ public class RideController {
 
         String userUuid = authentication.getPrincipal().toString();
         return ApiResponse.success(rideService.getSubGroups(groupUuid, userUuid), "Subgroups");
+    }
+
+    @GetMapping("/groups/{groupUuid}")
+    public ApiResponse<?> getGroupDetails(@PathVariable String groupUuid, Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(rideService.getGroupDetails(groupUuid, userUuid), "Group details");
+    }
+
+    @GetMapping("/groups/{groupUuid}/members")
+    public ApiResponse<?> getGroupMembers(@PathVariable String groupUuid, Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(rideService.getGroupMembers(groupUuid, userUuid), "Group members");
+    }
+
+    @PutMapping("/groups/{groupUuid}/members/{userId}/role")
+    public ApiResponse<?> updateGroupMemberRole(
+            @PathVariable String groupUuid,
+            @PathVariable String userId,
+            @RequestBody AssignRoleRequest request,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.updateGroupMemberRole(groupUuid, userId, request.getRole(), currentUserUuid);
+        return ApiResponse.success(null, "Subgroup role updated successfully");
+    }
+
+    @DeleteMapping("/groups/{groupUuid}/members/{userId}")
+    public ApiResponse<?> removeGroupMember(
+            @PathVariable String groupUuid,
+            @PathVariable String userId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.removeGroupMember(groupUuid, userId, currentUserUuid);
+        return ApiResponse.success(null, "Subgroup member removed successfully");
     }
 
     @DeleteMapping("/{id}/members/{userId}")
