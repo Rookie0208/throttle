@@ -14,7 +14,7 @@ public interface MessageService {
             String mediaUrl,
             String messageType);
 
-    List<MessageResponse> getMessages(String groupUuid);
+    List<MessageDTO> getMessages(String groupUuid);
 
     void markMessagesAsRead(String userUuid, String groupUuid);
 

@@ -73,12 +73,12 @@ public class MessageServiceImpl implements MessageService {
         // ===============================
         @Override
         @Transactional(readOnly = true)
-        public List<MessageResponse> getMessages(String groupUuid) {
+        public List<MessageDTO> getMessages(String groupUuid) {
 
                 return messageRepo
                                 .findTop20ByGroup_UuidOrderByCreatedAtDesc(groupUuid)
                                 .stream()
-                                .map(this::mapToResponse)
+                                .map(this::mapToDTO)
                                 .collect(Collectors.toList());
         }
 

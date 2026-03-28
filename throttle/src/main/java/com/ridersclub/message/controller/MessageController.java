@@ -1,19 +1,24 @@
 package com.ridersclub.message.controller;
 
 import java.security.Principal;
+import java.util.List;
 
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.ridersclub.message.dto.response.MessageDTO;
+import com.ridersclub.message.dto.response.MessageResponse;
 import com.ridersclub.message.service.MessageService;
+import com.ridersclub.common.Utils.ApiConstants;
 
 import lombok.RequiredArgsConstructor;
 
-@Controller
-
+@RestController
 @RequiredArgsConstructor
 public class MessageController {
 
@@ -36,13 +41,13 @@ public class MessageController {
     // messageType);
     // }
 
-    // // GET CHAT
-    // @GetMapping(ApiConstants.Message.GET_GROUP_MESSAGES)
-    // public List<MessageResponse> getMessages(
-    // @PathVariable String groupUuid) {
+    // GET CHAT
+    @GetMapping("/api/v1/chat/{groupUuid}")
+    public List<MessageDTO> getMessages(
+            @PathVariable String groupUuid) {
 
-    // return messageService.getMessages(groupUuid);
-    // }
+        return messageService.getMessages(groupUuid);
+    }
 
     // // MARK READ
     // @PostMapping(ApiConstants.Message.MARK_AS_READ)
