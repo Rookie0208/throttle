@@ -11,6 +11,7 @@ import lombok.Setter;
 @Setter
 public class RideParticipantDto {
     private String userUuid;
+    private String riderId;
     private String firstName;
     private String lastName;
     private String profileImage;

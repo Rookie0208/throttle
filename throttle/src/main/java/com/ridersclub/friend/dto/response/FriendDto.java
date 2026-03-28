@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class FriendDto {
     private String uuid;
+    private String riderId;
     private String firstName;
     private String lastName;
     private String profileImage;
