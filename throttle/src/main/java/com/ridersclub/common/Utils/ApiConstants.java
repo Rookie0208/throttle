@@ -85,4 +85,22 @@ public class ApiConstants {
         public static final String GET_GROUP_MESSAGES = "/{groupUuid}";
         public static final String MARK_AS_READ = "/read";
     }
+
+    public static final class Users {
+        public static final String BASE = API_VERSION + "/users";
+        public static final String ME = "/me";
+        public static final String DETAILS = "/{userId}";
+    }
+
+    public static final class Friends {
+        public static final String BASE = API_VERSION;
+        public static final String REQUEST = "/friends/request";
+        public static final String ACCEPT = "/friends/accept/{requestId}";
+        public static final String REJECT = "/friends/reject/{requestId}";
+        public static final String UNFRIEND = "/friends/{targetUserId}";
+        public static final String RELATIONSHIP = "/friends/status/{targetUserId}";
+        public static final String LIST = "/users/{userId}/friends";
+        public static final String PENDING_REQUESTS = "/friends/requests/pending";
+        public static final String RECOMMENDATIONS = "/users/{userId}/friends/recommendations";
+    }
 }

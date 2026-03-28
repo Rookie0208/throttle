@@ -19,9 +19,10 @@ public interface RideParticipantRepository extends JpaRepository<RideParticipant
 
     long countByRide_Id(Long rideId);
 
-    Optional<RideParticipant> findByRide_IdAndUser_Uuid(String rideId,String userUuid);
-    
+    Optional<RideParticipant> findByRide_IdAndUser_Uuid(String rideId, String userUuid);
+    Optional<RideParticipant> findByRide_UuidAndUser_Uuid(String rideUuid, String userUuid);
     List<Ride> findRidesByUserId(String userId);
+
     List<Ride> findRideByUser_Id(Long userId);
 
 }

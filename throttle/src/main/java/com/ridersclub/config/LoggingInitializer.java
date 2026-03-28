@@ -11,6 +11,7 @@ import java.io.File;
 public class LoggingInitializer {
     private static final Logger logger = LoggerFactory.getLogger(LoggingInitializer.class);
     private static final String LOG_DIR = "logs"; // relative to working directory
+    private static final String LOG_FILE_NAME = "throttle.log";
 
     @PostConstruct
     public void ensureLogDirectory() {
@@ -25,5 +26,8 @@ public class LoggingInitializer {
         } else {
             logger.debug("Log directory already exists: {}", dir.getAbsolutePath());
         }
+
+        File logFile = new File(dir, LOG_FILE_NAME);
+        logger.info("Backend logs are configured for file: {}", logFile.getAbsolutePath());
     }
 }

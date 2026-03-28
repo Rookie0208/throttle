@@ -7,6 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     uuid VARCHAR(100) UNIQUE NOT NULL,
+    rider_id VARCHAR(30) UNIQUE NOT NULL,
     first_name VARCHAR(50),
     last_name VARCHAR(50),
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -25,6 +26,7 @@ CREATE TABLE users (
 );
 
 CREATE INDEX idx_users_uuid ON users(uuid);
+CREATE INDEX idx_users_rider_id ON users(rider_id);
 
 --------------------------------------------------
 -- CLUBS (COMMUNITIES)
@@ -525,3 +527,51 @@ CREATE TABLE ride_stats (
 
 CREATE INDEX idx_rs_ride ON ride_stats(ride_id);
 CREATE INDEX idx_rs_user ON ride_stats(user_id);
+
+--------------------------------------------------
+-- FRIEND REQUESTS
+--------------------------------------------------
+
+CREATE TABLE friend_requests (
+    id BIGSERIAL PRIMARY KEY,
+    sender_id BIGINT NOT NULL,
+    receiver_id BIGINT NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING', 'ACCEPTED', 'REJECTED')),
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE (sender_id, receiver_id),
+
+    FOREIGN KEY (sender_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (receiver_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_fr_receiver ON friend_requests(receiver_id);
+
+--------------------------------------------------
+-- FRIENDSHIPS
+--------------------------------------------------
+
+CREATE TABLE friendships (
+    user_id BIGINT NOT NULL,
+    friend_id BIGINT NOT NULL,
+    created_at TIMESTAMP DEFAULT now(),
+
+    PRIMARY KEY (user_id, friend_id),
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (friend_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_fs_user ON friendships(user_id);

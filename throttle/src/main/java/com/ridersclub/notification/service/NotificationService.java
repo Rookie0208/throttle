@@ -11,8 +11,10 @@ import com.ridersclub.notification.entity.Notifications;
 import com.ridersclub.notification.repository.NotificationRepository;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
@@ -53,10 +55,18 @@ public class NotificationService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        messagingTemplate.convertAndSendToUser(
-                user.getUuid(),
-                "/queue/notifications",
-                response);
+        try {
+            messagingTemplate.convertAndSendToUser(
+                    user.getUuid(),
+                    "/queue/notifications",
+                    response);
+            messagingTemplate.convertAndSend(
+                    "/topic/notifications/" + user.getUuid(),
+                    response);
+        } catch (Exception e) {
+            // Notification persistence is the critical action; socket delivery is best-effort.
+            log.warn("Failed to publish notification {} over websocket: {}", response.getId(), e.getMessage());
+        }
 
         return response;
     }
@@ -83,16 +93,16 @@ public class NotificationService {
     }
 
     public Notifications updateReadStatus(Long notificationId, Long userId, boolean read) {
-    Notifications notification = notificationRepository.findById(notificationId)
-            .orElseThrow(() -> new RuntimeException("Notification not found"));
+        Notifications notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
 
-    if (!notification.getUserId().equals(userId)) {
-        throw new RuntimeException("You are not allowed to update this notification");
+        if (!notification.getUserId().equals(userId)) {
+            throw new RuntimeException("You are not allowed to update this notification");
+        }
+
+        notification.setRead(read);
+        return notificationRepository.save(notification);
     }
-
-    notification.setRead(read);
-    return notificationRepository.save(notification);
-}
 
     @Transactional
     public void markAllAsRead(Long userId) {

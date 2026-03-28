@@ -40,6 +40,10 @@ public class User {
 
     @Column(nullable = false, unique = true, updatable = false, length = 100)
     private String uuid;
+
+    @Column(unique = true, nullable = false, updatable = false, length = 30)
+    private String riderId;
+
     @Column(unique = true, nullable = false)
     private String username;
     @Column(unique = true, nullable = false)
