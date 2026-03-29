@@ -13,7 +13,9 @@ import com.ridersclub.message.dto.response.MessageDTO;
 import com.ridersclub.message.dto.response.MessageResponse;
 import com.ridersclub.message.entity.GroupMessage;
 import com.ridersclub.message.entity.MessageRead;
+import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.MessageType;
+import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.message.repository.GroupMessageRepository;
 import com.ridersclub.message.repository.MessageReadRepository;
 import com.ridersclub.message.service.MessageService;
@@ -54,7 +56,7 @@ public class MessageServiceImpl implements MessageService {
                                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
                 GroupMessage msg = GroupMessage.builder()
-                                .uuid(UUID.randomUUID().toString())
+                                .uuid(UserUtility.generateUUID(UuidPrefix.chat.name()))
                                 .sender(sender)
                                 .group(group)
                                 .message(message)
@@ -138,7 +140,7 @@ public class MessageServiceImpl implements MessageService {
                 }
 
                 GroupMessage message = GroupMessage.builder()
-                                .uuid(UUID.randomUUID().toString())
+                                .uuid(UserUtility.generateUUID(UuidPrefix.chat.name()))
                                 .sender(sender)
                                 .group(group)
                                 .message(dto.getMessage())

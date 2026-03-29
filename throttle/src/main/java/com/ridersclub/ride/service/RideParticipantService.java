@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.enums.Visibility;
 import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
@@ -145,7 +147,7 @@ public class RideParticipantService {
         return rideGroupRepository.findByRideAndParentGroupAndName(ride, mainGroup, "Team members")
                 .orElseGet(() -> {
                     RideGroup subgroup = new RideGroup();
-                    subgroup.setUuid(UUID.randomUUID().toString());
+                    subgroup.setUuid(UserUtility.generateUUID(UuidPrefix.group.name()));
                     subgroup.setRide(ride);
                     subgroup.setParentGroup(mainGroup);
                     subgroup.setName("Team members");

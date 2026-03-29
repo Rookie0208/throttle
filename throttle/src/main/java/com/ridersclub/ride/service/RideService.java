@@ -21,6 +21,7 @@ import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.Status;
+import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.enums.Visibility;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
@@ -94,7 +95,7 @@ public class RideService {
                 }
                 ride.setRules(rideRules);
 
-                ride.setUuid(UUID.randomUUID().toString());
+                ride.setUuid(UserUtility.generateUUID(UuidPrefix.ride.name()));
                 ride.setCaptain(currentUser);
 
                 RideLocation start = new RideLocation();
@@ -128,7 +129,7 @@ public class RideService {
                 if (saved.getRideType() == RideType.GROUP) {
 
                         RideGroup mainGroup = new RideGroup();
-                        mainGroup.setUuid(UUID.randomUUID().toString());
+                        mainGroup.setUuid(UserUtility.generateUUID(UuidPrefix.group.name()));
                         mainGroup.setRide(saved);
                         mainGroup.setName(saved.getTitle() + " - Main Group");
                         mainGroup.setCreatedBy(currentUser);
@@ -159,7 +160,7 @@ public class RideService {
 
         private RideGroup createTeamMembersSubGroup(Ride ride, RideGroup mainGroup, User creator) {
                 RideGroup teamMembersGroup = new RideGroup();
-                teamMembersGroup.setUuid(UUID.randomUUID().toString());
+                teamMembersGroup.setUuid(UserUtility.generateUUID(UuidPrefix.group.name()));
                 teamMembersGroup.setRide(ride);
                 teamMembersGroup.setParentGroup(mainGroup);
                 teamMembersGroup.setName("Team members");
@@ -193,7 +194,7 @@ public class RideService {
 
                 RideGroup subGroup = new RideGroup();
 
-                subGroup.setUuid(UUID.randomUUID().toString());
+                subGroup.setUuid(UserUtility.generateUUID(UuidPrefix.group.name()));
                 subGroup.setName(request.getName());
                 subGroup.setVisibility(request.getVisibility());
                 subGroup.setMembersCanSendMessages(request.isMembersCanSendMessages());

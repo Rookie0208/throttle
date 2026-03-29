@@ -21,7 +21,9 @@ import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
 import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.common.Utils.NormalizeUtil;
+import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.user.entity.User;
@@ -112,7 +114,7 @@ public class AuthService {
         }
 
         User user = new User();
-        user.setUuid(UUID.randomUUID().toString());
+        user.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setRiderId(normalizedRiderId);
@@ -197,7 +199,7 @@ public class AuthService {
         riderIdService.assertAvailable(normalizedRiderId);
 
         User user = new User();
-        user.setUuid(UUID.randomUUID().toString());
+        user.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setRiderId(normalizedRiderId);
