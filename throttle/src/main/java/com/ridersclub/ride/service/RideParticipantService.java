@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.enums.Visibility;
 import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
@@ -40,24 +42,24 @@ public class RideParticipantService {
 
     public List<RideParticipantDto> getRideParticipants(String rideId) {
 
-    Ride ride = rideRepository.findByUuid(rideId)
-            .orElseThrow(() -> new RuntimeException("Ride not found"));
+        Ride ride = rideRepository.findByUuid(rideId)
+                .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-    List<RideParticipant> participants = participantRepository.findByRide_Id(ride.getId());
+        List<RideParticipant> participants = participantRepository.findByRide_Id(ride.getId());
 
-    return participants.stream()
-            .map(rp -> RideParticipantDto.builder()
-                    .userUuid(rp.getUser().getUuid())
-                    .riderId(rp.getUser().getRiderId())
-                    .firstName(rp.getUser().getFirstName())
-                    .lastName(rp.getUser().getLastName())
-                    .profileImage(rp.getUser().getProfileImage())
-                    .role(rp.getRole().toString())
-                    .rsvpStatus(rp.getRsvpStatus().toString())
-                    .joinedAt(rp.getJoinedAt())
-                    .build())
-            .toList();
-}
+        return participants.stream()
+                .map(rp -> RideParticipantDto.builder()
+                        .userUuid(rp.getUser().getUuid())
+                        .riderId(rp.getUser().getRiderId())
+                        .firstName(rp.getUser().getFirstName())
+                        .lastName(rp.getUser().getLastName())
+                        .profileImage(rp.getUser().getProfileImage())
+                        .role(rp.getRole().toString())
+                        .rsvpStatus(rp.getRsvpStatus().toString())
+                        .joinedAt(rp.getJoinedAt())
+                        .build())
+                .toList();
+    }
 
     @Transactional
     public void updateRole(String rideUuid, String targetUserUuid, String role, String actorUserUuid) {
@@ -145,7 +147,7 @@ public class RideParticipantService {
         return rideGroupRepository.findByRideAndParentGroupAndName(ride, mainGroup, "Team members")
                 .orElseGet(() -> {
                     RideGroup subgroup = new RideGroup();
-                    subgroup.setUuid(UUID.randomUUID().toString());
+                    subgroup.setUuid(UserUtility.generateUUID(UuidPrefix.GROUP.name()));
                     subgroup.setRide(ride);
                     subgroup.setParentGroup(mainGroup);
                     subgroup.setName("Team members");
@@ -156,7 +158,8 @@ public class RideParticipantService {
 
                     RideGroup savedSubgroup = rideGroupRepository.save(subgroup);
 
-                    if (!groupMemberRepository.existsByGroup_IdAndUser_Id(savedSubgroup.getId(), ride.getCreatedBy().getId())) {
+                    if (!groupMemberRepository.existsByGroup_IdAndUser_Id(savedSubgroup.getId(),
+                            ride.getCreatedBy().getId())) {
                         GroupMember creatorMember = new GroupMember();
                         creatorMember.setGroup(savedSubgroup);
                         creatorMember.setUser(ride.getCreatedBy());

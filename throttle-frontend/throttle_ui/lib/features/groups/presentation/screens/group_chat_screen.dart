@@ -70,9 +70,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
 
     try {
-      final data = await ChatService.fetchMessages(
-        "46a5259c-806a-43a5-afa7-dfb8d02793e3",
-      );
+      final data = await ChatService.fetchMessages(widget.group["uuid"]);
 
       print("BACKEND DATA: $data");
 
@@ -114,8 +112,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     chatSocket = ChatService();
 
     chatSocket.connect(
-      groupId:
-          "46a5259c-806a-43a5-afa7-dfb8d02793e3", // hardcoded for testing, need to fix it
+      groupId: widget.group["uuid"], // hardcoded for testing, need to fix it
       token: widget.token,
       onMessageReceived: (data) {
         print(" UI received message: $data");
@@ -160,9 +157,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (text.isEmpty) return;
 
     chatSocket.sendMessage(
-      // groupId: activeSubGroupId ?? widget.group["uuid"],
-      groupId:
-          "46a5259c-806a-43a5-afa7-dfb8d02793e3", // hardcoded for testing, need to fix it
+      groupId: activeSubGroupId ?? widget.group["uuid"],
+      // groupId: "46a5259c-806a-43a5-afa7-dfb8d02793e3", // hardcoded for testing, need to fix it
       text: text,
     );
 
