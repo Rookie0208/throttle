@@ -143,6 +143,20 @@ public class RideService {
 
                         groupMemberRepository.save(captainMember);
                         createTeamMembersSubGroup(saved, savedGroup, currentUser);
+                } else {
+                        RideGroup mainGroup = new RideGroup();
+                        mainGroup.setUuid(UserUtility.generateUUID(UuidPrefix.GROUP.name()));
+                        mainGroup.setRide(saved);
+                        mainGroup.setName(saved.getTitle() + " - SOLO Ride");
+                        mainGroup.setCreatedBy(currentUser);
+
+                        RideGroup savedGroup = rideGroupRepository.save(mainGroup);
+
+                        GroupMember captainMember = new GroupMember();
+                        captainMember.setGroup(savedGroup);
+                        captainMember.setUser(currentUser);
+                        captainMember.setRole("ADMIN");
+                        groupMemberRepository.save(captainMember);
                 }
 
                 notificationService.createAndSend(
@@ -265,6 +279,11 @@ public class RideService {
                                 .map(r -> MyRidesResp.builder()
                                                 .uuid(r.getUuid())
                                                 .title(r.getTitle())
+                                                .groupUuid(
+                                                        rideGroupRepository.findByRideAndParentGroupIsNull(r)
+                                                                .orElseThrow(() -> new RuntimeException("RideGroup not found"))
+                                                                .getUuid()
+                                                    )
                                                 .description(r.getDescription())
                                                 .rideType(r.getRideType())
                                                 .routeType(r.getRouteType())

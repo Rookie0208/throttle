@@ -21,6 +21,7 @@ import lombok.NoArgsConstructor;
 public class MyRidesResp {
 
     private String uuid;
+    private String groupUuid;
     private String title;
     private String description;
 
