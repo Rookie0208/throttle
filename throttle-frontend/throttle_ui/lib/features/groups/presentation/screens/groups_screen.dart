@@ -23,93 +23,103 @@ class _GroupsScreenState extends State<GroupsScreen>
   Map<String, dynamic> _normalizeRide(Map<String, dynamic> ride) {
     final now = DateTime.now();
     final rawStatus = (ride["status"] ?? "UNKNOWN").toString();
-    final startTime = DateTime.tryParse((ride["startTime"] ?? "").toString())?.toLocal();
+    final startTime = DateTime.tryParse(
+      (ride["startTime"] ?? "").toString(),
+    )?.toLocal();
 
     final isCompleted = rawStatus == "COMPLETED" || rawStatus == "ENDED";
     final isCancelled = rawStatus == "CANCELLED";
     final isInProgress = rawStatus == "IN_PROGRESS";
-    final isExpiredPending = startTime != null &&
+    final isExpiredPending =
+        startTime != null &&
         startTime.isBefore(now) &&
         !isCompleted &&
         !isCancelled &&
         !isInProgress;
 
     final effectiveRideStatus = isExpiredPending ? "CANCELLED" : rawStatus;
-    final sectionStatus =
-        (isCompleted || isCancelled || isExpiredPending) ? "archive" : "active";
+    final sectionStatus = (isCompleted || isCancelled || isExpiredPending)
+        ? "archive"
+        : "active";
 
     return {
       ...ride,
-      "id": ride["uuid"],
+      "id": ride["groupUuid"],
+      "groupId": ride["groupUuid"],
+      "rideId": ride["uuid"],
       "name": ride["title"],
       "rideStatus": effectiveRideStatus,
       "status": sectionStatus,
-      "members": []
+      "members": [],
     };
   }
 
   Widget _buildEmptyState() {
-  return Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(
-          Icons.motorcycle,
-          size: 70,
-          color: AppColors.white30,
-        ),
-        const SizedBox(height: 20),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.motorcycle, size: 70, color: AppColors.white30),
+          const SizedBox(height: 20),
 
-        const Text(
-          "No rides yet",
-          style: TextStyle(
-            color: AppColors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+          const Text(
+            "No rides yet",
+            style: TextStyle(
+              color: AppColors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
 
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
 
-        const Text(
-          "Join a ride or create your own.",
-          style: TextStyle(color: AppColors.textMuted),
-        ),
+          const Text(
+            "Join a ride or create your own.",
+            style: TextStyle(color: AppColors.textMuted),
+          ),
 
-        const SizedBox(height: 25),
+          const SizedBox(height: 25),
 
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => PublicRidesScreen(token: widget.token),
-  ),
-);
-              },
-              child: const Text("Join Ride"),
-            ),
-
-            const SizedBox(width: 20),
-
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PublicRidesScreen(token: widget.token),
+                    ),
+                  );
+                },
+                child: const Text("Join Ride"),
               ),
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => PlanRideScreen(token: widget.token)));
-              },
-              child: const Text("Create Ride", style: TextStyle(color: AppColors.white),),
-            ),
-          ],
-        )
-      ],
-    ),
-  );
-}
+
+              const SizedBox(width: 20),
+
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PlanRideScreen(token: widget.token),
+                    ),
+                  );
+                },
+                child: const Text(
+                  "Create Ride",
+                  style: TextStyle(color: AppColors.white),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -119,64 +129,69 @@ class _GroupsScreenState extends State<GroupsScreen>
   }
 
   Future<void> fetchGroups() async {
-  try {
-    final Map<String, dynamic> result =
-        await GroupService.fetchMyGroups(widget.token);
+    try {
+      final Map<String, dynamic> result = await GroupService.fetchMyGroups(
+        widget.token,
+      );
 
-    if (result["data"] != null && result["data"].isNotEmpty) {
-      List<Map<String, dynamic>> rides =
-          List<Map<String, dynamic>>.from(result["data"]);
+      print("RIDES API DATA => ${result["data"]}");
 
-      List<Map<String, dynamic>> mappedGroups =
-          rides.map(_normalizeRide).toList();
+      if (result["data"] != null && result["data"].isNotEmpty) {
+        List<Map<String, dynamic>> rides = List<Map<String, dynamic>>.from(
+          result["data"],
+        );
 
-      setState(() {
-        groups = mappedGroups;
-        isLoading = false;
-      });
-    } else {
+        List<Map<String, dynamic>> mappedGroups = rides
+            .map(_normalizeRide)
+            .toList();
+
+        setState(() {
+          groups = mappedGroups;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          groups = [];
+          isLoading = false;
+        });
+      }
+    } catch (e) {
       setState(() {
         groups = [];
         isLoading = false;
       });
     }
-  } catch (e) {
+  }
+
+  // change this dummy data
+  void _loadDummyData() {
     setState(() {
-      groups = [];
+      groups = [
+        {
+          "id": "1",
+          "name": "Morning Riders",
+          "status": "active",
+          "rideStatus": "CREATED",
+          "members": [
+            {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
+            {"id": "u2", "name": "Sara", "role": "RIDER"},
+            {"id": "u3", "name": "John", "role": "NAVIGATOR"},
+          ],
+        },
+        {
+          "id": "2",
+          "name": "Weekend Warriors",
+          "status": "archive",
+          "rideStatus": "STARTED",
+          "members": [
+            {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
+            {"id": "u5", "name": "Tom", "role": "RIDER"},
+          ],
+        },
+      ];
       isLoading = false;
     });
   }
-}
-
-// change this dummy data
-void _loadDummyData() {
-  setState(() {
-    groups = [
-      {
-        "id": "1",
-        "name": "Morning Riders",
-        "status": "active",
-        "rideStatus": "CREATED",
-        "members": [
-          {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
-          {"id": "u2", "name": "Sara", "role": "RIDER"},
-          {"id": "u3", "name": "John", "role": "NAVIGATOR"},
-        ]
-      },
-      {
-        "id": "2",
-        "name": "Weekend Warriors",
-        "status": "archive",
-        "rideStatus": "STARTED",
-        "members": [
-          {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
-          {"id": "u5", "name": "Tom", "role": "RIDER"},
-        ]
-      },
-    ];
-    isLoading = false;
-  });
-}
 
   Widget _buildGroupCard(Map<String, dynamic> group) {
     return GestureDetector(
@@ -184,9 +199,7 @@ void _loadDummyData() {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => GroupChatScreen(
-              group: group, token: widget.token,
-            ),
+            builder: (_) => GroupChatScreen(group: group, token: widget.token),
           ),
         );
       },
@@ -243,21 +256,23 @@ void _loadDummyData() {
     }
 
     // Separate active and completed groups
-   // If no rides exist
-if (groups.isEmpty) {
-  return Scaffold(
-    backgroundColor: AppColors.background,
-    appBar: AppBar(
-      backgroundColor: AppColors.background,
-      title: const Text("Rides"),
-    ),
-    body: _buildEmptyState(),
-  );
-}
+    // If no rides exist
+    if (groups.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          title: const Text("Rides"),
+        ),
+        body: _buildEmptyState(),
+      );
+    }
 
-// Separate active and completed groups
-final activeGroups = groups.where((g) => g["status"] == "active").toList();
-final completedGroups = groups.where((g) => g["status"] == "archive").toList();
+    // Separate active and completed groups
+    final activeGroups = groups.where((g) => g["status"] == "active").toList();
+    final completedGroups = groups
+        .where((g) => g["status"] == "archive")
+        .toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
