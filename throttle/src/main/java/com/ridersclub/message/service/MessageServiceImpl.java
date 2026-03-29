@@ -56,7 +56,7 @@ public class MessageServiceImpl implements MessageService {
                                 .orElseThrow(() -> new RuntimeException("Group not found"));
 
                 GroupMessage msg = GroupMessage.builder()
-                                .uuid(UserUtility.generateUUID(UuidPrefix.chat.name()))
+                                .uuid(UserUtility.generateUUID(UuidPrefix.CHAT.name()))
                                 .sender(sender)
                                 .group(group)
                                 .message(message)
@@ -140,7 +140,7 @@ public class MessageServiceImpl implements MessageService {
                 }
 
                 GroupMessage message = GroupMessage.builder()
-                                .uuid(UserUtility.generateUUID(UuidPrefix.chat.name()))
+                                .uuid(UserUtility.generateUUID(UuidPrefix.CHAT.name()))
                                 .sender(sender)
                                 .group(group)
                                 .message(dto.getMessage())

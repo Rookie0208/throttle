@@ -80,7 +80,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("secret")).thenReturn("encoded");
         User saved = new User();
         saved.setId(1L);
-        saved.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
+        saved.setUuid(UserUtility.generateUUID(UuidPrefix.USER.name()));
         saved.setRiderId("john.doe");
         when(userService.save(ArgumentMatchers.any(User.class))).thenReturn(saved);
         when(jwtService.generate(anyString(), anyMap(), anyLong())).thenReturn("token123");
@@ -113,7 +113,7 @@ class AuthServiceTest {
 
         User user = new User();
         user.setId(1L);
-        user.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
+        user.setUuid(UserUtility.generateUUID(UuidPrefix.USER.name()));
         user.setPassword("hash");
         user.setRole(Role.RIDER);
         when(userService.findByEmail("a@b.com")).thenReturn(Optional.of(user));

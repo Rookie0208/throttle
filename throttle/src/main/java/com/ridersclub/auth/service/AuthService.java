@@ -114,7 +114,7 @@ public class AuthService {
         }
 
         User user = new User();
-        user.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
+        user.setUuid(UserUtility.generateUUID(UuidPrefix.USER.name()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setRiderId(normalizedRiderId);
@@ -199,7 +199,7 @@ public class AuthService {
         riderIdService.assertAvailable(normalizedRiderId);
 
         User user = new User();
-        user.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
+        user.setUuid(UserUtility.generateUUID(UuidPrefix.USER.name()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setRiderId(normalizedRiderId);
