@@ -17,7 +17,9 @@ import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
 import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
+import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.auth.security.JwtService;
@@ -78,7 +80,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("secret")).thenReturn("encoded");
         User saved = new User();
         saved.setId(1L);
-        saved.setUuid(UUID.randomUUID().toString());
+        saved.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
         saved.setRiderId("john.doe");
         when(userService.save(ArgumentMatchers.any(User.class))).thenReturn(saved);
         when(jwtService.generate(anyString(), anyMap(), anyLong())).thenReturn("token123");
@@ -111,7 +113,7 @@ class AuthServiceTest {
 
         User user = new User();
         user.setId(1L);
-        user.setUuid(UUID.randomUUID().toString());
+        user.setUuid(UserUtility.generateUUID(UuidPrefix.user.name()));
         user.setPassword("hash");
         user.setRole(Role.RIDER);
         when(userService.findByEmail("a@b.com")).thenReturn(Optional.of(user));
