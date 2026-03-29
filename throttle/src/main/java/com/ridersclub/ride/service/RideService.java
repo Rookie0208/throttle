@@ -95,7 +95,7 @@ public class RideService {
                 }
                 ride.setRules(rideRules);
 
-                ride.setUuid(UserUtility.generateUUID(UuidPrefix.ride.name()));
+                ride.setUuid(UserUtility.generateUUID(UuidPrefix.RIDE.name()));
                 ride.setCaptain(currentUser);
 
                 RideLocation start = new RideLocation();
@@ -129,7 +129,7 @@ public class RideService {
                 if (saved.getRideType() == RideType.GROUP) {
 
                         RideGroup mainGroup = new RideGroup();
-                        mainGroup.setUuid(UserUtility.generateUUID(UuidPrefix.group.name()));
+                        mainGroup.setUuid(UserUtility.generateUUID(UuidPrefix.GROUP.name()));
                         mainGroup.setRide(saved);
                         mainGroup.setName(saved.getTitle() + " - Main Group");
                         mainGroup.setCreatedBy(currentUser);
@@ -160,7 +160,7 @@ public class RideService {
 
         private RideGroup createTeamMembersSubGroup(Ride ride, RideGroup mainGroup, User creator) {
                 RideGroup teamMembersGroup = new RideGroup();
-                teamMembersGroup.setUuid(UserUtility.generateUUID(UuidPrefix.group.name()));
+                teamMembersGroup.setUuid(UserUtility.generateUUID(UuidPrefix.GROUP.name()));
                 teamMembersGroup.setRide(ride);
                 teamMembersGroup.setParentGroup(mainGroup);
                 teamMembersGroup.setName("Team members");
@@ -194,7 +194,7 @@ public class RideService {
 
                 RideGroup subGroup = new RideGroup();
 
-                subGroup.setUuid(UserUtility.generateUUID(UuidPrefix.group.name()));
+                subGroup.setUuid(UserUtility.generateUUID(UuidPrefix.GROUP.name()));
                 subGroup.setName(request.getName());
                 subGroup.setVisibility(request.getVisibility());
                 subGroup.setMembersCanSendMessages(request.isMembersCanSendMessages());
@@ -278,7 +278,7 @@ public class RideService {
                                                                                 .locationType(loc.getLocationType())
                                                                                 .sequence(loc.getSequence())
                                                                                 .build())
-                                                .toList())
+                                                                .toList())
                                                 .maxRiders(r.getMaxRiders())
                                                 .createdByUuid(r.getCreatedBy().getUuid())
                                                 .createdByName(
@@ -286,10 +286,12 @@ public class RideService {
                                                                                 ? r.getCreatedBy().getFirstName()
                                                                                 : "")
                                                                                 + " "
-                                                                                + (r.getCreatedBy().getLastName() != null
-                                                                                                ? r.getCreatedBy().getLastName()
-                                                                                                : ""))
-                                                                                                .trim())
+                                                                                + (r.getCreatedBy()
+                                                                                                .getLastName() != null
+                                                                                                                ? r.getCreatedBy()
+                                                                                                                                .getLastName()
+                                                                                                                : ""))
+                                                                                .trim())
                                                 .captainUuid(r.getCaptain() != null ? r.getCaptain().getUuid() : null)
                                                 .visibility(r.getVisibility())
                                                 .status(r.getStatus())
