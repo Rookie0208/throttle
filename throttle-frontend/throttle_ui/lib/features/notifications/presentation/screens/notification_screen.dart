@@ -3,6 +3,8 @@ import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
+import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
+import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final VoidCallback onClose;
@@ -60,8 +62,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return items.where((item) {
       final date = DateTime.tryParse(item.time)?.toLocal();
       return date != null && !date.isBefore(cutoff);
-    }).toList()
-      ..sort((a, b) => b.time.compareTo(a.time));
+    }).toList()..sort((a, b) => b.time.compareTo(a.time));
   }
 
   int get unreadCount => notifications.where((n) => n.unread).length;
@@ -88,55 +89,235 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Future<void> _handleNotificationTap(NotificationItem notification) async {
-    if (notification.type != "RIDE_GROUP_INVITE" ||
-        notification.referenceId == null) {
+    if (notification.referenceId == null) {
       return;
     }
 
     try {
-      final invitation = await RideService.fetchInvitationDetails(
-        widget.token,
-        notification.referenceId!,
-      );
-      if (!mounted) return;
-
-      if (notification.unread) {
-        toggleRead(notification, true);
+      if (notification.type == "RIDE_GROUP_INVITE") {
+        await _handleRideInviteNotification(notification);
+      } else if (notification.type == "FRIEND_REQUEST") {
+        await _handleFriendRequestNotification(notification);
       }
-
-      final action = await showModalBottomSheet<String>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: AppColors.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        builder: (sheetContext) => _invitationSheet(sheetContext, invitation),
-      );
-
-      if (action == null) return;
-
-      if (action == "accept") {
-        await RideService.acceptInvitation(widget.token, notification.referenceId!);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Ride invitation accepted")),
-        );
-      } else if (action == "reject") {
-        await RideService.rejectInvitation(widget.token, notification.referenceId!);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Ride invitation rejected")),
-        );
-      }
-
-      await loadNotifications();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
       );
     }
+  }
+
+  Future<void> _handleRideInviteNotification(
+    NotificationItem notification,
+  ) async {
+    final invitation = await RideService.fetchInvitationDetails(
+      widget.token,
+      notification.referenceId!,
+    );
+    if (!mounted) return;
+
+    if (notification.unread) {
+      toggleRead(notification, true);
+    }
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _invitationSheet(sheetContext, invitation),
+    );
+
+    if (action == null) return;
+
+    if (action == "accept") {
+      await RideService.acceptInvitation(
+        widget.token,
+        notification.referenceId!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Ride invitation accepted")));
+    } else if (action == "reject") {
+      await RideService.rejectInvitation(
+        widget.token,
+        notification.referenceId!,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Ride invitation rejected")));
+    }
+
+    await loadNotifications();
+  }
+
+  Future<void> _handleFriendRequestNotification(
+    NotificationItem notification,
+  ) async {
+    final requestId = notification.referenceId;
+    if (requestId == null) return;
+
+    if (notification.unread) {
+      toggleRead(notification, true);
+    }
+
+    // Fetch pending requests to get actual sender details
+    try {
+      final pendingRequests = await FriendService.getPendingRequests();
+      if (!mounted) return;
+
+      Map<String, dynamic>? matchingRequest;
+      for (final request in pendingRequests) {
+        if (request is! Map<String, dynamic>) continue;
+        final reqId = request['requestId'];
+        final parsedRequestId = reqId is int
+            ? reqId
+            : int.tryParse(reqId.toString());
+        if (parsedRequestId == requestId) {
+          matchingRequest = request;
+          break;
+        }
+      }
+
+      if (matchingRequest == null) {
+        await _showFriendRequestBottomSheet(
+          requestId: requestId,
+          senderName: notification.title,
+          senderFirstName: notification.title,
+          senderLastName: "",
+          senderUuid: null,
+          senderProfileImage: null,
+          mutualCount: 0,
+          isPending: false,
+        );
+        return;
+      }
+
+      final senderFirstName = (matchingRequest['senderFirstName'] ?? "")
+          .toString();
+      final senderLastName = (matchingRequest['senderLastName'] ?? "")
+          .toString();
+      final senderName = "$senderFirstName $senderLastName".trim();
+      final mutualCount = (matchingRequest['mutualCount'] ?? 0) as int;
+
+      await _showFriendRequestBottomSheet(
+        requestId: requestId,
+        senderName: senderName,
+        senderFirstName: senderFirstName,
+        senderLastName: senderLastName,
+        senderUuid: matchingRequest['senderUuid'],
+        senderProfileImage: matchingRequest['senderProfileImage'],
+        mutualCount: mutualCount,
+        isPending: true,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Error loading friend request: ${e.toString().replaceFirst("Exception: ", "")}",
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _showFriendRequestBottomSheet({
+    required int requestId,
+    required String senderName,
+    required String senderFirstName,
+    required String senderLastName,
+    String? senderUuid,
+    String? senderProfileImage,
+    required int mutualCount,
+    required bool isPending,
+  }) async {
+    final requestData = {
+      "requestId": requestId,
+      "senderName": senderName,
+      "senderUuid": senderUuid,
+      "senderFirstName": senderFirstName,
+      "senderLastName": senderLastName,
+      "senderProfileImage": senderProfileImage,
+      "mutualCount": mutualCount,
+      "isPending": isPending,
+    };
+
+    if (!mounted) return;
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _friendRequestSheet(sheetContext, requestData),
+    );
+
+    if (action == null) {
+      await loadNotifications();
+      return;
+    }
+
+    if (action == "accept") {
+      try {
+        await FriendService.acceptRequest(requestId);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Friend request accepted")),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst("Exception: ", "")),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else if (action == "reject") {
+      try {
+        await FriendService.rejectRequest(requestId);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Friend request rejected")),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst("Exception: ", "")),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else if (action == "view_profile") {
+      if (senderUuid != null) {
+        final userProfile = {
+          "uuid": senderUuid,
+          "firstName": senderFirstName,
+          "lastName": senderLastName,
+          "profileImage": senderProfileImage,
+        };
+
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PublicProfileScreen(user: userProfile),
+          ),
+        );
+        return;
+      }
+    }
+
+    await loadNotifications();
   }
 
   Widget _invitationSheet(
@@ -229,7 +410,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       Navigator.pop(sheetContext, isPending ? "reject" : null),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: isPending ? AppColors.border : AppColors.borderSoft,
+                      color: isPending
+                          ? AppColors.border
+                          : AppColors.borderSoft,
                     ),
                     foregroundColor: isPending
                         ? AppColors.textPrimary
@@ -277,6 +460,138 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
+  Widget _friendRequestSheet(
+    BuildContext sheetContext,
+    Map<String, dynamic> requestData,
+  ) {
+    final senderName = (requestData["senderName"] ?? "A friend").toString();
+    final mutualCount = requestData["mutualCount"] as int? ?? 0;
+    final isPending = requestData["isPending"] as bool? ?? true;
+    final hasProfile = (requestData["senderUuid"]?.toString().isNotEmpty ??
+        false);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(.08),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.primary.withOpacity(.24)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Friend Request",
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "From $senderName",
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                if (mutualCount > 0) ...[
+                  const SizedBox(height: 8),
+                  _inviteMetaRow(
+                    Icons.people_outline,
+                    "$mutualCount mutual friend${mutualCount > 1 ? 's' : ''}",
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (!isPending)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Text(
+                "This friend request is no longer pending.",
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+          if (!isPending) const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(
+                    sheetContext,
+                    isPending ? "reject" : null,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: isPending
+                          ? AppColors.border
+                          : AppColors.borderSoft,
+                    ),
+                    foregroundColor: isPending
+                        ? AppColors.textPrimary
+                        : AppColors.textHint,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: Text(isPending ? "Reject" : "Close"),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: isPending
+                      ? () => Navigator.pop(sheetContext, "accept")
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    disabledBackgroundColor: AppColors.surfaceMuted,
+                    disabledForegroundColor: AppColors.textHint,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child: const Text("Accept"),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: hasProfile
+                  ? () => Navigator.pop(sheetContext, "view_profile")
+                  : null,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.borderSoft),
+                foregroundColor: AppColors.textSecondary,
+                disabledForegroundColor: AppColors.textHint,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.person_outline, size: 18),
+              label: const Text("View Profile"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _sectionKey(NotificationItem n) {
     final dt = DateTime.parse(n.time).toLocal();
     final now = DateTime.now();
@@ -289,7 +604,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return "Last 7 Days";
   }
 
-  Map<String, List<NotificationItem>> _groupByDate(List<NotificationItem> items) {
+  Map<String, List<NotificationItem>> _groupByDate(
+    List<NotificationItem> items,
+  ) {
     final grouped = <String, List<NotificationItem>>{
       "Today": [],
       "Yesterday": [],
@@ -303,7 +620,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     return grouped;
   }
 
-  Widget _buildNotificationList(List<NotificationItem> items) {
+  Widget _buildNotificationList(
+    List<NotificationItem> items, {
+    required bool unreadSection,
+  }) {
     if (items.isEmpty) {
       return const Center(
         child: Text(
@@ -330,7 +650,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               ),
             ),
             const SizedBox(height: 10),
-            ...grouped[section]!.map(_notificationCard),
+            ...grouped[section]!.map(
+              (notification) => _notificationCard(
+                notification,
+                unreadSection: unreadSection,
+              ),
+            ),
             const SizedBox(height: 18),
           ],
       ],
@@ -340,9 +665,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final unread = notifications.where((n) => n.unread).toList();
@@ -373,7 +696,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                      color: AppColors.primary,
+                        color: AppColors.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -433,8 +756,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildNotificationList(unread),
-                  _buildNotificationList(read),
+                  _buildNotificationList(unread, unreadSection: true),
+                  _buildNotificationList(read, unreadSection: false),
                 ],
               ),
             ),
@@ -444,9 +767,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _notificationCard(NotificationItem n) {
+  Widget _notificationCard(
+    NotificationItem n, {
+    required bool unreadSection,
+  }) {
+    final canMarkRead = unreadSection && n.unread;
+    final canMarkUnread = !unreadSection && !n.unread;
+
     return Dismissible(
       key: Key("${n.id}_${n.unread}"),
+      direction: canMarkRead
+          ? DismissDirection.startToEnd
+          : canMarkUnread
+          ? DismissDirection.endToStart
+          : DismissDirection.none,
       background: Container(
         margin: const EdgeInsets.only(bottom: 10),
         alignment: Alignment.centerLeft,
@@ -468,9 +802,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         child: const Icon(Icons.mark_email_unread, color: AppColors.black),
       ),
       confirmDismiss: (direction) async {
-        if (direction == DismissDirection.startToEnd) {
+        if (direction == DismissDirection.startToEnd && canMarkRead) {
           toggleRead(n, true);
-        } else {
+        } else if (direction == DismissDirection.endToStart && canMarkUnread) {
           toggleRead(n, false);
         }
         return false;
@@ -505,7 +839,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  n.unread ? Icons.notifications_active : Icons.notifications_none,
+                  n.unread
+                      ? Icons.notifications_active
+                      : Icons.notifications_none,
                   color: n.unread ? AppColors.secondary : AppColors.white70,
                   size: 20,
                 ),
@@ -535,7 +871,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     const SizedBox(height: 8),
                     Text(
                       formatTime(n.time),
-                      style: const TextStyle(fontSize: 11, color: AppColors.textHint),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textHint,
+                      ),
                     ),
                   ],
                 ),
@@ -543,11 +882,25 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               const SizedBox(width: 8),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                tooltip: n.unread ? "Mark as read" : "Mark as unread",
-                onPressed: () => toggleRead(n, n.unread),
+                tooltip: canMarkRead
+                    ? "Mark as read"
+                    : canMarkUnread
+                    ? "Mark as unread"
+                    : null,
+                onPressed: canMarkRead
+                    ? () => toggleRead(n, true)
+                    : canMarkUnread
+                    ? () => toggleRead(n, false)
+                    : null,
                 icon: Icon(
-                  n.unread ? Icons.mark_email_read_outlined : Icons.mark_email_unread_outlined,
-                  color: n.unread ? AppColors.secondary : AppColors.highlight,
+                  canMarkRead
+                      ? Icons.mark_email_read_outlined
+                      : Icons.mark_email_unread_outlined,
+                  color: canMarkRead
+                      ? AppColors.secondary
+                      : canMarkUnread
+                      ? AppColors.highlight
+                      : AppColors.textHint,
                   size: 20,
                 ),
               ),
