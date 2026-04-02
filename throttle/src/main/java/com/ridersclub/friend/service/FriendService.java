@@ -8,6 +8,7 @@ import com.ridersclub.friend.entity.Friendship;
 import com.ridersclub.friend.enums.FriendRequestStatus;
 import com.ridersclub.friend.repository.FriendRequestRepository;
 import com.ridersclub.friend.repository.FriendshipRepository;
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
@@ -180,7 +181,7 @@ public class FriendService {
 
         notificationService.createAndSend(
                 receiver.getId(),
-                "FRIEND_REQUEST",
+                NotificationType.FRIEND_REQUEST,
                 "New Friend Request",
                 senderName + " sent you a friend request.",
                 sender.getId(),
@@ -229,7 +230,7 @@ public class FriendService {
 
         notificationService.createAndSend(
                 sender.getId(),
-                "FRIEND_ACCEPTED",
+                NotificationType.FRIEND_ACCEPTED,
                 "Friend Request Accepted!",
                 receiverName + " accepted your friend request.",
                 receiver.getId(),

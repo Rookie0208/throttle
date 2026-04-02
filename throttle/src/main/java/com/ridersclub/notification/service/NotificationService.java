@@ -6,6 +6,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.notification.dto.NotificationResponse;
 import com.ridersclub.notification.entity.Notifications;
 import com.ridersclub.notification.repository.NotificationRepository;
@@ -33,7 +34,7 @@ public class NotificationService {
     @Transactional
     public NotificationResponse createAndSend(
             Long userId,
-            String type,
+            NotificationType type,
             String title,
             String message,
             Long referenceId,

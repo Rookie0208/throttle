@@ -2,6 +2,7 @@ package com.ridersclub.notification.dto;
 
 import java.time.LocalDateTime;
 
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.notification.entity.Notifications;
 
 import lombok.AllArgsConstructor;
@@ -19,7 +20,7 @@ public class NotificationResponse {
 
     private Long id;
     private Long userId;
-    private String type;
+    private NotificationType type;
     private String title;
     private String message;
     private Long referenceId;
