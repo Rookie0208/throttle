@@ -330,8 +330,7 @@ public class FriendService {
             return FriendRelationshipDto.builder().status("self").build();
         }
 
-        User user = userRepository.findByUuid(userUuid)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        User user = getRequiredUser(userUuid, "User");
         User target = userRepository.findByUuid(targetUserUuid)
                 .orElseThrow(() -> new IllegalArgumentException("Target user not found"));
 
@@ -371,7 +370,8 @@ public class FriendService {
     @Transactional(readOnly = true)
     @Cacheable(value = "user_friends", key = "#userUuid")
     public List<FriendDto> getFriends(String userUuid) {
-        User user = getRequiredUser(userUuid, "User");
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         List<Friendship> friendships = friendshipRepository.findByUser(user);
 
