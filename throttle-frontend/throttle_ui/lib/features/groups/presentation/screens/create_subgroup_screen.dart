@@ -6,13 +6,12 @@ import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dar
 import 'package:throttle_ui/app/theme/app_colors.dart';
 
 class CreateSubGroupScreen extends StatefulWidget {
-
-  final String rideId;
+  final String rideUuid;
   final String token;
 
   const CreateSubGroupScreen({
     super.key,
-    required this.rideId,
+    required this.rideUuid,
     required this.token,
   });
 
@@ -21,87 +20,86 @@ class CreateSubGroupScreen extends StatefulWidget {
 }
 
 class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
-
   final TextEditingController nameController = TextEditingController();
-
-  String visibility = "PRIVATE";
+  String? visibility;
 
   bool membersCanMessage = true;
   bool membersCanAddMembers = false;
   bool adminApprovalRequired = true;
 
-  List selectedMembers = [];
+  List<String> selectedMembers = [];
+  bool _saving = false;
 
   void _selectMembers() async {
-    // Navigate to member picker screen
     final result = await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => InviteMemberScreen(
-        groupId: widget.rideId,
-        token: widget.token,
+      context,
+      MaterialPageRoute(
+        builder: (_) => InviteMemberScreen(
+          rideUuid: widget.rideUuid,
+          token: widget.token,
+          selectionOnly: true,
+          preselectedMemberUuids: selectedMembers,
+        ),
       ),
-    ),
-  );
+    );
 
-  if (result != null) {
-    setState(() {
-      selectedMembers = result;
-    });
-  }
+    if (result is List) {
+      setState(() {
+        selectedMembers = result.map((item) => item.toString()).toList();
+      });
+    }
   }
 
   Future<void> _createSubGroup() async {
+    if (nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Subgroup name is required")),
+      );
+      return;
+    }
+    if (visibility == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select subgroup visibility")),
+      );
+      return;
+    }
 
-  if (nameController.text.trim().isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Subgroup name is required")),
-    );
-    return;
-  }
+    setState(() => _saving = true);
 
-  final payload = {
-    "rideUuid": widget.rideId,   // ✅ ADDED
-    "name": nameController.text.trim(),
-    "visibility": visibility,
-    "permissions": {
+    final payload = {
+      "rideUuid": widget.rideUuid,
+      "name": nameController.text.trim(),
+      "visibility": visibility,
       "membersCanSendMessages": membersCanMessage,
       "membersCanAddMembers": membersCanAddMembers,
-      "adminsApproveMembers": adminApprovalRequired
-    },
-    "members": selectedMembers
-  };
+      "adminsApproveMembers": adminApprovalRequired,
+      "memberUuids": selectedMembers,
+    };
 
-  try {
+    try {
+      final result = await SubGroupService.createSubGroup(widget.token, payload);
 
-    final result = await SubGroupService.createSubGroup(
-      widget.token,
-      payload,
-    );
+      await NotificationService().notifySubGroupCreated(
+        token: widget.token,
+        subgroupName: nameController.text.trim(),
+      );
 
-    await NotificationService().notifySubGroupCreated(
-      token: widget.token,
-      subgroupName: nameController.text.trim(),
-    );
-
-    Navigator.pop(context, result);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Subgroup created successfully")),
-    );
-
-    Navigator.pop(context, result);
-
-  } catch (e) {
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Failed to create subgroup")),
-    );
-
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Subgroup created successfully")),
+      );
+      Navigator.pop(context, result);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +156,7 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
             child: Column(
               children: [
 
-                RadioListTile(
+                RadioListTile<String>(
                   value: "PUBLIC",
                   groupValue: visibility,
                   activeColor: AppColors.primary,
@@ -169,12 +167,12 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                   ),
                   onChanged: (v) {
                     setState(() {
-                      visibility = v!;
+                      visibility = v;
                     });
                   },
                 ),
 
-                RadioListTile(
+                RadioListTile<String>(
                   value: "PRIVATE",
                   groupValue: visibility,
                   activeColor: AppColors.primary,
@@ -185,7 +183,7 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                   ),
                   onChanged: (v) {
                     setState(() {
-                      visibility = v!;
+                      visibility = v;
                     });
                   },
                 ),
@@ -276,9 +274,9 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
               backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            onPressed: _createSubGroup,
-            child: const Text(
-              "Create Subgroup",
+            onPressed: _saving ? null : _createSubGroup,
+            child: Text(
+              _saving ? "Creating..." : "Create Subgroup",
               style: TextStyle(fontSize: 16, color: AppColors.white),
             ),
           ),

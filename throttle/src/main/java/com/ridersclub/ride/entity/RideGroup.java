@@ -76,6 +76,27 @@ public class RideGroup {
     @Column(name = "members_can_add_members", nullable = false)
     private Boolean membersCanAddMembers = false;
 
+    @Column(name = "admins_approve_members", nullable = false)
+    private Boolean adminsApproveMembers = true;
+
+    @Column(name = "pre_ride_meeting_point", length = 255)
+    private String preRideMeetingPoint;
+
+    @Column(name = "pre_ride_fuel_stops", length = 255)
+    private String preRideFuelStops;
+
+    @Column(name = "pre_ride_checkpoints", columnDefinition = "TEXT")
+    private String preRideCheckpoints;
+
+    @Column(name = "pre_ride_rules", columnDefinition = "TEXT")
+    private String preRideRules;
+
+    @Column(name = "pre_ride_notes", columnDefinition = "TEXT")
+    private String preRideNotes;
+
+    @Column(name = "pre_ride_updated_at")
+    private LocalDateTime preRideUpdatedAt;
+
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();

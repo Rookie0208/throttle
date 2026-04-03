@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
+import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 
@@ -35,6 +37,8 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   final rulesController = TextEditingController();
 
   List<String> selectedFriends = [];
+  List<Map<String, dynamic>> inviteOptions = [];
+  bool isLoadingInviteOptions = false;
   bool isLoading = false;
 
   DateTime selectedStartTime = DateTime.now().add(
@@ -281,16 +285,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       ),
       isScrollControlled: true,
       builder: (_) {
-        List<String> clubMembers = [
-          "Rahul",
-          "Amit",
-          "Sneha",
-          "Karan",
-          "Vikram",
-        ];
-
         return StatefulBuilder(
           builder: (context, setModalState) {
+            if (inviteOptions.isEmpty && !isLoadingInviteOptions) {
+              _loadInviteOptions(setModalState);
+            }
+
             return Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
@@ -308,43 +308,89 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     ),
                     const SizedBox(height: 12),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: clubMembers.length,
-                        itemBuilder: (_, index) {
-                          final member = clubMembers[index];
-                          final isSelected = selectedFriends.contains(member);
+                      child: isLoadingInviteOptions
+                          ? const Center(
+                              child: CircularProgressIndicator(
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : inviteOptions.isEmpty
+                          ? const Center(
+                              child: Text(
+                                "No friends available to invite.",
+                                style: TextStyle(color: AppColors.textMuted),
+                              ),
+                            )
+                          : ListView.builder(
+                              itemCount: inviteOptions.length,
+                              itemBuilder: (_, index) {
+                                final member = inviteOptions[index];
+                                final displayName =
+                                    "${member["firstName"] ?? ""} ${member["lastName"] ?? ""}"
+                                        .trim();
+                                final riderId =
+                                    (member["riderId"] ?? "").toString();
+                                final selectionKey = displayName.isEmpty
+                                    ? riderId
+                                    : displayName;
+                                final isSelected =
+                                    selectedFriends.contains(selectionKey);
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: softCardColor,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: AppColors.white10),
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: softCardColor,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.white10),
+                                  ),
+                                  child: ListTile(
+                                    title: Text(
+                                      displayName.isEmpty
+                                          ? "Unknown Rider"
+                                          : displayName,
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    subtitle: riderId.isEmpty
+                                        ? null
+                                        : Text(
+                                            "@$riderId",
+                                            style: const TextStyle(
+                                              color: AppColors.textMuted,
+                                            ),
+                                          ),
+                                    trailing: Checkbox(
+                                      value: isSelected,
+                                      activeColor: primaryColor,
+                                      onChanged: (val) {
+                                        setModalState(() {
+                                          if (val == true) {
+                                            selectedFriends.add(selectionKey);
+                                          } else {
+                                            selectedFriends.remove(selectionKey);
+                                          }
+                                        });
+                                        setState(() {});
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                            child: ListTile(
-                              title: Text(
-                                member,
-                                style: const TextStyle(color: AppColors.textPrimary),
-                              ),
-                              trailing: Checkbox(
-                                value: isSelected,
-                                activeColor: primaryColor,
-                                onChanged: (val) {
-                                  setModalState(() {
-                                    if (val == true) {
-                                      selectedFriends.add(member);
-                                    } else {
-                                      selectedFriends.remove(member);
-                                    }
-                                  });
-                                  setState(() {});
-                                },
-                              ),
-                            ),
-                          );
-                        },
-                      ),
                     ),
+                    const SizedBox(height: 10),
+                    if (inviteOptions.isNotEmpty)
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Showing your friends list. Club-specific members will be prioritized when available.",
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
@@ -368,6 +414,32 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         );
       },
     );
+  }
+
+  Future<void> _loadInviteOptions(void Function(void Function()) setModalState) async {
+    setModalState(() => isLoadingInviteOptions = true);
+    try {
+      final me = await UserService.getMe();
+      final userUuid = me?['id']?.toString();
+      if (userUuid == null || userUuid.isEmpty) {
+        throw Exception("Unable to load your profile");
+      }
+      final friends = await FriendService.getFriends(userUuid);
+      if (!mounted) return;
+      setModalState(() {
+        inviteOptions = friends
+            .whereType<Map>()
+            .map((friend) => Map<String, dynamic>.from(friend))
+            .toList();
+        isLoadingInviteOptions = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setModalState(() {
+        inviteOptions = [];
+        isLoadingInviteOptions = false;
+      });
+    }
   }
 
   Future<void> fetchCoordinates(String placeName, bool isStart) async {

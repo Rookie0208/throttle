@@ -5,6 +5,8 @@ class NotificationItem {
   final String time;
   bool unread;
   final String type;
+  final int? referenceId;
+  final String referenceType;
 
   NotificationItem({
     required this.id,
@@ -13,6 +15,8 @@ class NotificationItem {
     required this.time,
     required this.unread,
     required this.type,
+    this.referenceId,
+    this.referenceType = "",
   });
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class NotificationItem {
       time: json["createdAt"] ?? "",
       unread: !(json["read"] ?? false),
       type: json["type"] ?? "",
+      referenceId: json["referenceId"] as int?,
+      referenceType: json["referenceType"] ?? "",
     );
   }
 }

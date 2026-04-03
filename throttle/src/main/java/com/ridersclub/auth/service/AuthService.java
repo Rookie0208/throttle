@@ -7,30 +7,30 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
+
 import com.ridersclub.auth.dto.request.GoogleAuthRequest;
 import com.ridersclub.auth.dto.request.GoogleRegisterRequest;
+import com.ridersclub.auth.dto.response.GoogleAuthResponse;
 import com.ridersclub.auth.dto.request.LoginRequest;
 import com.ridersclub.auth.dto.request.RegisterRequest;
-import com.ridersclub.auth.dto.response.GoogleAuthResponse;
 import com.ridersclub.auth.dto.response.LoginResponse;
 import com.ridersclub.auth.dto.response.RegisterResponse;
-import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.common.Utils.NormalizeUtil;
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
+import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.service.RiderIdService;
 import com.ridersclub.user.service.UserService;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -72,7 +72,7 @@ public class AuthService {
             try {
                 neo4jClient.query(
                         "MERGE (u:User {id: $id}) " +
-                                "SET u.firstName = $firstName, u.lastName = $lastName")
+                        "SET u.firstName = $firstName, u.lastName = $lastName")
                         .bind(uuid).to("id")
                         .bind(firstName != null ? firstName : "").to("firstName")
                         .bind(lastName != null ? lastName : "").to("lastName")
@@ -134,14 +134,13 @@ public class AuthService {
 
         boolean verificationRequired = true;
         String verificationType = verificationRequired ? "EMAIL" : "NONE";
-
+        
         long expiresIn = 900L;
         String roleValue = saved.getRole() != null ? saved.getRole().name() : "RIDER";
         String token = jwtService.generate(saved.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
         String refreshToken = refreshTokenService.createRefreshToken(saved.getId()).getToken();
-
-        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType, token,
-                refreshToken, expiresIn);
+        
+        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType, token, refreshToken, expiresIn);
     }
 
     public GoogleAuthResponse verifyGoogleToken(GoogleAuthRequest request) {

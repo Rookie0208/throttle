@@ -9,7 +9,7 @@ import 'package:throttle_ui/core/services/logger_service.dart';
 class AuthService {
   static String get baseUrl =>
       "${dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1'}/auth";
-
+      
   static const _storage = FlutterSecureStorage();
   static const String _tokenKey = "jwt_token";
   static const String _refreshTokenKey = "refresh_token";
@@ -137,9 +137,8 @@ class AuthService {
       if (idToken == null) {
         // use authenticate to match original implementation version
         final GoogleSignInAccount? account = await googleSignIn.authenticate();
-        if (account == null)
-          return {"success": false, "message": "Google sign in aborted"};
-
+        if (account == null) return {"success": false, "message": "Google sign in aborted"};
+        
         final GoogleSignInAuthentication auth = account.authentication;
         idToken = auth.idToken;
       }
@@ -265,7 +264,6 @@ class AuthService {
   static Future<void> saveTokens(String token, String refreshToken) async {
     await _storage.write(key: _tokenKey, value: token);
     await _storage.write(key: _refreshTokenKey, value: refreshToken);
-
     UserSession.init(token);
   }
 
@@ -301,17 +299,13 @@ class AuthService {
         final newRefreshToken = decoded["data"]?["refreshToken"];
 
         if (newToken != null && newRefreshToken != null) {
-          Logger.info(
-            "Successfully received new tokens. Storing to secure storage.",
-          );
+          Logger.info("Successfully received new tokens. Storing to secure storage.");
           await saveTokens(newToken, newRefreshToken);
           return true;
         }
       }
       // If refresh failed (e.g., token expired or revoked in DB)
-      Logger.warn(
-        "Refresh request rejected by server. Status: ${response.statusCode}",
-      );
+      Logger.warn("Refresh request rejected by server. Status: ${response.statusCode}");
       return false;
     } catch (e) {
       Logger.error("Network fail during refresh token call", e);
@@ -332,8 +326,7 @@ class AuthService {
           url,
           headers: {
             "Content-Type": "application/json",
-            "Authorization":
-                "Bearer $accessToken", // Needs access token for intercept filter
+            "Authorization": "Bearer $accessToken", // Needs access token for intercept filter 
           },
           body: jsonEncode({"refreshToken": refreshToken}),
         );
@@ -349,8 +342,10 @@ class AuthService {
     // Disconnect google sign-in safely
     try {
       await googleSignIn.signOut();
-    } catch (e) {}
+    } catch(e) {}
   }
+
+
 
   // ================= GENDER FROM PRONOUN =================
   static String _getGenderFromPronoun(String? pronoun) {

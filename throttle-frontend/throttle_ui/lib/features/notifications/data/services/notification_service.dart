@@ -338,7 +338,6 @@ class NotificationService {
       ...pendingLocalNotifications,
       ...remoteNotifications,
     ];
-
     merged.sort((a, b) => b.time.compareTo(a.time));
     return merged;
   }
