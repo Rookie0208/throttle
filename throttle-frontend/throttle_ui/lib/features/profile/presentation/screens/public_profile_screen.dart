@@ -78,9 +78,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     await Logger.info(
       _ctx('fetch_mutual_count', {'target': uuid}),
     );
-    final count = await FriendService.getMutualFriendsCount(
-      uuid,
-    );
+    final count = await FriendService.getMutualFriendsCount(uuid);
     if (mounted) {
       setState(() {
         mutualCount = count;
@@ -348,18 +346,23 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             ),
                           ),
                         ),
-                      if (isLoadingProfile)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 6),
-                          child: Text(
-                            "Loading profile...",
-                            style: TextStyle(color: Colors.white38, fontSize: 11),
-                          ),
-                        ),
                     ],
                   ),
                 ),
-                _buildRelationshipButton(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _buildRelationshipButton(),
+                    if (isLoadingProfile)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Text(
+                          "Loading profile...",
+                          style: TextStyle(color: Colors.white38, fontSize: 11),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

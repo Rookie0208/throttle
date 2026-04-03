@@ -246,6 +246,20 @@ CREATE TABLE ride_groups (
 
     members_can_add_members BOOLEAN NOT NULL DEFAULT FALSE,
 
+    admins_approve_members BOOLEAN NOT NULL DEFAULT TRUE,
+
+    pre_ride_meeting_point VARCHAR(255),
+
+    pre_ride_fuel_stops VARCHAR(255),
+
+    pre_ride_checkpoints TEXT,
+
+    pre_ride_rules TEXT,
+
+    pre_ride_notes TEXT,
+
+    pre_ride_updated_at TIMESTAMP,
+
     created_by BIGINT NOT NULL,
 
     created_at TIMESTAMP DEFAULT now(),

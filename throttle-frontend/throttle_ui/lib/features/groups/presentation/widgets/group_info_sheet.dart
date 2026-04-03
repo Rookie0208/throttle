@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
+import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
+import 'package:throttle_ui/features/groups/presentation/screens/invite_member_screen.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
@@ -25,9 +27,21 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   String searchQuery = "";
   int _refreshCounter = 0; // Add this for refreshing the members list
 
+  String get _groupUuid => widget.rideGroup["uuid"].toString();
+  String get _rideUuid =>
+      (widget.rideGroup["rideUuid"] ?? widget.rideGroup["uuid"]).toString();
+
+  bool get _isSubGroup =>
+      widget.rideGroup["isSubGroup"] == true ||
+      widget.rideGroup["parentGroupUuid"] != null;
+
   bool get _isGroupLocked {
-    final groupStatus = (widget.rideGroup["status"] ?? "").toString().toLowerCase();
-    final rideStatus = (widget.rideGroup["rideStatus"] ?? "").toString().toUpperCase();
+    final groupStatus = (widget.rideGroup["status"] ?? "")
+        .toString()
+        .toLowerCase();
+    final rideStatus = (widget.rideGroup["rideStatus"] ?? "")
+        .toString()
+        .toUpperCase();
     return groupStatus == "archive" ||
         {"CANCELLED", "COMPLETED", "ENDED"}.contains(rideStatus);
   }
@@ -38,9 +52,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       if (parts.length < 2) return null;
 
       final normalized = base64Url.normalize(parts[1]);
-      final payload = jsonDecode(
-        utf8.decode(base64Url.decode(normalized)),
-      ) as Map<String, dynamic>;
+      final payload =
+          jsonDecode(utf8.decode(base64Url.decode(normalized)))
+              as Map<String, dynamic>;
 
       return payload["sub"]?.toString();
     } catch (_) {
@@ -52,15 +66,17 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     final currentUserUuid = _currentUserUuidFromToken();
     if (currentUserUuid != null) {
       for (final member in members) {
-        if (member is Map && member["userUuid"]?.toString() == currentUserUuid) {
+        if (member is Map &&
+            member["userUuid"]?.toString() == currentUserUuid) {
           return member["role"]?.toString() ?? "";
         }
       }
     }
 
     final createdByUser = widget.rideGroup["createdByUser"];
-    final createdByUuid =
-        createdByUser is Map ? createdByUser["uuid"]?.toString() : null;
+    final createdByUuid = createdByUser is Map
+        ? createdByUser["uuid"]?.toString()
+        : null;
 
     if (createdByUuid != null && createdByUuid == currentUserUuid) {
       return "ADMIN";
@@ -74,12 +90,24 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     return currentUserRole == "CAPTAIN" || currentUserRole == "ADMIN";
   }
 
+  bool _canOpenAddMembers(String currentUserRole) {
+    if (_isGroupLocked) return false;
+    if (!_isSubGroup) return _canManageMembers(currentUserRole);
+    if (_canManageMembers(currentUserRole)) return true;
+    return widget.rideGroup["membersCanAddMembers"] == true &&
+        widget.rideGroup["adminsApproveMembers"] != true;
+  }
+
+  String get _memberNoun => _isSubGroup ? "members" : "riders";
+
   String _formatRoleLabel(String role) {
     return role
         .split("_")
-        .map((part) => part.isEmpty
-            ? part
-            : "${part[0]}${part.substring(1).toLowerCase()}")
+        .map(
+          (part) => part.isEmpty
+              ? part
+              : "${part[0]}${part.substring(1).toLowerCase()}",
+        )
         .join(" ");
   }
 
@@ -94,6 +122,33 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     );
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadGroupDetails();
+  }
+
+  Future<void> _loadGroupDetails() async {
+    try {
+      final details = await SubGroupService.fetchSubGroupDetails(
+        widget.token,
+        _groupUuid,
+      );
+      if (!mounted) return;
+      setState(() {
+        widget.rideGroup.addAll(details);
+      });
+    } catch (_) {}
+
+    try {
+      final preRideInfo = await GroupService.fetchPreRideInfo(widget.token, _groupUuid);
+      if (!mounted) return;
+      setState(() {
+        widget.rideGroup["preRideInfo"] = preRideInfo;
+      });
+    } catch (_) {}
+  }
+
   Future<void> _openAnnouncementComposer(String currentUserRole) async {
     if (_isGroupLocked) {
       _showMessage("This group is locked", isError: true);
@@ -101,7 +156,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     }
 
     if (!_canManageMembers(currentUserRole)) {
-      _showMessage("Only captain/admin can publish announcements", isError: true);
+      _showMessage(
+        "Only captain/admin can publish announcements",
+        isError: true,
+      );
       return;
     }
 
@@ -169,14 +227,17 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     onPressed: () async {
                       final message = controller.text.trim();
                       if (message.isEmpty) {
-                        _showMessage("Announcement message is required", isError: true);
+                        _showMessage(
+                          "Announcement message is required",
+                          isError: true,
+                        );
                         return;
                       }
 
                       try {
                         await NotificationService().sendRideAnnouncement(
                           token: widget.token,
-                          rideUuid: widget.rideGroup["uuid"],
+                          rideUuid: _rideUuid,
                           message: message,
                         );
                         if (!sheetContext.mounted || !mounted) return;
@@ -272,7 +333,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                               value: role,
                               child: Text(
                                 _formatRoleLabel(role),
-                                style: const TextStyle(color: AppColors.textPrimary),
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             );
                           }).toList(),
@@ -312,12 +375,21 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     if (nextRole == null || nextRole == currentRole) return;
 
     try {
-      await RideService.updateUserRole(
-        widget.token,
-        widget.rideGroup["uuid"],
-        member["userUuid"],
-        nextRole,
-      );
+      if (_isSubGroup) {
+        await SubGroupService.updateSubGroupMemberRole(
+          widget.token,
+          _groupUuid,
+          member["userUuid"],
+          nextRole,
+        );
+      } else {
+        await RideService.updateUserRole(
+          widget.token,
+          _rideUuid,
+          member["userUuid"],
+          nextRole,
+        );
+      }
       _showMessage("Role updated to ${_formatRoleLabel(nextRole)}");
       await _refreshMembers();
     } catch (e) {
@@ -326,17 +398,20 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   Future<void> _removeMember(Map<String, dynamic> member) async {
-    final bool confirmed = await showDialog<bool>(
+    final bool confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) {
             return AlertDialog(
               backgroundColor: AppColors.surface,
-              title: const Text(
-                "Remove rider?",
+              title: Text(
+                "Remove $_memberNoun?",
                 style: TextStyle(color: AppColors.white),
               ),
               content: Text(
-                "This will remove ${member["firstName"] ?? "this rider"} from the ride.",
+                _isSubGroup
+                    ? "This will remove ${member["firstName"] ?? "this rider"} from the subgroup."
+                    : "This will remove ${member["firstName"] ?? "this rider"} from the ride.",
                 style: const TextStyle(color: AppColors.textSecondary),
               ),
               actions: [
@@ -360,12 +435,24 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     if (!confirmed) return;
 
     try {
-      await RideService.removeMember(
-        widget.token,
-        widget.rideGroup["uuid"],
-        member["userUuid"],
+      if (_isSubGroup) {
+        await SubGroupService.removeSubGroupMember(
+          widget.token,
+          _groupUuid,
+          member["userUuid"],
+        );
+      } else {
+        await RideService.removeMember(
+          widget.token,
+          _rideUuid,
+          member["userUuid"],
+        );
+      }
+      _showMessage(
+        _isSubGroup
+            ? "Member removed from subgroup"
+            : "Member removed from ride",
       );
-      _showMessage("Member removed from ride");
       await _refreshMembers();
     } catch (e) {
       _showMessage(e.toString().replaceFirst("Exception: ", ""), isError: true);
@@ -373,9 +460,16 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   Future<List<dynamic>> fetchMembers() async {
+    if (_isSubGroup) {
+      return SubGroupService.fetchSubGroupMembers(
+        widget.token,
+        _groupUuid,
+      );
+    }
+
     final result = await GroupService.fetchRideMembers(
       widget.token,
-      widget.rideGroup["uuid"],
+      _rideUuid,
     );
 
     return result["data"] ?? [];
@@ -430,9 +524,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: enabled
-                      ? AppColors.textSecondary
-                      : AppColors.textHint,
+                  color: enabled ? AppColors.textSecondary : AppColors.textHint,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -524,10 +616,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               color: AppColors.primary.withOpacity(0.14),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(
-              Icons.place_rounded,
-              color: AppColors.primary,
-            ),
+            child: const Icon(Icons.place_rounded, color: AppColors.primary),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -606,7 +695,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(role, style: const TextStyle(color: AppColors.textSecondary)),
+                      Text(
+                        role,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
                     ],
                   ),
                 ],
@@ -634,7 +726,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
               if (canManageRoles) ...[
                 ListTile(
-                  leading: const Icon(Icons.badge_outlined, color: AppColors.white),
+                  leading: const Icon(
+                    Icons.badge_outlined,
+                    color: AppColors.white,
+                  ),
                   title: const Text(
                     "Change Role",
                     style: TextStyle(color: AppColors.white),
@@ -655,8 +750,8 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 const SizedBox(height: 10),
                 ListTile(
                   leading: const Icon(Icons.remove_circle, color: Colors.red),
-                  title: const Text(
-                    "Remove from Ride",
+                  title: Text(
+                    _isSubGroup ? "Remove from Subgroup" : "Remove from Ride",
                     style: TextStyle(color: AppColors.white),
                   ),
                   onTap: () {
@@ -689,6 +784,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   void _editDescription() {
+    if (_isSubGroup) {
+      _showMessage("Subgroup description editing is not available yet");
+      return;
+    }
     if (_isGroupLocked) {
       _showMessage("This group is locked", isError: true);
       return;
@@ -725,7 +824,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 onPressed: () async {
                   await GroupService.updateRide(
                     widget.token,
-                    widget.rideGroup["uuid"],
+                    _rideUuid,
                     {"description": controller.text},
                   );
                   if (!mounted) return;
@@ -738,6 +837,104 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _openSubGroupInfo(Map<String, dynamic> subgroup) {
+    final subgroupData = <String, dynamic>{
+      ...widget.rideGroup,
+      ...subgroup,
+      "title": subgroup["name"] ?? widget.rideGroup["title"] ?? "Subgroup",
+      "isSubGroup": true,
+      "myRole": subgroup["myRole"] ?? widget.rideGroup["myRole"],
+      "createdByName":
+          subgroup["createdByName"] ?? widget.rideGroup["createdByName"],
+    };
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            RideInfoScreen(rideGroup: subgroupData, token: widget.token),
+      ),
+    );
+  }
+
+  Widget _subGroupsSection() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: SubGroupService.fetchSubGroups(
+        widget.token,
+        _rideUuid,
+      ),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            ),
+          );
+        }
+
+        final subGroups = snapshot.data ?? [];
+        if (subGroups.isEmpty) {
+          return const Text(
+            "No subgroups created yet.",
+            style: TextStyle(color: AppColors.textSecondary),
+          );
+        }
+
+        return Column(
+          children: subGroups.map((subgroup) {
+            final memberCount = subgroup["memberCount"];
+            final subtitleParts = [
+              subgroup["visibility"]?.toString() ?? "",
+              if (memberCount != null) "$memberCount members",
+            ].where((part) => part.isNotEmpty).toList();
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: ListTile(
+                onTap: () =>
+                    _openSubGroupInfo(Map<String, dynamic>.from(subgroup)),
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceMuted,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.group_work_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                title: Text(
+                  subgroup["name"]?.toString() ?? "Subgroup",
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: subtitleParts.isEmpty
+                    ? null
+                    : Text(
+                        subtitleParts.join(" • "),
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                trailing: const Icon(
+                  Icons.chevron_right,
+                  color: AppColors.textMuted,
+                ),
+              ),
+            );
+          }).toList(),
         );
       },
     );
@@ -769,14 +966,16 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   Widget _groupHeader(String currentUserRole) {
-    final name = widget.rideGroup["title"] ?? "Ride";
+    final name =
+        widget.rideGroup["title"] ?? widget.rideGroup["name"] ?? "Ride";
     final creatorUser = widget.rideGroup["createdByUser"];
     final creatorName = creatorUser != null
         ? "${creatorUser["firstName"] ?? ""} ${creatorUser["lastName"] ?? ""}"
               .trim()
-        : (widget.rideGroup["createdByName"]?.toString().trim().isNotEmpty ?? false)
-            ? widget.rideGroup["createdByName"].toString().trim()
-            : "Unknown";
+        : (widget.rideGroup["createdByName"]?.toString().trim().isNotEmpty ??
+              false)
+        ? widget.rideGroup["createdByName"].toString().trim()
+        : "Unknown";
 
     final createdAt = widget.rideGroup["createdAt"];
 
@@ -826,7 +1025,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   _quickAction(
                     icon: Icons.campaign_outlined,
                     label: "Announcement",
-                    enabled: !_isGroupLocked && _canManageMembers(currentUserRole),
+                    enabled:
+                        !_isSubGroup &&
+                        !_isGroupLocked &&
+                        _canManageMembers(currentUserRole),
                     onTap: () {
                       _openAnnouncementComposer(currentUserRole);
                     },
@@ -835,11 +1037,23 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   _quickAction(
                     icon: Icons.person_add_alt_1,
                     label: "Add Members",
-                    enabled: !_isGroupLocked,
+                    enabled:
+                        _canOpenAddMembers(currentUserRole),
                     onTap: () {
-                      _showMessage(
-                        "Add members flow can be connected here when the invite flow is ready.",
-                      );
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => InviteMemberScreen(
+                            rideUuid: _rideUuid,
+                            subgroupUuid: _isSubGroup ? _groupUuid : null,
+                            token: widget.token,
+                          ),
+                        ),
+                      ).then((result) async {
+                        if (result == true) {
+                          await _refreshMembers();
+                        }
+                      });
                     },
                   ),
                   const SizedBox(width: 10),
@@ -876,15 +1090,18 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   void _showPreRideDetails(String currentUserRole) {
-    final preRideInfo =
-        Map<String, dynamic>.from(widget.rideGroup["preRideInfo"] ?? {});
+    final preRideInfo = Map<String, dynamic>.from(
+      widget.rideGroup["preRideInfo"] ?? {},
+    );
     final canEditPreRide = _canEditPreRide(currentUserRole);
-    final checkpoints = (preRideInfo["checkpointList"] as List?)
+    final checkpoints =
+        (preRideInfo["checkpointList"] as List?)
             ?.whereType<String>()
             .where((item) => item.trim().isNotEmpty)
             .toList() ??
         [];
-    final rules = (preRideInfo["ruleList"] as List?)
+    final rules =
+        (preRideInfo["ruleList"] as List?)
             ?.whereType<String>()
             .where((item) => item.trim().isNotEmpty)
             .toList() ??
@@ -979,34 +1196,38 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                             _preRideFeature(
                               icon: Icons.directions_bike_outlined,
                               label: "Ride Type",
-                              value: (preRideInfo["rideType"] ??
-                                      widget.rideGroup["rideType"] ??
-                                      "Ride")
-                                  .toString(),
+                              value:
+                                  (preRideInfo["rideType"] ??
+                                          widget.rideGroup["rideType"] ??
+                                          "Ride")
+                                      .toString(),
                             ),
                             _preRideFeature(
                               icon: Icons.map_outlined,
                               label: "Route Type",
-                              value: (preRideInfo["routeType"] ??
-                                      widget.rideGroup["routeType"] ??
-                                      "Route")
-                                  .toString(),
+                              value:
+                                  (preRideInfo["routeType"] ??
+                                          widget.rideGroup["routeType"] ??
+                                          "Route")
+                                      .toString(),
                             ),
                             _preRideFeature(
                               icon: Icons.people_outline,
                               label: "Max Riders",
-                              value: (preRideInfo["maxRiders"] ??
-                                      widget.rideGroup["maxRiders"] ??
-                                      "-")
-                                  .toString(),
+                              value:
+                                  (preRideInfo["maxRiders"] ??
+                                          widget.rideGroup["maxRiders"] ??
+                                          "-")
+                                      .toString(),
                             ),
                             _preRideFeature(
                               icon: Icons.visibility_outlined,
                               label: "Visibility",
-                              value: (preRideInfo["visibility"] ??
-                                      widget.rideGroup["visibility"] ??
-                                      "PUBLIC")
-                                  .toString(),
+                              value:
+                                  (preRideInfo["visibility"] ??
+                                          widget.rideGroup["visibility"] ??
+                                          "PUBLIC")
+                                      .toString(),
                             ),
                             _preRideFeature(
                               icon: Icons.local_gas_station_outlined,
@@ -1017,7 +1238,8 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                             _preRideFeature(
                               icon: Icons.sticky_note_2_outlined,
                               label: "Notes",
-                              value: ((preRideInfo["notes"] ?? "")
+                              value:
+                                  ((preRideInfo["notes"] ?? "")
                                       .toString()
                                       .isEmpty)
                                   ? "No notes added"
@@ -1049,7 +1271,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                                     decoration: BoxDecoration(
                                       color: AppColors.surface,
                                       borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: AppColors.white10),
+                                      border: Border.all(
+                                        color: AppColors.white10,
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -1097,7 +1321,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                                     decoration: BoxDecoration(
                                       color: AppColors.surface,
                                       borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(color: AppColors.white10),
+                                      border: Border.all(
+                                        color: AppColors.white10,
+                                      ),
                                     ),
                                     child: Text(
                                       rule,
@@ -1128,8 +1354,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     }
 
     int step = 0;
-    final existingPreRide =
-        Map<String, dynamic>.from(widget.rideGroup["preRideInfo"] ?? {});
+    final existingPreRide = Map<String, dynamic>.from(
+      widget.rideGroup["preRideInfo"] ?? {},
+    );
 
     final meetingController = TextEditingController(
       text: existingPreRide["meetingPoint"]?.toString() ?? "",
@@ -1236,7 +1463,11 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                         child: const CircleAvatar(
                           radius: 18,
                           backgroundColor: AppColors.primary,
-                          child: Icon(Icons.add, color: AppColors.white, size: 18),
+                          child: Icon(
+                            Icons.add,
+                            color: AppColors.white,
+                            size: 18,
+                          ),
                         ),
                       ),
                     ],
@@ -1371,7 +1602,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                               ),
                               title: Text(
                                 c,
-                                style: const TextStyle(color: AppColors.textPrimary),
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
                           )
@@ -1452,52 +1685,60 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           if (step < 3) {
                             setModalState(() => step++);
                           } else {
-                            final previousPreRide =
-                                Map<String, dynamic>.from(
-                                  widget.rideGroup["preRideInfo"] ?? {},
-                                );
-                            final preRidePayload =
-                                RideService.buildPreRideInfoPayload(
-                                  rideGroup: widget.rideGroup,
-                                  meetingPoint: meetingController.text,
-                                  fuelStops: fuelController.text,
-                                  checkpoints: checkpoints,
-                                  rules: selectedRules,
-                                  notes: notesController.text,
-                                );
-
-                            RideService.savePreRideInfoLocally(
-                              rideGroup: widget.rideGroup,
-                              preRideInfo: preRidePayload,
+                            final previousPreRide = Map<String, dynamic>.from(
+                              widget.rideGroup["preRideInfo"] ?? {},
                             );
-
                             final rideTitle =
                                 widget.rideGroup["title"]?.toString() ?? "ride";
-                            final meetingPoint =
-                                preRidePayload["meetingPoint"]?.toString() ?? "";
                             final hadMeetingPoint =
                                 (previousPreRide["meetingPoint"] ?? "")
                                     .toString()
                                     .trim()
                                     .isNotEmpty;
 
-                            Navigator.pop(context);
-                            setState(() {});
-                            _showMessage("Pre-ride information saved locally");
+                            final requestPayload = {
+                              "meetingPoint": meetingController.text.trim(),
+                              "fuelStops": fuelController.text.trim(),
+                              "checkpointList": checkpoints,
+                              "ruleList": selectedRules,
+                              "notes": notesController.text.trim(),
+                            };
 
-                            NotificationService().notifyPreRideInfoUpdated(
-                              token: widget.token,
-                              rideTitle: rideTitle,
-                            );
+                            GroupService.updatePreRideInfo(
+                              widget.token,
+                              _groupUuid,
+                              requestPayload,
+                            ).then((savedPreRideInfo) async {
+                              if (!mounted) return;
+                              final meetingPoint =
+                                  savedPreRideInfo["meetingPoint"]?.toString() ??
+                                  "";
 
-                            if (!hadMeetingPoint &&
-                                meetingPoint.trim().isNotEmpty) {
-                              NotificationService().notifyMeetingPointSelected(
+                              Navigator.pop(context);
+                              setState(() {
+                                widget.rideGroup["preRideInfo"] = savedPreRideInfo;
+                              });
+                              _showMessage("Pre-ride information saved");
+
+                              await NotificationService().notifyPreRideInfoUpdated(
                                 token: widget.token,
                                 rideTitle: rideTitle,
-                                meetingPoint: meetingPoint,
                               );
-                            }
+
+                              if (!hadMeetingPoint &&
+                                  meetingPoint.trim().isNotEmpty) {
+                                await NotificationService().notifyMeetingPointSelected(
+                                  token: widget.token,
+                                  rideTitle: rideTitle,
+                                  meetingPoint: meetingPoint,
+                                );
+                              }
+                            }).catchError((error) {
+                              _showMessage(
+                                error.toString().replaceFirst("Exception: ", ""),
+                                isError: true,
+                              );
+                            });
                           }
                         },
                         child: Text(step == 3 ? "Save" : "Next"),
@@ -1617,7 +1858,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
           const Icon(Icons.location_on, color: AppColors.primary),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text, style: const TextStyle(color: AppColors.textPrimary)),
+            child: Text(
+              text,
+              style: const TextStyle(color: AppColors.textPrimary),
+            ),
           ),
         ],
       ),
@@ -1707,7 +1951,11 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final description = widget.rideGroup["description"];
+    final description =
+        widget.rideGroup["description"] ??
+        (_isSubGroup
+            ? "This subgroup has its own member roles and access."
+            : null);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -1748,7 +1996,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: _isGroupLocked ? null : _editDescription,
+                onTap: (_isGroupLocked || _isSubGroup)
+                    ? null
+                    : _editDescription,
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
@@ -1767,6 +2017,21 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               ),
 
               const SizedBox(height: 20),
+
+              if (!_isSubGroup &&
+                  (currentUserRole == "ADMIN" ||
+                      currentUserRole == "CAPTAIN")) ...[
+                const Text(
+                  "Subgroups",
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                _subGroupsSection(),
+                const SizedBox(height: 20),
+              ],
 
               /// SETTINGS
               const Text(
@@ -1803,7 +2068,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "${members.length} riders",
+                    "${members.length} $_memberNoun",
                     style: const TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
@@ -1825,7 +2090,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 decoration: InputDecoration(
                   hintText: "Search riders...",
                   hintStyle: const TextStyle(color: AppColors.textHint),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: AppColors.textMuted,
+                  ),
                   filled: true,
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
@@ -1841,8 +2109,8 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               if (!snapshot.hasData)
                 const Center(child: CircularProgressIndicator())
               else if (members.isEmpty)
-                const Text(
-                  "No riders found",
+                Text(
+                  "No $_memberNoun found",
                   style: TextStyle(color: AppColors.textSecondary),
                 )
               else
