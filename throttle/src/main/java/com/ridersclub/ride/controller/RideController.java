@@ -18,13 +18,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 
 import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
+import com.ridersclub.ride.dto.request.AddGroupMembersRequest;
+import com.ridersclub.ride.dto.request.AssignRoleRequest;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideAnnouncementRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
+import com.ridersclub.ride.dto.request.UpdatePreRideInfoRequest;
+import com.ridersclub.ride.dto.response.PreRideInfoResponse;
 import com.ridersclub.ride.dto.response.RideResponse;
 import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.Ride;
@@ -158,18 +163,23 @@ public class RideController {
      * 
      */
     @PostMapping("/subgroup")
-    public ResponseEntity<ApiResponse<RideGroup>> createSubGroup(
-            @RequestBody CreateSubGroupRequest request, Authentication authentication) {
+    public ResponseEntity<ApiResponse<SubGroupResponse>> createSubGroup(
+            @Valid @RequestBody CreateSubGroupRequest request, Authentication authentication) {
         try {
             String userUuid = authentication.getPrincipal().toString();
-            RideGroup group = rideService.createSubGroup(request, userUuid);
+            SubGroupResponse group = rideService.createSubGroup(request, userUuid);
             return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(group, "Subgroup created successfully"));
-        } catch (Exception e) {
-            logger.error("error creating subgrop", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.failure(
                             new ApiErrors("SUBGROUP_CREATION_FAILED", e.getMessage(), "/api/v1/rides/subgroup"),
-                            "Subgroup creation failed"));
+                            e.getMessage()));
+        } catch (Exception e) {
+            logger.error("error creating subgrop", e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.failure(
+                            new ApiErrors("SUBGROUP_CREATION_FAILED", e.getMessage(), "/api/v1/rides/subgroup"),
+                            e.getMessage()));
         }
     }
 
@@ -178,6 +188,70 @@ public class RideController {
 
         String userUuid = authentication.getPrincipal().toString();
         return ApiResponse.success(rideService.getSubGroups(groupUuid, userUuid), "Subgroups");
+    }
+
+    @GetMapping("/groups/{groupUuid}")
+    public ApiResponse<?> getGroupDetails(@PathVariable String groupUuid, Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(rideService.getGroupDetails(groupUuid, userUuid), "Group details");
+    }
+
+    @GetMapping("/groups/{groupUuid}/members")
+    public ApiResponse<?> getGroupMembers(@PathVariable String groupUuid, Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(rideService.getGroupMembers(groupUuid, userUuid), "Group members");
+    }
+
+    @PostMapping("/groups/{groupUuid}/members")
+    public ApiResponse<?> addGroupMembers(
+            @PathVariable String groupUuid,
+            @Valid @RequestBody AddGroupMembersRequest request,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.addGroupMembers(groupUuid, request.getMemberUuids(), currentUserUuid);
+        return ApiResponse.success(null, "Subgroup members added successfully");
+    }
+
+    @PutMapping("/groups/{groupUuid}/members/{userId}/role")
+    public ApiResponse<?> updateGroupMemberRole(
+            @PathVariable String groupUuid,
+            @PathVariable String userId,
+            @RequestBody AssignRoleRequest request,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.updateGroupMemberRole(groupUuid, userId, request.getRole(), currentUserUuid);
+        return ApiResponse.success(null, "Subgroup role updated successfully");
+    }
+
+    @DeleteMapping("/groups/{groupUuid}/members/{userId}")
+    public ApiResponse<?> removeGroupMember(
+            @PathVariable String groupUuid,
+            @PathVariable String userId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.removeGroupMember(groupUuid, userId, currentUserUuid);
+        return ApiResponse.success(null, "Subgroup member removed successfully");
+    }
+
+    @GetMapping("/groups/{groupUuid}/pre-ride-info")
+    public ApiResponse<PreRideInfoResponse> getPreRideInfo(
+            @PathVariable String groupUuid,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideService.getPreRideInfo(groupUuid, currentUserUuid),
+                "Pre-ride info fetched");
+    }
+
+    @PutMapping("/groups/{groupUuid}/pre-ride-info")
+    public ApiResponse<PreRideInfoResponse> updatePreRideInfo(
+            @PathVariable String groupUuid,
+            @RequestBody UpdatePreRideInfoRequest request,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideService.updatePreRideInfo(groupUuid, request, currentUserUuid),
+                "Pre-ride info updated");
     }
 
     @DeleteMapping("/{id}/members/{userId}")

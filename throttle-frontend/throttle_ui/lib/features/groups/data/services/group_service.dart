@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class GroupService {
-  static const String baseUrl =
-      "http://localhost:8080/api/v1";
+  static const String baseUrl = "http://localhost:8080/api/v1";
 
       static Future<void> updateRide(
   String token,
@@ -21,9 +20,12 @@ class GroupService {
   );
 }
 
-// Update pre-ride info for a specific group
-  static Future<void> updatePreRideInfo(String token, String groupId, Map<String, dynamic> preRideInfo) async {
-    final url = Uri.parse('$baseUrl/rideGroups/$groupId/preRideInfo');
+  static Future<Map<String, dynamic>> updatePreRideInfo(
+    String token,
+    String groupId,
+    Map<String, dynamic> preRideInfo,
+  ) async {
+    final url = Uri.parse('$baseUrl/rides/groups/$groupId/pre-ride-info');
     final response = await http.put(
       url,
       headers: {
@@ -33,14 +35,18 @@ class GroupService {
       body: json.encode(preRideInfo),
     );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update pre-ride info');
+    final decoded = json.decode(response.body);
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(decoded['data'] ?? const {});
     }
+    throw Exception(decoded['message'] ?? 'Failed to update pre-ride info');
   }
 
-  // Fetch pre-ride info for a specific group
-  static Future<Map<String, dynamic>> fetchPreRideInfo(String token, String groupId) async {
-    final url = Uri.parse('$baseUrl/rideGroups/$groupId/preRideInfo');
+  static Future<Map<String, dynamic>> fetchPreRideInfo(
+    String token,
+    String groupId,
+  ) async {
+    final url = Uri.parse('$baseUrl/rides/groups/$groupId/pre-ride-info');
     final response = await http.get(
       url,
       headers: {
@@ -49,10 +55,11 @@ class GroupService {
     );
 
     if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to load pre-ride info');
+      final decoded = json.decode(response.body);
+      return Map<String, dynamic>.from(decoded['data'] ?? const {});
     }
+    final decoded = json.decode(response.body);
+    throw Exception(decoded['message'] ?? 'Failed to load pre-ride info');
   }
 
   static Future<Map<String, dynamic>> fetchMyGroups(String token) async {
@@ -78,19 +85,18 @@ class GroupService {
   }
 
   static Future<Map<String, dynamic>> fetchRideMembers(
-      String token, String rideUuid) async {
-
+    String token,
+    String rideUuid,
+  ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/participants/$rideUuid"),
       headers: {
         "Authorization": "Bearer $token",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
     );
-    print("url : $baseUrl/participants/$rideUuid");
 
     if (response.statusCode == 200) {
-      print("Fetch Ride Members Response: ${response.body}");
       return jsonDecode(response.body);
     } else {
       throw Exception("Failed to fetch ride members");

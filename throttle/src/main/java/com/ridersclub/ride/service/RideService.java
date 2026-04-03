@@ -3,9 +3,10 @@ package com.ridersclub.ride.service;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -27,7 +28,10 @@ import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
+import com.ridersclub.ride.dto.request.UpdatePreRideInfoRequest;
+import com.ridersclub.ride.dto.response.GroupMemberResponse;
 import com.ridersclub.ride.dto.response.MyRidesResp;
+import com.ridersclub.ride.dto.response.PreRideInfoResponse;
 import com.ridersclub.ride.dto.response.RideLocationResp;
 import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.GroupMember;
@@ -194,13 +198,24 @@ public class RideService {
                 return savedTeamMembersGroup;
         }
 
-        public RideGroup createSubGroup(CreateSubGroupRequest request, String userUuid) {
+        public SubGroupResponse createSubGroup(CreateSubGroupRequest request, String userUuid) {
 
                 User user = userRepository.findByUuid(userUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
                 Ride ride = rideRepository.findByUuid(request.getRideUuid())
                                 .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+                RideParticipant actor = participantRepo.findByRide_UuidAndUser_Uuid(ride.getUuid(), userUuid)
+                                .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
+
+                if (!isSubGroupManager(actor.getRole().name())) {
+                        throw new RuntimeException("Only captain/admin can create subgroups");
+                }
+
+                if (request.getVisibility() == null) {
+                        throw new RuntimeException("Please select subgroup visibility");
+                }
 
                 RideGroup mainGroup = rideGroupRepository
                                 .findByRideAndParentGroupIsNull(ride)
@@ -213,22 +228,53 @@ public class RideService {
                 subGroup.setVisibility(request.getVisibility());
                 subGroup.setMembersCanSendMessages(request.isMembersCanSendMessages());
                 subGroup.setMembersCanAddMembers(request.isMembersCanAddMembers());
+                subGroup.setAdminsApproveMembers(request.isAdminsApproveMembers());
                 subGroup.setParentGroup(mainGroup);
                 subGroup.setRide(mainGroup.getRide());
                 subGroup.setCreatedBy(user);
 
-                rideGroupRepository.save(subGroup);
+                RideGroup savedGroup = rideGroupRepository.save(subGroup);
+                addGroupMemberIfMissing(subGroup, user, "ADMIN");
+                if (request.getMemberUuids() != null) {
+                        for (String memberUuid : request.getMemberUuids()) {
+                                if (memberUuid == null || memberUuid.isBlank()) {
+                                        continue;
+                                }
+
+                                User member = userRepository.findByUuid(memberUuid)
+                                                .orElseThrow(() -> new RuntimeException("User not found"));
+
+                                if (!participantRepo.existsByRide_IdAndUser_Id(ride.getId(), member.getId())) {
+                                        throw new RuntimeException("Only ride members can be added to a subgroup");
+                                }
+
+                                addGroupMemberIfMissing(savedGroup, member, "RIDER");
+                        }
+                }
+
                 notificationService.createAndSend(
                                 user.getId(),
                                 "SUBGROUP_CREATED",
                                 "Subgroup Created",
                                 "Your subgroup \"" + subGroup.getName() + "\" has been created successfully.",
-                                subGroup.getId(),
+                                savedGroup.getId(),
                                 "RIDE");
 
                 System.out.println("notification published");
 
-                return subGroup;
+                return buildSubGroupResponse(savedGroup, user);
+        }
+
+        private void addGroupMemberIfMissing(RideGroup group, User user, String role) {
+                if (groupMemberRepository.existsByGroup_IdAndUser_Id(group.getId(), user.getId())) {
+                        return;
+                }
+
+                GroupMember member = new GroupMember();
+                member.setGroup(group);
+                member.setUser(user);
+                member.setRole(role);
+                groupMemberRepository.save(member);
         }
 
         public void join(String rideId, String userId) {
@@ -278,12 +324,11 @@ public class RideService {
                 List<MyRidesResp> myRides = rides.stream()
                                 .map(r -> MyRidesResp.builder()
                                                 .uuid(r.getUuid())
-                                                .title(r.getTitle())
                                                 .groupUuid(
                                                         rideGroupRepository.findByRideAndParentGroupIsNull(r)
                                                                 .orElseThrow(() -> new RuntimeException("RideGroup not found"))
-                                                                .getUuid()
-                                                    )
+                                                                .getUuid())
+                                                .title(r.getTitle())
                                                 .description(r.getDescription())
                                                 .rideType(r.getRideType())
                                                 .routeType(r.getRouteType())
@@ -297,7 +342,7 @@ public class RideService {
                                                                                 .locationType(loc.getLocationType())
                                                                                 .sequence(loc.getSequence())
                                                                                 .build())
-                                                                .toList())
+                                                .toList())
                                                 .maxRiders(r.getMaxRiders())
                                                 .createdByUuid(r.getCreatedBy().getUuid())
                                                 .createdByName(
@@ -305,12 +350,10 @@ public class RideService {
                                                                                 ? r.getCreatedBy().getFirstName()
                                                                                 : "")
                                                                                 + " "
-                                                                                + (r.getCreatedBy()
-                                                                                                .getLastName() != null
-                                                                                                                ? r.getCreatedBy()
-                                                                                                                                .getLastName()
-                                                                                                                : ""))
-                                                                                .trim())
+                                                                                + (r.getCreatedBy().getLastName() != null
+                                                                                                ? r.getCreatedBy().getLastName()
+                                                                                                : ""))
+                                                                                                .trim())
                                                 .captainUuid(r.getCaptain() != null ? r.getCaptain().getUuid() : null)
                                                 .visibility(r.getVisibility())
                                                 .status(r.getStatus())
@@ -376,28 +419,319 @@ public class RideService {
 
         public List<SubGroupResponse> getSubGroups(String rideUuid, String userUuid) {
 
+                Ride ride = rideRepository.findByUuid(rideUuid)
+                                .orElseThrow(() -> new RuntimeException("Ride not found"));
                 List<RideGroup> groups = rideGroupRepository.findSubGroupsByRideUuid(rideUuid);
                 User currentUser = userRepository.findByUuid(userUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+                if (!participantRepo.existsByRide_IdAndUser_Id(ride.getId(), currentUser.getId())) {
+                        throw new RuntimeException("You are not part of this ride");
+                }
 
                 return groups.stream()
                                 .filter(group -> group.getVisibility() == Visibility.PUBLIC
                                                 || groupMemberRepository.existsByGroup_IdAndUser_Id(
                                                                 group.getId(), currentUser.getId()))
-                                .map(group -> SubGroupResponse.builder()
-                                                .uuid(group.getUuid())
-                                                .name(group.getName())
-                                                .rideUuid(group.getRide().getUuid())
-                                                .parentGroupUuid(
-                                                                group.getParentGroup() != null
-                                                                                ? group.getParentGroup().getUuid()
-                                                                                : null)
-                                                .visibility(group.getVisibility())
-                                                .membersCanSendMessages(group.getMembersCanSendMessages())
-                                                .membersCanAddMembers(group.getMembersCanAddMembers())
-                                                .createdByUuid(group.getCreatedBy().getUuid())
-                                                .createdAt(group.getCreatedAt())
+                                .map(group -> buildSubGroupResponse(group, currentUser))
+                                .toList();
+        }
+
+        @Transactional(readOnly = true)
+        public SubGroupResponse getGroupDetails(String groupUuid, String userUuid) {
+                User currentUser = userRepository.findByUuid(userUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = getAccessibleGroup(groupUuid, currentUser);
+                return buildSubGroupResponse(group, currentUser);
+        }
+
+        @Transactional(readOnly = true)
+        public List<GroupMemberResponse> getGroupMembers(String groupUuid, String userUuid) {
+                User currentUser = userRepository.findByUuid(userUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = getAccessibleGroup(groupUuid, currentUser);
+
+                return groupMemberRepository.findByGroup_Id(group.getId())
+                                .stream()
+                                .map(member -> GroupMemberResponse.builder()
+                                                .userUuid(member.getUser().getUuid())
+                                                .firstName(member.getUser().getFirstName())
+                                                .lastName(member.getUser().getLastName())
+                                                .profileImage(member.getUser().getProfileImage())
+                                                .role(member.getRole())
+                                                .joinedAt(member.getJoinedAt())
                                                 .build())
                                 .toList();
+        }
+
+        public void updateGroupMemberRole(String groupUuid, String targetUserUuid, String role, String actorUserUuid) {
+                User actorUser = userRepository.findByUuid(actorUserUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+
+                GroupMember actor = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
+                                .orElseThrow(() -> new RuntimeException("You are not part of this subgroup"));
+
+                if (!isSubGroupManager(actor.getRole())) {
+                        throw new RuntimeException("Only captain/admin can update subgroup roles");
+                }
+
+                User targetUser = userRepository.findByUuid(targetUserUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                GroupMember target = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), targetUser.getId())
+                                .orElseThrow(() -> new RuntimeException("Member not found in this subgroup"));
+
+                target.setRole(role.toUpperCase());
+                groupMemberRepository.save(target);
+        }
+
+        public void removeGroupMember(String groupUuid, String targetUserUuid, String actorUserUuid) {
+                User actorUser = userRepository.findByUuid(actorUserUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+
+                GroupMember actor = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
+                                .orElseThrow(() -> new RuntimeException("You are not part of this subgroup"));
+
+                if (!isSubGroupManager(actor.getRole())) {
+                        throw new RuntimeException("Only captain/admin can remove subgroup members");
+                }
+
+                User targetUser = userRepository.findByUuid(targetUserUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                GroupMember target = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), targetUser.getId())
+                                .orElseThrow(() -> new RuntimeException("Member not found in this subgroup"));
+
+                if (isSubGroupManager(target.getRole())) {
+                        throw new RuntimeException("Captain/Admin cannot be removed from subgroup");
+                }
+
+                groupMemberRepository.delete(target);
+        }
+
+        private RideGroup getAccessibleGroup(String groupUuid, User currentUser) {
+                RideGroup group = rideGroupRepository.findByUuid(groupUuid)
+                                .orElseThrow(() -> new RuntimeException("Group not found"));
+
+                boolean isRideParticipant = participantRepo.existsByRide_IdAndUser_Id(
+                                group.getRide().getId(),
+                                currentUser.getId());
+
+                boolean canAccess = (group.getVisibility() == Visibility.PUBLIC && isRideParticipant)
+                                || groupMemberRepository.existsByGroup_IdAndUser_Id(group.getId(), currentUser.getId());
+
+                if (!canAccess) {
+                        throw new RuntimeException("You are not allowed to access this subgroup");
+                }
+
+                return group;
+        }
+
+        private SubGroupResponse buildSubGroupResponse(RideGroup group, User currentUser) {
+                GroupMember currentMembership = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), currentUser.getId())
+                                .orElse(null);
+                String createdByName = ((group.getCreatedBy().getFirstName() != null
+                                ? group.getCreatedBy().getFirstName()
+                                : "")
+                                + " "
+                                + (group.getCreatedBy().getLastName() != null
+                                                ? group.getCreatedBy().getLastName()
+                                                : ""))
+                                                                .trim();
+
+                return SubGroupResponse.builder()
+                                .uuid(group.getUuid())
+                                .name(group.getName())
+                                .rideUuid(group.getRide().getUuid())
+                                .parentGroupUuid(
+                                                group.getParentGroup() != null
+                                                                ? group.getParentGroup().getUuid()
+                                                                : null)
+                                .visibility(group.getVisibility())
+                                .membersCanSendMessages(group.getMembersCanSendMessages())
+                                .membersCanAddMembers(group.getMembersCanAddMembers())
+                                .adminsApproveMembers(Boolean.TRUE.equals(group.getAdminsApproveMembers()))
+                                .createdByUuid(group.getCreatedBy().getUuid())
+                                .createdByName(createdByName)
+                                .myRole(currentMembership != null ? currentMembership.getRole() : null)
+                                .memberCount(groupMemberRepository.findByGroup_Id(group.getId()).size())
+                                .preRideInfo(buildPreRideInfoMap(group))
+                                .createdAt(group.getCreatedAt())
+                                .build();
+        }
+
+        public void addGroupMembers(String groupUuid, List<String> memberUuids, String actorUserUuid) {
+                if (memberUuids == null || memberUuids.isEmpty()) {
+                        throw new RuntimeException("Select at least one member to add");
+                }
+
+                User actorUser = userRepository.findByUuid(actorUserUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+
+                if (!canAddMembers(group, actorUser)) {
+                        throw new RuntimeException("You do not have permission to add members to this subgroup");
+                }
+
+                List<String> uniqueMemberUuids = memberUuids.stream()
+                                .filter(uuid -> uuid != null && !uuid.isBlank())
+                                .distinct()
+                                .toList();
+
+                for (String memberUuid : uniqueMemberUuids) {
+                        User member = userRepository.findByUuid(memberUuid)
+                                        .orElseThrow(() -> new RuntimeException("User not found"));
+
+                        if (!participantRepo.existsByRide_IdAndUser_Id(group.getRide().getId(), member.getId())) {
+                                throw new RuntimeException("Only ride members can be added to a subgroup");
+                        }
+
+                        addGroupMemberIfMissing(group, member, "RIDER");
+                }
+        }
+
+        public PreRideInfoResponse getPreRideInfo(String groupUuid, String userUuid) {
+                User currentUser = userRepository.findByUuid(userUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = getAccessibleGroup(groupUuid, currentUser);
+                return buildPreRideInfoResponse(group);
+        }
+
+        public PreRideInfoResponse updatePreRideInfo(
+                        String groupUuid,
+                        UpdatePreRideInfoRequest request,
+                        String actorUserUuid) {
+                User actorUser = userRepository.findByUuid(actorUserUuid)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+
+                GroupMember actorMembership = groupMemberRepository
+                                .findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
+                                .orElse(null);
+                boolean actorIsRideManager = participantRepo.findByRide_UuidAndUser_Uuid(
+                                group.getRide().getUuid(),
+                                actorUserUuid)
+                                .map(participant -> isSubGroupManager(participant.getRole().name()))
+                                .orElse(false);
+
+                if (!(actorIsRideManager
+                                || (actorMembership != null && isSubGroupManager(actorMembership.getRole())))) {
+                        throw new RuntimeException("Only captain/admin can update pre-ride info");
+                }
+
+                group.setPreRideMeetingPoint(trimToNull(request.getMeetingPoint()));
+                group.setPreRideFuelStops(trimToNull(request.getFuelStops()));
+                group.setPreRideCheckpoints(joinList(request.getCheckpointList()));
+                group.setPreRideRules(joinList(request.getRuleList()));
+                group.setPreRideNotes(trimToNull(request.getNotes()));
+                group.setPreRideUpdatedAt(LocalDateTime.now());
+
+                RideGroup savedGroup = rideGroupRepository.save(group);
+                return buildPreRideInfoResponse(savedGroup);
+        }
+
+        private PreRideInfoResponse buildPreRideInfoResponse(RideGroup group) {
+                return PreRideInfoResponse.builder()
+                                .title(group.getRide().getTitle())
+                                .description(group.getRide().getDescription())
+                                .rideType(group.getRide().getRideType())
+                                .routeType(group.getRide().getRouteType())
+                                .maxRiders(group.getRide().getMaxRiders())
+                                .visibility(group.getVisibility())
+                                .startTime(group.getRide().getStartTime())
+                                .meetingPoint(group.getPreRideMeetingPoint())
+                                .fuelStops(group.getPreRideFuelStops())
+                                .checkpointList(splitList(group.getPreRideCheckpoints()))
+                                .ruleList(splitList(group.getPreRideRules()))
+                                .notes(group.getPreRideNotes())
+                                .updatedAt(group.getPreRideUpdatedAt())
+                                .build();
+        }
+
+        private Map<String, Object> buildPreRideInfoMap(RideGroup group) {
+                PreRideInfoResponse response = buildPreRideInfoResponse(group);
+                Map<String, Object> map = new LinkedHashMap<>();
+                map.put("title", response.getTitle());
+                map.put("description", response.getDescription());
+                map.put("rideType", response.getRideType());
+                map.put("routeType", response.getRouteType());
+                map.put("maxRiders", response.getMaxRiders());
+                map.put("visibility", response.getVisibility());
+                map.put("startTime", response.getStartTime());
+                map.put("meetingPoint", response.getMeetingPoint());
+                map.put("fuelStops", response.getFuelStops());
+                map.put("checkpointList", response.getCheckpointList());
+                map.put("ruleList", response.getRuleList());
+                map.put("notes", response.getNotes());
+                map.put("updatedAt", response.getUpdatedAt());
+                return map;
+        }
+
+        private List<String> splitList(String value) {
+                if (value == null || value.isBlank()) {
+                        return List.of();
+                }
+                return Arrays.stream(value.split(","))
+                                .map(String::trim)
+                                .filter(item -> !item.isEmpty())
+                                .toList();
+        }
+
+        private String joinList(List<String> values) {
+                if (values == null) {
+                        return null;
+                }
+                return values.stream()
+                                .filter(item -> item != null && !item.isBlank())
+                                .map(String::trim)
+                                .distinct()
+                                .collect(Collectors.joining(", "));
+        }
+
+        private String trimToNull(String value) {
+                if (value == null) {
+                        return null;
+                }
+                String trimmed = value.trim();
+                return trimmed.isEmpty() ? null : trimmed;
+        }
+
+        private boolean canAddMembers(RideGroup group, User actorUser) {
+                GroupMember actorMembership = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
+                                .orElse(null);
+                if (actorMembership != null && isSubGroupManager(actorMembership.getRole())) {
+                        return true;
+                }
+
+                boolean actorIsRideManager = participantRepo.findByRide_UuidAndUser_Uuid(
+                                group.getRide().getUuid(),
+                                actorUser.getUuid())
+                                .map(participant -> isSubGroupManager(participant.getRole().name()))
+                                .orElse(false);
+                if (actorIsRideManager) {
+                        return true;
+                }
+
+                if (!Boolean.TRUE.equals(group.getMembersCanAddMembers())) {
+                        return false;
+                }
+
+                if (Boolean.TRUE.equals(group.getAdminsApproveMembers())) {
+                        return false;
+                }
+
+                return actorMembership != null
+                                || (group.getVisibility() == Visibility.PUBLIC
+                                                && participantRepo.existsByRide_IdAndUser_Id(
+                                                                group.getRide().getId(),
+                                                                actorUser.getId()));
+        }
+
+        private boolean isSubGroupManager(String role) {
+                if (role == null) {
+                        return false;
+                }
+                String normalizedRole = role.trim().toUpperCase();
+                return normalizedRole.equals("CAPTAIN") || normalizedRole.equals("ADMIN");
         }
 }

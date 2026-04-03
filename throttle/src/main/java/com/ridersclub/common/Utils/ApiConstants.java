@@ -48,6 +48,10 @@ public class ApiConstants {
         public static final String JOIN = "/{rideId}/join";
         public static final String LEAVE = "/{rideId}/leave";
         public static final String LIST = "/{rideId}";
+        public static final String INVITE = "/{rideId}/invite";
+        public static final String INVITATION_DETAILS = "/invitations/{invitationId}";
+        public static final String INVITATION_ACCEPT = "/invitations/{invitationId}/accept";
+        public static final String INVITATION_REJECT = "/invitations/{invitationId}/reject";
     }
 
     public static final class Participants {
@@ -87,6 +91,7 @@ public class ApiConstants {
     }
 
     public static final class Users {
+
         public static final String BASE = API_VERSION + "/users";
         public static final String ME = "/me";
         public static final String DETAILS = "/{userId}";

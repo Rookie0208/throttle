@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/core/globals.dart';
-import 'package:throttle_ui/features/groups/presentation/widgets/group_info_sheet.dart';
-import 'package:throttle_ui/features/groups/data/services/chat_service.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/create_subgroup_screen.dart';
+import 'package:throttle_ui/features/groups/presentation/widgets/group_info_sheet.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/invite_member_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
@@ -11,7 +9,11 @@ class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
   final String token;
 
-  const GroupChatScreen({super.key, required this.group, required this.token});
+  const GroupChatScreen({
+    super.key,
+    required this.group,
+    required this.token,
+  });
 
   @override
   State<GroupChatScreen> createState() => _GroupChatScreenState();
@@ -21,55 +23,27 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
 
-  late ChatService chatSocket;
-
   List subGroups = [];
   bool loadingSubGroups = true;
 
+  /// NEW STATE
   String? activeSubGroupId;
   Map<String, dynamic>? activeSubGroup;
 
+  /// messages per chat
   List<Map<String, dynamic>> messages = [];
   bool loadingMessages = true;
 
-  String currentUserRole = "MEMBER";
+  String get _rideUuid =>
+      (widget.group["rideUuid"] ?? widget.group["uuid"]).toString();
 
-  /// ✅ SINGLE SOURCE OF TRUTH
-  String get currentGroupId => activeSubGroupId ?? widget.group["groupId"];
+  String currentUserRole = "MEMBER";
 
   bool get _isGroupLocked {
     final groupStatus = (widget.group["status"] ?? "").toString().toLowerCase();
-    final rideStatus = (widget.group["rideStatus"] ?? "")
-        .toString()
-        .toUpperCase();
-
+    final rideStatus = (widget.group["rideStatus"] ?? "").toString().toUpperCase();
     return groupStatus == "archive" ||
         {"CANCELLED", "COMPLETED", "ENDED"}.contains(rideStatus);
-  }
-
-  /// ================= SOCKET LISTENER =================
-  void _onSocketMessage(dynamic data) {
-    print(" UI received message: $data");
-
-    setState(() {
-      messages.add({
-        "group": data["groupId"],
-        "senderId": data["senderId"],
-        "senderName": data["senderName"],
-        "message": data["message"],
-        "time": TimeOfDay.now().format(context),
-      });
-    });
-
-    Future.delayed(const Duration(milliseconds: 100), () {
-      if (scrollController.hasClients) {
-        scrollController.animateTo(
-          scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
   }
 
   /// ================= FETCH SUBGROUPS =================
@@ -77,7 +51,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     try {
       final result = await SubGroupService.fetchSubGroups(
         widget.token,
-        widget.group["uuid"],
+        _rideUuid,
       );
 
       setState(() {
@@ -90,100 +64,68 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   /// ================= FETCH MESSAGES =================
-  Future<void> fetchMessages(String groupId) async {
-    setState(() => loadingMessages = true);
+  Future<void> fetchMessages(String id) async {
+    setState(() {
+      loadingMessages = true;
+    });
 
     try {
-      final data = await ChatService.fetchMessages(groupId);
+      /// TODO: Replace with API
+      await Future.delayed(const Duration(milliseconds: 500));
 
-      print("BACKEND DATA: $data");
+      /// DEMO DATA
+      List data = id == widget.group["uuid"]
+          ? [
+              {
+                "sender": "Mike",
+                "message": "Main group message",
+                "time": "08:00 AM"
+              }
+            ]
+          : [];
 
       setState(() {
-        messages = List<Map<String, dynamic>>.from(
-          data.map(
-            (m) => {
-              "group": m["groupId"],
-              "senderId": m["senderId"],
-              "senderName": m["senderName"],
-              "message": m["message"],
-              "time": m["createdAt"],
-            },
-          ),
-        );
-
+        messages = List<Map<String, dynamic>>.from(data);
         loadingMessages = false;
       });
-
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (scrollController.hasClients) {
-          scrollController.jumpTo(scrollController.position.maxScrollExtent);
-        }
-      });
     } catch (e) {
-      print("❌ fetchMessages error: $e");
-      setState(() => loadingMessages = false);
+      loadingMessages = false;
     }
   }
 
-  /// ================= INIT =================
   @override
   void initState() {
     super.initState();
-
     fetchSubGroups();
 
-    chatSocket = ChatService();
-
-    chatSocket.connect(
-      groupId: currentGroupId,
-      token: widget.token,
-      onMessageReceived: _onSocketMessage,
-    );
-
-    fetchMessages(currentGroupId);
-  }
-
-  @override
-  void dispose() {
-    chatSocket.disconnect();
-    super.dispose();
-  }
-
-  /// ================= GROUP SWITCH =================
-  Future<void> _onGroupChange(String newGroupId) async {
-    print("🔄 GROUP SWITCHED → $newGroupId");
-
-    chatSocket.disconnect();
-
-    chatSocket.connect(
-      groupId: newGroupId,
-      token: widget.token,
-      onMessageReceived: _onSocketMessage,
-    );
-
-    await fetchMessages(newGroupId);
+    /// load main chat initially
+    fetchMessages(widget.group["uuid"]);
   }
 
   /// ================= SEND =================
   void sendMessage() {
     if (_isGroupLocked) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("This group is locked")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("This group is locked")),
+      );
       return;
     }
-
     final text = messageController.text.trim();
     if (text.isEmpty) return;
 
-    chatSocket.sendMessage(groupId: currentGroupId, text: text);
-
-    messageController.clear();
+    setState(() {
+      messages.add({
+        "sender": "You",
+        "message": text,
+        "time": TimeOfDay.now().format(context),
+      });
+      messageController.clear();
+    });
   }
 
-  /// ================= MESSAGE UI =================
+  /// ================= UI =================
   Widget _buildMessage(Map<String, dynamic> msg) {
-    bool isMe = msg["senderId"] == UserSession.userId;
+    bool isMe = msg["sender"] == "You";
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -198,17 +140,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isMe)
-              Text(
-                msg["senderName"],
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
-                ),
-              ),
-            Text(
-              msg["message"],
-              style: const TextStyle(color: AppColors.textPrimary),
-            ),
+              Text(msg["sender"],
+                  style:
+                      const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+            Text(msg["message"],
+                style: const TextStyle(color: AppColors.textPrimary)),
           ],
         ),
       ),
@@ -224,6 +160,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
+    /// ROLE BASED FILTER
     return Container(
       height: 50,
       color: AppColors.surface,
@@ -232,30 +169,30 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         children: [
           /// MAIN GROUP
           GestureDetector(
-            onTap: () async {
+            onTap: () {
               setState(() {
                 activeSubGroup = null;
                 activeSubGroupId = null;
-                messages.clear();
               });
-
-              await _onGroupChange(currentGroupId);
+              fetchMessages(widget.group["uuid"]);
             },
-            child: _chip("All", activeSubGroupId == null),
+            child: _chip(
+              "All",
+              activeSubGroupId == null,
+            ),
           ),
 
           ...subGroups.map((g) {
             final isSelected = activeSubGroupId == g["uuid"];
 
             return GestureDetector(
-              onTap: () async {
+              onTap: () {
                 setState(() {
                   activeSubGroupId = g["uuid"];
                   activeSubGroup = g;
-                  messages.clear();
                 });
 
-                await _onGroupChange(currentGroupId);
+                fetchMessages(g["uuid"]);
               },
               child: _chip(g["name"], isSelected),
             );
@@ -270,7 +207,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primary : AppColors.background,
+        color: selected
+            ? AppColors.primary
+            : AppColors.background,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Center(
@@ -285,6 +224,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     );
   }
 
+  /// ================= MESSAGE AREA =================
   Widget _chatArea() {
     if (loadingMessages) {
       return const Center(child: CircularProgressIndicator());
@@ -326,7 +266,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           IconButton(
             icon: const Icon(Icons.send, color: AppColors.primary),
             onPressed: sendMessage,
-          ),
+          )
         ],
       ),
     );
@@ -339,21 +279,144 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        title: Text(
-          activeSubGroup != null
-              ? "${widget.group["name"]} • ${activeSubGroup!["name"]}"
-              : widget.group["name"],
+     appBar: AppBar(
+  backgroundColor: AppColors.surface,
+  title: Text(
+    activeSubGroup != null
+        ? "${widget.group["name"]} • ${activeSubGroup!["name"]}"
+        : widget.group["name"],
+  ),
+  actions: [
+    PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: AppColors.white),
+      color: AppColors.surface,
+      onSelected: _handleMenuSelection,
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'info',
+          child: Text("Group Info", style: TextStyle(color: AppColors.white)),
         ),
-      ),
+        const PopupMenuItem(
+          value: 'invite',
+          child: Text("Invite Riders", style: TextStyle(color: AppColors.white)),
+        ),
+        const PopupMenuItem(
+          value: 'subgroup',
+          child: Text("Create Subgroup", style: TextStyle(color: AppColors.white)),
+        ),
+        const PopupMenuItem(
+          value: 'leave',
+          child: Text("Leave Group", style: TextStyle(color: AppColors.white)),
+        ),
+      ],
+    ),
+  ],
+),
       body: Column(
         children: [
           _subGroupBar(),
+
+          if (!isActive)
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                _isGroupLocked
+                    ? "This group is locked. Editing and messaging are disabled."
+                    : "Messaging disabled",
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            ),
+
           Expanded(child: _chatArea()),
+
           if (isActive) _messageInput(),
         ],
       ),
     );
   }
+
+  void _handleMenuSelection(String value) {
+  switch (value) {
+    case 'info':
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RideInfoScreen(
+            rideGroup: widget.group,
+            token: widget.token,
+          ),
+        ),
+      );
+      break;
+
+    case 'invite':
+      if (_isGroupLocked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("This group is locked")),
+        );
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => InviteMemberScreen(
+            rideUuid: _rideUuid,
+            token: widget.token,
+          ),
+        ),
+      );
+      break;
+
+    case 'subgroup':
+      if (_isGroupLocked) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("This group is locked")),
+        );
+        return;
+      }
+      _openSubGroupCreation();
+      break;
+
+    case 'leave':
+      _leaveGroup();
+      break;
+  }
+}
+
+void _openSubGroupCreation() async {
+  final result = await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => CreateSubGroupScreen(
+        rideUuid: _rideUuid,
+        token: widget.token,
+      ),
+    ),
+  );
+
+  /// If subgroup created successfully
+  if (result != null) {
+    /// Refresh subgroup list
+    await fetchSubGroups();
+
+    /// Auto-switch to new subgroup
+    setState(() {
+      activeSubGroup = result;
+      activeSubGroupId = result["uuid"];
+    });
+
+    /// Load its messages
+    fetchMessages(result["uuid"]);
+  }
+}
+
+void _leaveGroup() async {
+  // TODO: call backend API
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Left group")),
+  );
+
+  Navigator.pop(context);
+}
 }

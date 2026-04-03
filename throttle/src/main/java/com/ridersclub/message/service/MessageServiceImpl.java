@@ -20,6 +20,8 @@ import com.ridersclub.message.repository.GroupMessageRepository;
 import com.ridersclub.message.repository.MessageReadRepository;
 import com.ridersclub.message.service.MessageService;
 import com.ridersclub.ride.entity.RideGroup;
+import com.ridersclub.ride.repository.GroupMemberRepository;
+import com.ridersclub.ride.repository.RideParticipantRepository;
 import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
@@ -37,6 +39,8 @@ public class MessageServiceImpl implements MessageService {
         private final MessageReadRepository readRepo;
         private final UserRepository userRepository;
         private final RideGroupRepository rideGroupRepository;
+        private final GroupMemberRepository groupMemberRepository;
+        private final RideParticipantRepository rideParticipantRepository;
 
         // ===============================
         // SEND MESSAGE
@@ -54,6 +58,7 @@ public class MessageServiceImpl implements MessageService {
 
                 RideGroup group = rideGroupRepository.findByUuid(groupUuid)
                                 .orElseThrow(() -> new RuntimeException("Group not found"));
+                validateMessageAccess(group, sender, true);
 
                 GroupMessage msg = GroupMessage.builder()
                                 .uuid(UserUtility.generateUUID(UuidPrefix.CHAT.name()))
@@ -76,7 +81,6 @@ public class MessageServiceImpl implements MessageService {
         @Override
         @Transactional(readOnly = true)
         public List<MessageDTO> getMessages(String groupUuid) {
-
                 List<MessageDTO> msgs = messageRepo
                                 .findTop20ByGroup_UuidOrderByCreatedAtDesc(groupUuid)
                                 .stream()
@@ -93,6 +97,9 @@ public class MessageServiceImpl implements MessageService {
 
                 User user = userRepository.findByUuid(userUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
+                RideGroup group = rideGroupRepository.findByUuid(groupUuid)
+                                .orElseThrow(() -> new RuntimeException("Group not found"));
+                validateMessageAccess(group, user, false);
 
                 List<GroupMessage> messages = messageRepo.findTop20ByGroup_UuidOrderByCreatedAtDesc(groupUuid);
 
@@ -131,6 +138,7 @@ public class MessageServiceImpl implements MessageService {
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = rideGroupRepository.findByUuid(dto.getGroupId())
                                 .orElseThrow(() -> new RuntimeException("Group not found"));
+                validateMessageAccess(group, sender, true);
 
                 GroupMessage replyTo = null;
 
@@ -169,5 +177,43 @@ public class MessageServiceImpl implements MessageService {
                                 .mediaUrl(msg.getMediaUrl())
                                 .messageType(msg.getMessageType().name())
                                 .build();
+        }
+
+        private void validateMessageAccess(RideGroup group, User user, boolean sending) {
+                boolean isRideParticipant = rideParticipantRepository.existsByRide_IdAndUser_Id(
+                                group.getRide().getId(),
+                                user.getId());
+                boolean isGroupMember = groupMemberRepository.existsByGroup_IdAndUser_Id(group.getId(), user.getId());
+                boolean isAccessible = (group.getVisibility() == com.ridersclub.common.enums.Visibility.PUBLIC
+                                && isRideParticipant) || isGroupMember;
+
+                if (!isAccessible) {
+                        throw new RuntimeException("You are not allowed to access this group");
+                }
+
+                if (!sending) {
+                        return;
+                }
+
+                if (isGroupManager(group, user)) {
+                        return;
+                }
+
+                if (!Boolean.TRUE.equals(group.getMembersCanSendMessages())) {
+                        throw new RuntimeException("Members cannot send messages in this subgroup");
+                }
+        }
+
+        private boolean isGroupManager(RideGroup group, User user) {
+                return groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), user.getId())
+                                .map(member -> {
+                                        String role = member.getRole() == null ? "" : member.getRole().trim().toUpperCase();
+                                        return role.equals("ADMIN") || role.equals("CAPTAIN");
+                                })
+                                .orElse(false)
+                                || rideParticipantRepository.findByRide_UuidAndUser_Uuid(group.getRide().getUuid(), user.getUuid())
+                                                .map(member -> member.getRole() == com.ridersclub.common.enums.Role.ADMIN
+                                                                || member.getRole() == com.ridersclub.common.enums.Role.CAPTAIN)
+                                                .orElse(false);
         }
 }

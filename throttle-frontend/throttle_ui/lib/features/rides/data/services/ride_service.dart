@@ -91,6 +91,85 @@ class RideService {
     }
   }
 
+  static Future<void> inviteMember(
+    String token,
+    String rideUuid,
+    String inviteeUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/participants/$rideUuid/invite"),
+      headers: _headers(token),
+      body: jsonEncode({"inviteeUuid": inviteeUuid}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = _decodeBody(response.body);
+      throw Exception(data["message"] ?? "Failed to invite rider");
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchInviteCandidates(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.get(
+      Uri.parse("$_apiBaseUrl/participants/$rideUuid/invite-candidates"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final candidates = data["data"] as List? ?? const [];
+      return candidates
+          .whereType<Map>()
+          .map((candidate) => Map<String, dynamic>.from(candidate))
+          .toList();
+    }
+
+    throw Exception(data["message"] ?? "Failed to load invite candidates");
+  }
+
+  static Future<Map<String, dynamic>> fetchInvitationDetails(
+    String token,
+    int invitationId,
+  ) async {
+    final response = await http.get(
+      Uri.parse("$_apiBaseUrl/participants/invitations/$invitationId"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to fetch invitation details");
+  }
+
+  static Future<void> acceptInvitation(String token, int invitationId) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/participants/invitations/$invitationId/accept"),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = _decodeBody(response.body);
+      throw Exception(data["message"] ?? "Failed to accept invitation");
+    }
+  }
+
+  static Future<void> rejectInvitation(String token, int invitationId) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/participants/invitations/$invitationId/reject"),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = _decodeBody(response.body);
+      throw Exception(data["message"] ?? "Failed to reject invitation");
+    }
+  }
+
   static Map<String, dynamic> buildPreRideInfoPayload({
     required Map<String, dynamic> rideGroup,
     required String meetingPoint,
