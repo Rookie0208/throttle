@@ -34,8 +34,9 @@ public class RideParticipantController {
     }
 
     @PostMapping(ApiConstants.RideParticipant.LEAVE)
-    public ApiResponse<?> leaveRide(@PathVariable String rideId) {
-        // participantService.leaveRide(rideId);
+    public ApiResponse<?> leaveRide(@PathVariable String rideId, Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        participantService.leaveRide(rideId, currentUserUuid);
         return ApiResponse.success(null, "Left ride");
     }
 

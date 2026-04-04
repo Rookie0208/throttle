@@ -303,6 +303,35 @@ CREATE TABLE group_members (
 );
 
 --------------------------------------------------
+-- GROUP JOIN REQUESTS
+--------------------------------------------------
+
+CREATE TABLE group_join_requests (
+    id BIGSERIAL PRIMARY KEY,
+
+    group_id BIGINT NOT NULL,
+
+    user_id BIGINT NOT NULL,
+
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
+
+    UNIQUE (group_id, user_id, status),
+
+    FOREIGN KEY (group_id)
+        REFERENCES ride_groups(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+--------------------------------------------------
 -- RIDE MESSAGES
 --------------------------------------------------
 

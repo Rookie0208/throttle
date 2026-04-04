@@ -23,6 +23,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  Map<String, dynamic>? _profileData;
   String? _cityName;
   Map<String, dynamic>? _weatherData;
   bool _isLoadingWeather = true;
@@ -32,7 +33,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _userUuid;
   StompClient? _notificationClient;
 
-  Map<String, dynamic> get _userData => widget.userData ?? const {};
+  Map<String, dynamic> get _userData => _profileData ?? widget.userData ?? const {};
 
   Map<String, dynamic>? _mapValue(String key) {
     final value = _userData[key];
@@ -75,16 +76,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _openRideGroup(Map<String, dynamic> ride, {String rideStatus = "SCHEDULED"}) {
     final group = {
-      "uuid": ride["uuid"] ?? ride["id"],
-      "id": ride["uuid"] ?? ride["id"],
+      "uuid": ride["groupUuid"] ?? ride["uuid"] ?? ride["id"],
+      "id": ride["groupUuid"] ?? ride["uuid"] ?? ride["id"],
+      "rideUuid": ride["uuid"] ?? ride["id"],
       "name": ride["title"] ?? "Ride",
       "title": ride["title"] ?? "Ride",
       "status": rideStatus == "CANCELLED" || rideStatus == "COMPLETED"
           ? "archive"
           : "active",
       "rideStatus": rideStatus,
-      "description": ride["subtitle"] ?? "",
-      "visibility": "PUBLIC",
+      "description": ride["description"] ?? _cleanSubtitle(ride),
+      "visibility": ride["visibility"] ?? "PUBLIC",
+      "createdByName": ride["createdByName"],
+      "createdAt": ride["createdAt"],
+      "myRole": ride["myRole"],
       "members": <Map<String, dynamic>>[],
     };
 
@@ -110,9 +115,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshProfileData();
     _fetchLocationAndWeather();
     _initializeNotifications();
     _syncUpcomingRideReminderNotifications();
+  }
+
+  Future<void> _refreshProfileData() async {
+    final freshProfile = await UserService.getMe();
+    if (!mounted || freshProfile == null) return;
+    setState(() {
+      _profileData = freshProfile;
+    });
   }
 
   @override

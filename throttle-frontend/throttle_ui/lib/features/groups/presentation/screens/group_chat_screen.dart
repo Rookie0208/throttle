@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/features/groups/data/services/chat_service.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/create_subgroup_screen.dart';
 import 'package:throttle_ui/features/groups/presentation/widgets/group_info_sheet.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/invite_member_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 
 class GroupChatScreen extends StatefulWidget {
@@ -22,6 +24,7 @@ class GroupChatScreen extends StatefulWidget {
 class _GroupChatScreenState extends State<GroupChatScreen> {
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
+  final ChatService _chatService = ChatService();
 
   List subGroups = [];
   bool loadingSubGroups = true;
@@ -37,7 +40,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   String get _rideUuid =>
       (widget.group["rideUuid"] ?? widget.group["uuid"]).toString();
 
-  String currentUserRole = "MEMBER";
+  String get _groupUuid => widget.group["uuid"].toString();
+
+  String currentUserRole = "";
+
+  bool get _canManageRide =>
+      {"CAPTAIN", "ADMIN", "CO_CAPTAIN"}.contains(currentUserRole);
+
+  bool _isSubgroupMember(Map<dynamic, dynamic>? group) =>
+      group?["isMember"] == true || group?["member"] == true;
 
   bool get _isGroupLocked {
     final groupStatus = (widget.group["status"] ?? "").toString().toLowerCase();
@@ -54,12 +65,52 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         _rideUuid,
       );
 
+      Map<String, dynamic>? refreshedActive;
+      if (activeSubGroupId != null) {
+        for (final group in result) {
+          if (group["uuid"]?.toString() == activeSubGroupId) {
+            refreshedActive = group;
+            break;
+          }
+        }
+      }
+
       setState(() {
         subGroups = result;
+        if (refreshedActive != null) {
+          activeSubGroup = refreshedActive;
+        }
         loadingSubGroups = false;
       });
     } catch (e) {
       loadingSubGroups = false;
+    }
+  }
+
+  Future<void> _loadGroupContext() async {
+    try {
+      final details = _groupUuid == _rideUuid
+          ? await SubGroupService.fetchMainGroupDetails(
+              widget.token,
+              _rideUuid,
+            )
+          : await SubGroupService.fetchSubGroupDetails(
+              widget.token,
+              _groupUuid,
+            );
+      if (!mounted) return;
+      setState(() {
+        widget.group.addAll(details);
+        currentUserRole = (details["myRole"] ??
+                widget.group["myRole"] ??
+                currentUserRole)
+            .toString();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        currentUserRole = (widget.group["myRole"] ?? currentUserRole).toString();
+      });
     }
   }
 
@@ -70,36 +121,55 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     });
 
     try {
-      /// TODO: Replace with API
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      /// DEMO DATA
-      List data = id == widget.group["uuid"]
-          ? [
-              {
-                "sender": "Mike",
-                "message": "Main group message",
-                "time": "08:00 AM"
-              }
-            ]
-          : [];
-
+      final data = await ChatService.fetchMessages(id);
+      if (!mounted) return;
       setState(() {
-        messages = List<Map<String, dynamic>>.from(data);
+        messages = data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
         loadingMessages = false;
       });
     } catch (e) {
-      loadingMessages = false;
+      if (!mounted) return;
+      setState(() {
+        loadingMessages = false;
+      });
     }
   }
 
   @override
   void initState() {
     super.initState();
+    currentUserRole = (widget.group["myRole"] ?? "").toString();
+    _loadGroupContext();
     fetchSubGroups();
+    _connectChat(_groupUuid);
 
     /// load main chat initially
-    fetchMessages(widget.group["uuid"]);
+    fetchMessages(widget.group["uuid"].toString());
+  }
+
+  @override
+  void dispose() {
+    _chatService.disconnect();
+    messageController.dispose();
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  void _connectChat(String groupId) {
+    _chatService.disconnect();
+    _chatService.connect(
+      groupId: groupId,
+      token: widget.token,
+      onMessageReceived: (dynamic message) {
+        if (!mounted) return;
+        setState(() {
+          messages.add(Map<String, dynamic>.from(message as Map));
+        });
+      },
+    );
   }
 
   /// ================= SEND =================
@@ -113,19 +183,37 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final text = messageController.text.trim();
     if (text.isEmpty) return;
 
-    setState(() {
-      messages.add({
-        "sender": "You",
-        "message": text,
-        "time": TimeOfDay.now().format(context),
-      });
-      messageController.clear();
-    });
+    _chatService.sendMessage(
+      groupId: (activeSubGroupId ?? _groupUuid),
+      text: text,
+    );
+    messageController.clear();
   }
 
   /// ================= UI =================
   Widget _buildMessage(Map<String, dynamic> msg) {
-    bool isMe = msg["sender"] == "You";
+    final senderName =
+        (msg["senderName"] ?? msg["sender"] ?? "Rider").toString();
+    final body = (msg["message"] ?? "").toString();
+    final isSystem = (msg["messageType"] ?? "").toString().toUpperCase() == "SYSTEM";
+    bool isMe = senderName == "You";
+
+    if (isSystem) {
+      return Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            body,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+        ),
+      );
+    }
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
@@ -140,10 +228,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isMe)
-              Text(msg["sender"],
+              Text(senderName,
                   style:
                       const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-            Text(msg["message"],
+            Text(body,
                 style: const TextStyle(color: AppColors.textPrimary)),
           ],
         ),
@@ -174,6 +262,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                 activeSubGroup = null;
                 activeSubGroupId = null;
               });
+              _connectChat(_groupUuid);
               fetchMessages(widget.group["uuid"]);
             },
             child: _chip(
@@ -184,19 +273,48 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
           ...subGroups.map((g) {
             final isSelected = activeSubGroupId == g["uuid"];
+            final isMember = _isSubgroupMember(g);
+            final canOpenChat = isMember || _canManageRide;
+            final joinLabel = g["joinRequestPending"] == true
+                ? "Pending"
+                : g["canJoinDirectly"] == true
+                    ? "Join"
+                    : g["canRequestToJoin"] == true
+                        ? "Request"
+                        : "Join";
 
             return GestureDetector(
               onTap: () {
+                if (!canOpenChat) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RideInfoScreen(
+                        rideGroup: {
+                          ...widget.group,
+                          ...Map<String, dynamic>.from(g),
+                          "isSubGroup": true,
+                        },
+                        token: widget.token,
+                      ),
+                    ),
+                  ).then((_) => fetchSubGroups());
+                  return;
+                }
                 setState(() {
                   activeSubGroupId = g["uuid"];
                   activeSubGroup = g;
                 });
 
+                _connectChat(g["uuid"].toString());
                 fetchMessages(g["uuid"]);
               },
-              child: _chip(g["name"], isSelected),
+              child: _chip(
+                canOpenChat ? g["name"] : "${g["name"]} • $joinLabel",
+                isSelected,
+              ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -283,32 +401,37 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   backgroundColor: AppColors.surface,
   title: Text(
     activeSubGroup != null
-        ? "${widget.group["name"]} • ${activeSubGroup!["name"]}"
-        : widget.group["name"],
+        ? "${widget.group["title"] ?? widget.group["name"]} • ${activeSubGroup!["name"]}"
+        : (widget.group["title"] ?? widget.group["name"]).toString(),
   ),
   actions: [
     PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, color: AppColors.white),
       color: AppColors.surface,
       onSelected: _handleMenuSelection,
-      itemBuilder: (context) => [
-        const PopupMenuItem(
+      itemBuilder: (context) {
+        final items = <PopupMenuEntry<String>>[
+          const PopupMenuItem(
           value: 'info',
           child: Text("Group Info", style: TextStyle(color: AppColors.white)),
         ),
-        const PopupMenuItem(
-          value: 'invite',
-          child: Text("Invite Riders", style: TextStyle(color: AppColors.white)),
-        ),
-        const PopupMenuItem(
-          value: 'subgroup',
-          child: Text("Create Subgroup", style: TextStyle(color: AppColors.white)),
-        ),
-        const PopupMenuItem(
+        ];
+        if (_canManageRide && activeSubGroup == null) {
+          items.add(const PopupMenuItem(
+            value: 'invite',
+            child: Text("Invite Riders", style: TextStyle(color: AppColors.white)),
+          ));
+          items.add(const PopupMenuItem(
+            value: 'subgroup',
+            child: Text("Create Subgroup", style: TextStyle(color: AppColors.white)),
+          ));
+        }
+        items.add(const PopupMenuItem(
           value: 'leave',
           child: Text("Leave Group", style: TextStyle(color: AppColors.white)),
-        ),
-      ],
+        ));
+        return items;
+      },
     ),
   ],
 ),
@@ -329,7 +452,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
           Expanded(child: _chatArea()),
 
-          if (isActive) _messageInput(),
+          if (isActive &&
+              (activeSubGroup == null ||
+                  _isSubgroupMember(activeSubGroup) ||
+                  _canManageRide))
+            _messageInput(),
         ],
       ),
     );
@@ -342,11 +469,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => RideInfoScreen(
-            rideGroup: widget.group,
+            rideGroup: activeSubGroup == null
+                ? widget.group
+                : {
+                    ...widget.group,
+                    ...activeSubGroup!,
+                    "isSubGroup": true,
+                    "myRole": activeSubGroup?["myRole"] ?? widget.group["myRole"],
+                  },
             token: widget.token,
           ),
         ),
-      );
+      ).then((_) async {
+        await _loadGroupContext();
+        await fetchSubGroups();
+      });
       break;
 
     case 'invite':
@@ -411,12 +548,36 @@ void _openSubGroupCreation() async {
 }
 
 void _leaveGroup() async {
-  // TODO: call backend API
+  try {
+    if (activeSubGroup != null) {
+      await SubGroupService.leaveSubGroup(
+        widget.token,
+        activeSubGroup!["uuid"].toString(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Exited subgroup")),
+      );
+      setState(() {
+        activeSubGroup = null;
+        activeSubGroupId = null;
+      });
+      await fetchSubGroups();
+      await fetchMessages(widget.group["uuid"]);
+      return;
+    }
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text("Left group")),
-  );
-
-  Navigator.pop(context);
+    await RideService.leaveRide(widget.token, _rideUuid);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Exited ride")),
+    );
+    Navigator.pop(context, true);
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
+    );
+  }
 }
 }
