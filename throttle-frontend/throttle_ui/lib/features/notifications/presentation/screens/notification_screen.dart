@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
+import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
@@ -120,6 +121,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         await _handleRideInviteNotification(notification);
       } else if (notification.type == "FRIEND_REQUEST") {
         await _handleFriendRequestNotification(notification);
+      } else if (notification.type == "SUBGROUP_JOIN_REQUEST") {
+        await _handleSubgroupJoinRequestNotification(notification);
       }
     } catch (e) {
       if (!mounted) return;
@@ -375,6 +378,167 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
 
     await loadNotifications();
+  }
+
+  Future<void> _handleSubgroupJoinRequestNotification(
+    NotificationItem notification,
+  ) async {
+    final requestId = notification.referenceId;
+    if (requestId == null) return;
+
+    Map<String, dynamic> details;
+    try {
+      details = await SubGroupService.fetchJoinRequestDetails(
+        widget.token,
+        requestId,
+      );
+    } catch (_) {
+      details = {
+        "requestId": requestId,
+        "groupName": notification.title.isNotEmpty
+            ? notification.title
+            : "subgroup",
+      };
+    }
+
+    if (!mounted) return;
+    if (notification.unread) {
+      toggleRead(notification, true);
+    }
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _subgroupJoinRequestSheet(
+        sheetContext,
+        details,
+      ),
+    );
+
+    if (action == null) return;
+
+    if (action == "accept") {
+      await SubGroupService.approveJoinRequestById(widget.token, requestId);
+      await NotificationService().deleteNotification(notification.id, widget.token);
+      _removeNotification(notification);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Join request approved")),
+      );
+    } else if (action == "reject") {
+      await SubGroupService.rejectJoinRequestById(widget.token, requestId);
+      await NotificationService().deleteNotification(notification.id, widget.token);
+      _removeNotification(notification);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Join request rejected")),
+      );
+    } else if (action == "view_profile") {
+      final userUuid = details["userUuid"]?.toString();
+      if (userUuid != null && userUuid.isNotEmpty) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PublicProfileScreen(
+              user: {
+                "uuid": userUuid,
+                "firstName": details["firstName"],
+                "lastName": details["lastName"],
+                "profileImage": details["profileImage"],
+              },
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    await loadNotifications();
+  }
+
+  Widget _subgroupJoinRequestSheet(
+    BuildContext sheetContext,
+    Map<String, dynamic> details,
+  ) {
+    final firstName = (details["firstName"] ?? "").toString();
+    final lastName = (details["lastName"] ?? "").toString();
+    final requesterName = "$firstName $lastName".trim().isEmpty
+        ? "Rider"
+        : "$firstName $lastName".trim();
+    final subgroupName = (details["groupName"] ?? "subgroup").toString();
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(.08),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.primary.withOpacity(.24)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Subgroup Join Request",
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "$requesterName requested to join $subgroupName",
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(sheetContext, "reject"),
+                  child: const Text("Reject"),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(sheetContext, "accept"),
+                  child: const Text("Accept"),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.pop(sheetContext, "view_profile"),
+              icon: const Icon(Icons.person_outline, size: 18),
+              label: const Text("View Profile"),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _invitationSheet(

@@ -3,6 +3,7 @@ package com.ridersclub.ride.dto.response;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ridersclub.common.enums.RideType;
 import com.ridersclub.common.enums.RouteType;
 import com.ridersclub.common.enums.Status;
@@ -39,6 +40,10 @@ public class MyRidesResp {
     private String createdByUuid;
     private String createdByName;
     private String captainUuid;
+    private String myRole;
+    private String membershipStatus;
+    @JsonProperty("isMember")
+    private boolean isMember;
 
     private Visibility visibility;
     private Status status;

@@ -115,16 +115,20 @@ class GroupService {
       },
     );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = jsonDecode(response.body);
+    final Map<String, dynamic> data = response.body.isEmpty
+        ? const {}
+        : Map<String, dynamic>.from(jsonDecode(response.body));
 
+    if (response.statusCode == 200 || response.statusCode == 201) {
       if (data["success"] == false) {
         throw Exception(data["message"] ?? "Failed to join ride");
       }
 
       return; // success
     } else {
-      throw Exception("Failed to join ride: ${response.statusCode}");
+      throw Exception(
+        data["message"] ?? "Failed to join ride: ${response.statusCode}",
+      );
     }
   }
 
