@@ -105,6 +105,18 @@ public class NotificationService {
     }
 
     @Transactional
+    public void deleteNotification(Long notificationId, Long userId) {
+        Notifications notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
+
+        if (!notification.getUserId().equals(userId)) {
+            throw new RuntimeException("You are not allowed to delete this notification");
+        }
+
+        notificationRepository.delete(notification);
+    }
+
+    @Transactional
     public void markAllAsRead(Long userId) {
         List<Notifications> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
 
