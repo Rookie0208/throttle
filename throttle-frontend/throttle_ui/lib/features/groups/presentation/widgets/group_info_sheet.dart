@@ -8,8 +8,6 @@ import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dar
 import 'package:throttle_ui/features/groups/presentation/screens/invite_member_screen.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
-import 'package:throttle_ui/features/rides/presentation/widgets/location_map_preview.dart';
-import 'package:throttle_ui/features/rides/presentation/widgets/place_picker_screen.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 
 class RideInfoScreen extends StatefulWidget {
@@ -138,12 +136,6 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         backgroundColor: isError ? Colors.red : null,
       ),
     );
-  }
-
-  double? _toDouble(dynamic value) {
-    if (value is num) return value.toDouble();
-    if (value == null) return null;
-    return double.tryParse(value.toString());
   }
 
   @override
@@ -846,9 +838,6 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   Widget _preRideHeroCard(Map<String, dynamic> preRideInfo) {
     final meetingPoint =
         (preRideInfo["meetingPoint"] ?? "No meeting point added").toString();
-    final meetingPointLatitude = _toDouble(preRideInfo["meetingPointLatitude"]);
-    final meetingPointLongitude =
-        _toDouble(preRideInfo["meetingPointLongitude"]);
 
     return Container(
       width: double.infinity,
@@ -869,58 +858,45 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.place_rounded, color: AppColors.primary),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Meeting Point",
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      meetingPoint,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (meetingPointLatitude != null && meetingPointLongitude != null) ...[
-            const SizedBox(height: 14),
-            LocationMapPreview(
-              location: LatLng(meetingPointLatitude, meetingPointLongitude),
-              title: meetingPoint,
-              height: 180,
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(14),
             ),
-          ],
+            child: const Icon(Icons.place_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Meeting Point",
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  meetingPoint,
+                  style: const TextStyle(
+                    color: AppColors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1721,12 +1697,6 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     final meetingController = TextEditingController(
       text: existingPreRide["meetingPoint"]?.toString() ?? "",
     );
-    double? meetingPointLatitude = _toDouble(
-      existingPreRide["meetingPointLatitude"],
-    );
-    double? meetingPointLongitude = _toDouble(
-      existingPreRide["meetingPointLongitude"],
-    );
     final fuelController = TextEditingController(
       text: existingPreRide["fuelStops"]?.toString() ?? "",
     );
@@ -1781,47 +1751,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   const SizedBox(height: 14),
                   TextField(
                     controller: meetingController,
-                    readOnly: true,
-                    onTap: () async {
-                      final selectedLocation =
-                          await Navigator.of(context).push<Map<String, dynamic>>(
-                        MaterialPageRoute(
-                          builder: (_) => PlacePickerScreen(
-                            title: "Choose Meeting Point",
-                            initialQuery: meetingController.text,
-                          ),
-                        ),
-                      );
-                      if (selectedLocation == null) return;
-                      setModalState(() {
-                        meetingController.text =
-                            (selectedLocation["address"] ??
-                                    selectedLocation["name"] ??
-                                    "Meeting point")
-                                .toString();
-                        meetingPointLatitude =
-                            _toDouble(selectedLocation["latitude"]);
-                        meetingPointLongitude =
-                            _toDouble(selectedLocation["longitude"]);
-                      });
-                    },
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: _inputDecoration("Search meetup location"),
+                    decoration: _inputDecoration("Enter meetup location"),
                   ),
-                  if (meetingPointLatitude != null &&
-                      meetingPointLongitude != null) ...[
-                    const SizedBox(height: 12),
-                    LocationMapPreview(
-                      location: LatLng(
-                        meetingPointLatitude!,
-                        meetingPointLongitude!,
-                      ),
-                      title: meetingController.text.trim().isEmpty
-                          ? "Meeting Point"
-                          : meetingController.text.trim(),
-                      height: 170,
-                    ),
-                  ],
                 ],
               );
             }
@@ -1980,21 +1912,6 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     ),
                     const SizedBox(height: 12),
                     _preview("Meeting Point", meetingController.text),
-                    if (meetingPointLatitude != null &&
-                        meetingPointLongitude != null) ...[
-                      const SizedBox(height: 12),
-                      LocationMapPreview(
-                        location: LatLng(
-                          meetingPointLatitude!,
-                          meetingPointLongitude!,
-                        ),
-                        title: meetingController.text.trim().isEmpty
-                            ? "Meeting Point"
-                            : meetingController.text.trim(),
-                        height: 180,
-                      ),
-                      const SizedBox(height: 10),
-                    ],
                     _preview("Ride Type", widget.rideGroup["rideType"] ?? ""),
                     _preview("Route Type", widget.rideGroup["routeType"] ?? ""),
                     _preview(
@@ -2117,8 +2034,6 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
                             final requestPayload = {
                               "meetingPoint": meetingController.text.trim(),
-                              "meetingPointLatitude": meetingPointLatitude,
-                              "meetingPointLongitude": meetingPointLongitude,
                               "fuelStops": fuelController.text.trim(),
                               "checkpointList": checkpoints,
                               "ruleList": selectedRules,
