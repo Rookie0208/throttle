@@ -13,12 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.MessageType;
 import com.ridersclub.common.enums.RideInvitationStatus;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.enums.Visibility;
 import com.ridersclub.friend.entity.Friendship;
 import com.ridersclub.friend.repository.FriendshipRepository;
+import com.ridersclub.message.entity.GroupMessage;
+import com.ridersclub.message.repository.GroupMessageRepository;
 import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.ClubMember;
@@ -60,13 +63,19 @@ public class RideParticipantService {
     private ClubMemberRepository clubMemberRepository;
     @Autowired
     private NotificationService notificationService;
+    @Autowired
+    private GroupMessageRepository groupMessageRepository;
+
+    private boolean isRideManager(Role role) {
+        return role == Role.CAPTAIN || role == Role.ADMIN || role == Role.CO_CAPTAIN;
+    }
 
     public List<RideParticipantDto> getRideParticipants(String rideId) {
 
     Ride ride = rideRepository.findByUuid(rideId)
             .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-    List<RideParticipant> participants = participantRepository.findByRide_Id(ride.getId());
+    List<RideParticipant> participants = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED);
 
     return participants.stream()
             .map(rp -> RideParticipantDto.builder()
@@ -87,14 +96,16 @@ public class RideParticipantService {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-        RideParticipant actor = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, actorUserUuid)
+        RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, actorUserUuid, Status.EXITED)
                 .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
 
-        if (!(actor.getRole() == Role.CAPTAIN || actor.getRole() == Role.ADMIN)) {
+        if (!isRideManager(actor.getRole())) {
             throw new RuntimeException("Only captain/admin can update roles");
         }
 
-        RideParticipant target = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, targetUserUuid)
+        RideParticipant target = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, targetUserUuid, Status.EXITED)
                 .orElseThrow(() -> new RuntimeException("Rider not found in this ride"));
 
         Role newRole;
@@ -115,17 +126,19 @@ public class RideParticipantService {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-        RideParticipant actor = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, actorUserUuid)
+        RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, actorUserUuid, Status.EXITED)
                 .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
 
-        if (!(actor.getRole() == Role.CAPTAIN || actor.getRole() == Role.ADMIN)) {
+        if (!isRideManager(actor.getRole())) {
             throw new RuntimeException("Only captain/admin can remove riders");
         }
 
-        RideParticipant target = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, targetUserUuid)
+        RideParticipant target = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, targetUserUuid, Status.EXITED)
                 .orElseThrow(() -> new RuntimeException("Rider not found in this ride"));
 
-        if (target.getRole() == Role.CAPTAIN || target.getRole() == Role.ADMIN) {
+        if (isRideManager(target.getRole())) {
             throw new RuntimeException("Captain/Admin cannot be removed from ride");
         }
 
@@ -196,14 +209,15 @@ public class RideParticipantService {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-        RideParticipant actor = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, actorUserUuid)
+        RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, actorUserUuid, Status.EXITED)
                 .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
 
-        if (!(actor.getRole() == Role.CAPTAIN || actor.getRole() == Role.ADMIN)) {
+        if (!isRideManager(actor.getRole())) {
             throw new RuntimeException("Only captain/admin can publish announcements");
         }
 
-        List<RideParticipant> participants = participantRepository.findByRide_Id(ride.getId());
+        List<RideParticipant> participants = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED);
         String actorName = ((actor.getUser().getFirstName() != null ? actor.getUser().getFirstName() : "")
                 + " "
                 + (actor.getUser().getLastName() != null ? actor.getUser().getLastName() : "")).trim();
@@ -224,14 +238,15 @@ public class RideParticipantService {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-        RideParticipant actor = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, actorUserUuid)
+        RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, actorUserUuid, Status.EXITED)
                 .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
 
-        if (!(actor.getRole() == Role.CAPTAIN || actor.getRole() == Role.ADMIN)) {
+        if (!isRideManager(actor.getRole())) {
             throw new RuntimeException("Only captain/admin can invite riders");
         }
 
-        Set<Long> participantIds = participantRepository.findByRide_Id(ride.getId())
+        Set<Long> participantIds = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED)
                 .stream()
                 .map(rider -> rider.getUser().getId())
                 .collect(Collectors.toSet());
@@ -277,10 +292,11 @@ public class RideParticipantService {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
-        RideParticipant actor = participantRepository.findByRide_UuidAndUser_Uuid(rideUuid, actorUserUuid)
+        RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, actorUserUuid, Status.EXITED)
                 .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
 
-        if (!(actor.getRole() == Role.CAPTAIN || actor.getRole() == Role.ADMIN)) {
+        if (!isRideManager(actor.getRole())) {
             throw new RuntimeException("Only captain/admin can invite riders");
         }
 
@@ -295,7 +311,7 @@ public class RideParticipantService {
             throw new RuntimeException("You can only invite friends to the ride");
         }
 
-        if (participantRepository.existsByRide_IdAndUser_Id(ride.getId(), invitee.getId())) {
+        if (participantRepository.existsByRide_IdAndUser_IdAndRsvpStatusNot(ride.getId(), invitee.getId(), Status.EXITED)) {
             throw new RuntimeException("This rider is already part of the group");
         }
 
@@ -351,8 +367,14 @@ public class RideParticipantService {
         Ride ride = invitation.getRide();
         User invitee = invitation.getInvitee();
 
-        if (!participantRepository.existsByRide_IdAndUser_Id(ride.getId(), invitee.getId())) {
+        RideParticipant existingParticipant = participantRepository.findByRide_UuidAndUser_Uuid(ride.getUuid(), invitee.getUuid())
+                .orElse(null);
+        if (existingParticipant == null) {
             participantRepository.save(new RideParticipant(ride, invitee, Role.RIDER, Status.CREATED));
+        } else if (existingParticipant.getRsvpStatus() == Status.EXITED) {
+            existingParticipant.setRsvpStatus(Status.CREATED);
+            existingParticipant.setRole(Role.RIDER);
+            participantRepository.save(existingParticipant);
         }
 
         RideGroup mainGroup = rideGroupRepository.findByRideAndParentGroupIsNull(ride)
@@ -369,6 +391,7 @@ public class RideParticipantService {
         invitation.setStatus(RideInvitationStatus.ACCEPTED);
         invitation.setRespondedAt(LocalDateTime.now());
         rideInvitationRepository.save(invitation);
+        createSystemGroupMessage(mainGroup, invitee, formatUserName(invitee) + " joined the group.");
 
         notificationService.createAndSend(
                 invitation.getInviter().getId(),
@@ -401,6 +424,48 @@ public class RideParticipantService {
                 "RIDE_INVITATION");
     }
 
+    @Transactional
+    public void leaveRide(String rideUuid, String actorUserUuid) {
+        Ride ride = rideRepository.findByUuid(rideUuid)
+                .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+        RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                rideUuid, actorUserUuid, Status.EXITED)
+                .orElseThrow(() -> new RuntimeException("You are not part of this ride"));
+
+        if (isRideManager(actor.getRole())) {
+            boolean hasOtherManager = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED)
+                    .stream()
+                    .filter(member -> !member.getUser().getId().equals(actor.getUser().getId()))
+                    .anyMatch(member -> isRideManager(member.getRole()));
+
+            if (!hasOtherManager) {
+                throw new RuntimeException("Assign another admin/captain before leaving this ride");
+            }
+
+            RideParticipant replacement = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED)
+                    .stream()
+                    .filter(member -> !member.getUser().getId().equals(actor.getUser().getId()))
+                    .filter(member -> isRideManager(member.getRole()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (ride.getCaptain() != null
+                    && ride.getCaptain().getId().equals(actor.getUser().getId())
+                    && replacement != null) {
+                ride.setCaptain(replacement.getUser());
+                rideRepository.save(ride);
+            }
+        }
+
+        groupMemberRepository.deleteByGroup_Ride_IdAndUser_Id(ride.getId(), actor.getUser().getId());
+        RideGroup mainGroup = rideGroupRepository.findByRideAndParentGroupIsNull(ride)
+                .orElseThrow(() -> new RuntimeException("Main group not found"));
+        actor.setRsvpStatus(Status.EXITED);
+        participantRepository.save(actor);
+        createSystemGroupMessage(mainGroup, actor.getUser(), formatUserName(actor.getUser()) + " left the group.");
+    }
+
     private RideInvitationResponse mapInvitationResponse(RideInvitation invitation) {
         Ride ride = invitation.getRide();
         RideLocation startLocation = ride.getLocations()
@@ -431,6 +496,17 @@ public class RideParticipantService {
         String lastName = user.getLastName() != null ? user.getLastName().trim() : "";
         String fullName = (firstName + " " + lastName).trim();
         return fullName.isEmpty() ? "Someone" : fullName;
+    }
+
+    private void createSystemGroupMessage(RideGroup group, User actor, String message) {
+        groupMessageRepository.save(GroupMessage.builder()
+                .uuid(UserUtility.generateUUID(UuidPrefix.CHAT.name()))
+                .sender(actor)
+                .group(group)
+                .message(message)
+                .messageType(MessageType.SYSTEM)
+                .edited(false)
+                .build());
     }
 
 }

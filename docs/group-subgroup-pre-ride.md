@@ -7,6 +7,7 @@ This update aligns the group and subgroup flows across the backend and Flutter a
 - Group creation and subgroup creation now require an explicit visibility choice instead of forcing a default.
 - Public subgroups are visible to all ride members.
 - Private subgroups remain member-only.
+- Public subgroups are discoverable by all ride members, but subgroup chat and active participation still require subgroup membership.
 - Subgroup creation now sends the correct payload shape and returns the created subgroup data without showing a false failure message on successful API responses.
 - Subgroup settings now persist:
   - `visibility`
@@ -16,6 +17,12 @@ This update aligns the group and subgroup flows across the backend and Flutter a
 - "Add Members" now prevents duplicate ride invitations and shows `Invited` for users with a pending invite.
 - Ride invite candidates are sorted with club friends first, then general friends as fallback.
 - Pre-ride info is stored on `ride_groups` so all members see the same data after reload.
+- Public subgroup self-join now respects subgroup settings:
+  - direct join when approval is not required
+  - join request when approval is required
+- Subgroup managers can approve or reject pending subgroup join requests.
+- Exiting a subgroup removes access to that subgroup chat until the rider is added again.
+- Exiting the main ride removes the rider from the ride and its subgroup memberships.
 
 ## ID model
 
@@ -40,6 +47,27 @@ Ride invite candidates come from:
 - pending invite state from `ride_invitations`
 
 The UI disables the invite action when an invitation is already pending.
+
+## Join and leave behavior
+
+Subgroup behavior:
+
+- `GET /api/v1/rides/{rideUuid}/subgroups` returns discoverable subgroups for the ride
+- `POST /api/v1/rides/groups/{groupUuid}/join` joins immediately or creates a join request depending on subgroup settings
+- `GET /api/v1/rides/groups/{groupUuid}/join-requests` returns pending join requests for subgroup managers
+- `POST /api/v1/rides/groups/{groupUuid}/join-requests/{requestId}/approve` approves a join request
+- `POST /api/v1/rides/groups/{groupUuid}/join-requests/{requestId}/reject` rejects a join request
+- `DELETE /api/v1/rides/groups/{groupUuid}/leave` removes the current rider from the subgroup
+
+Ride behavior:
+
+- `POST /api/v1/participants/{rideUuid}/leave` removes the current rider from the main ride and from subgroup memberships tied to that ride
+
+Manager restrictions:
+
+- `CAPTAIN`, `ADMIN`, and `CO_CAPTAIN` can create subgroups and manage subgroup requests
+- managers cannot leave a ride or subgroup if that would leave the group without a manager
+- managers can rename groups from the group info menu
 
 ## Pre-ride persistence
 
