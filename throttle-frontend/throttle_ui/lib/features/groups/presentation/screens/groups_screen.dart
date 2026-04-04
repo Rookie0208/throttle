@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/public_rides_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
@@ -19,6 +20,9 @@ class _GroupsScreenState extends State<GroupsScreen>
   List<Map<String, dynamic>> groups = [];
   bool isLoading = true;
   late TabController _tabController;
+  Set<String> hiddenExitedGroupUuids = <String>{};
+
+  static const String _hiddenGroupsKey = 'hidden_exited_group_uuids';
 
   Map<String, dynamic> _normalizeRide(Map<String, dynamic> ride) {
     final now = DateTime.now();
@@ -46,6 +50,9 @@ class _GroupsScreenState extends State<GroupsScreen>
       "name": ride["title"],
       "rideStatus": effectiveRideStatus,
       "status": sectionStatus,
+      "myRole": ride["myRole"],
+      "membershipStatus": ride["membershipStatus"] ?? "CREATED",
+      "isMember": ride["isMember"] ?? true,
       "members": []
     };
   }
@@ -117,7 +124,26 @@ class _GroupsScreenState extends State<GroupsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    fetchGroups();
+    _loadHiddenGroups().then((_) => fetchGroups());
+  }
+
+  Future<void> _loadHiddenGroups() async {
+    final prefs = await SharedPreferences.getInstance();
+    hiddenExitedGroupUuids =
+        (prefs.getStringList(_hiddenGroupsKey) ?? <String>[]).toSet();
+  }
+
+  Future<void> _hideExitedGroup(String groupUuid) async {
+    final prefs = await SharedPreferences.getInstance();
+    hiddenExitedGroupUuids = {...hiddenExitedGroupUuids, groupUuid};
+    await prefs.setStringList(
+      _hiddenGroupsKey,
+      hiddenExitedGroupUuids.toList(),
+    );
+    if (!mounted) return;
+    setState(() {
+      groups.removeWhere((group) => group["uuid"] == groupUuid);
+    });
   }
 
   Future<void> fetchGroups() async {
@@ -129,8 +155,12 @@ class _GroupsScreenState extends State<GroupsScreen>
       List<Map<String, dynamic>> rides =
           List<Map<String, dynamic>>.from(result["data"]);
 
-      List<Map<String, dynamic>> mappedGroups =
-          rides.map(_normalizeRide).toList();
+      List<Map<String, dynamic>> mappedGroups = rides
+          .map(_normalizeRide)
+          .where((group) =>
+              !(group["membershipStatus"] == "EXITED" &&
+                  hiddenExitedGroupUuids.contains(group["uuid"])))
+          .toList();
 
       setState(() {
         groups = mappedGroups;
@@ -152,8 +182,12 @@ class _GroupsScreenState extends State<GroupsScreen>
 
 
   Widget _buildGroupCard(Map<String, dynamic> group) {
+    final isExited = group["membershipStatus"] == "EXITED";
+
     return GestureDetector(
-      onTap: () {
+      onTap: isExited
+          ? null
+          : () {
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -161,7 +195,11 @@ class _GroupsScreenState extends State<GroupsScreen>
               group: group, token: widget.token,
             ),
           ),
-        );
+        ).then((result) {
+          if (result == true) {
+            fetchGroups();
+          }
+        });
       },
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -171,38 +209,99 @@ class _GroupsScreenState extends State<GroupsScreen>
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.white24),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              height: 45,
-              width: 45,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                group["name"][0], // first letter
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Container(
+                  height: 45,
+                  width: 45,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    group["name"][0],
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                group["name"],
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group["name"],
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      if (isExited) ...[
+                        const SizedBox(height: 4),
+                        const Text(
+                          "You are no longer a member of this group",
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
+                if (!isExited)
+                  Text(
+                    group["rideStatus"],
+                    style: const TextStyle(color: AppColors.textHint),
+                  ),
+              ],
+            ),
+            if (isExited) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        try {
+                          await GroupService.joinRide(
+                            widget.token,
+                            group["rideUuid"].toString(),
+                          );
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Rejoined ride")),
+                          );
+                          await fetchGroups();
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                e.toString().replaceFirst("Exception: ", ""),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text("Rejoin"),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => _hideExitedGroup(group["uuid"].toString()),
+                      child: const Text("Delete"),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Text(
-              group["rideStatus"], // show ride status
-              style: const TextStyle(color: AppColors.textHint),
-            ),
+            ],
           ],
         ),
       ),

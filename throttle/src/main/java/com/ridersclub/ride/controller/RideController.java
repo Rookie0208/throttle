@@ -28,7 +28,9 @@ import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideAnnouncementRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
+import com.ridersclub.ride.dto.request.UpdateGroupRequest;
 import com.ridersclub.ride.dto.request.UpdatePreRideInfoRequest;
+import com.ridersclub.ride.dto.response.GroupJoinRequestResponse;
 import com.ridersclub.ride.dto.response.PreRideInfoResponse;
 import com.ridersclub.ride.dto.response.RideResponse;
 import com.ridersclub.ride.dto.response.SubGroupResponse;
@@ -91,6 +93,12 @@ public class RideController {
         return ApiResponse.success(rideService.myRides(userId), "My rides");
     }
 
+    @GetMapping("/public")
+    public ApiResponse<?> publicRides(Authentication authentication) {
+        String userId = (String) authentication.getPrincipal();
+        return ApiResponse.success(rideService.getPublicRides(userId), "Public rides fetched");
+    }
+
     /*
     Need an endpont to fetch public rides.
     GET /rides/public
@@ -113,9 +121,10 @@ public class RideController {
 
     @PostMapping(ApiConstants.Rides.JOIN)
     public ApiResponse<?> join(@PathVariable String id,
-            @AuthenticationPrincipal UserDetails user) {
+            Authentication authentication) {
 
-        rideService.join(id, user.getUsername());
+        String userUuid = authentication.getPrincipal().toString();
+        rideService.join(id, userUuid);
         return ApiResponse.success(null, "Joined ride");
     }
 
@@ -196,6 +205,16 @@ public class RideController {
         return ApiResponse.success(rideService.getGroupDetails(groupUuid, userUuid), "Group details");
     }
 
+    @GetMapping("/{rideUuid}/main-group")
+    public ApiResponse<?> getMainGroupDetails(
+            @PathVariable String rideUuid,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideService.getMainGroupDetailsByRideUuid(rideUuid, userUuid),
+                "Main group details");
+    }
+
     @GetMapping("/groups/{groupUuid}/members")
     public ApiResponse<?> getGroupMembers(@PathVariable String groupUuid, Authentication authentication) {
         String userUuid = authentication.getPrincipal().toString();
@@ -231,6 +250,96 @@ public class RideController {
         String currentUserUuid = authentication.getPrincipal().toString();
         rideService.removeGroupMember(groupUuid, userId, currentUserUuid);
         return ApiResponse.success(null, "Subgroup member removed successfully");
+    }
+
+    @GetMapping("/groups/{groupUuid}/join-requests")
+    public ApiResponse<List<GroupJoinRequestResponse>> getJoinRequests(
+            @PathVariable String groupUuid,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideService.getPendingJoinRequests(groupUuid, currentUserUuid),
+                "Subgroup join requests fetched");
+    }
+
+    @GetMapping("/join-requests/{requestId}")
+    public ApiResponse<GroupJoinRequestResponse> getJoinRequestDetails(
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideService.getJoinRequestDetails(requestId, currentUserUuid),
+                "Join request details fetched");
+    }
+
+    @PostMapping("/groups/{groupUuid}/join")
+    public ApiResponse<SubGroupResponse> joinGroup(
+            @PathVariable String groupUuid,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideService.joinGroup(groupUuid, currentUserUuid),
+                "Subgroup join request processed");
+    }
+
+    @PostMapping("/groups/{groupUuid}/join-requests/{requestId}/approve")
+    public ApiResponse<?> approveJoinRequest(
+            @PathVariable String groupUuid,
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.approveJoinRequest(groupUuid, requestId, currentUserUuid);
+        return ApiResponse.success(null, "Join request approved");
+    }
+
+    @PostMapping("/join-requests/{requestId}/approve")
+    public ApiResponse<?> approveJoinRequestFromNotification(
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        GroupJoinRequestResponse details = rideService.getJoinRequestDetails(requestId, currentUserUuid);
+        rideService.approveJoinRequest(details.getGroupUuid(), requestId, currentUserUuid);
+        return ApiResponse.success(null, "Join request approved");
+    }
+
+    @PostMapping("/groups/{groupUuid}/join-requests/{requestId}/reject")
+    public ApiResponse<?> rejectJoinRequest(
+            @PathVariable String groupUuid,
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.rejectJoinRequest(groupUuid, requestId, currentUserUuid);
+        return ApiResponse.success(null, "Join request rejected");
+    }
+
+    @PostMapping("/join-requests/{requestId}/reject")
+    public ApiResponse<?> rejectJoinRequestFromNotification(
+            @PathVariable Long requestId,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        GroupJoinRequestResponse details = rideService.getJoinRequestDetails(requestId, currentUserUuid);
+        rideService.rejectJoinRequest(details.getGroupUuid(), requestId, currentUserUuid);
+        return ApiResponse.success(null, "Join request rejected");
+    }
+
+    @DeleteMapping("/groups/{groupUuid}/leave")
+    public ApiResponse<?> leaveGroup(
+            @PathVariable String groupUuid,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        rideService.leaveGroup(groupUuid, currentUserUuid);
+        return ApiResponse.success(null, "Exited subgroup successfully");
+    }
+
+    @PutMapping("/groups/{groupUuid}")
+    public ApiResponse<SubGroupResponse> renameGroup(
+            @PathVariable String groupUuid,
+            @Valid @RequestBody UpdateGroupRequest request,
+            Authentication authentication) {
+        String currentUserUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideService.renameGroup(groupUuid, request, currentUserUuid),
+                "Group updated successfully");
     }
 
     @GetMapping("/groups/{groupUuid}/pre-ride-info")

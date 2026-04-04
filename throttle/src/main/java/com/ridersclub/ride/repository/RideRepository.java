@@ -23,6 +23,8 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
 
         Optional<Ride> findByUuid(String uuid);
 
+        List<Ride> findByVisibility(com.ridersclub.common.enums.Visibility visibility);
+
         // Fetch up to 3 recent completed rides for a given list of ride IDs
         java.util.List<Ride> findTop3ByIdInAndStatusOrderByStartTimeDesc(java.util.List<Long> rideIds,
                         com.ridersclub.common.enums.Status status);

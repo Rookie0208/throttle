@@ -91,6 +91,21 @@ class RideService {
     }
   }
 
+  static Future<void> leaveRide(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/participants/$rideUuid/leave"),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = _decodeBody(response.body);
+      throw Exception(data["message"] ?? "Failed to leave ride");
+    }
+  }
+
   static Future<void> inviteMember(
     String token,
     String rideUuid,

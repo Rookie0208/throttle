@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
@@ -46,6 +47,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         {"CANCELLED", "COMPLETED", "ENDED"}.contains(rideStatus);
   }
 
+  bool _isGroupMember(Map<dynamic, dynamic>? group) =>
+      group?["isMember"] == true || group?["member"] == true;
+
   String? _currentUserUuidFromToken() {
     try {
       final parts = widget.token.split('.');
@@ -87,16 +91,28 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
   bool _canManageMembers(String currentUserRole) {
     if (_isGroupLocked) return false;
-    return currentUserRole == "CAPTAIN" || currentUserRole == "ADMIN";
+    return currentUserRole == "CAPTAIN" ||
+        currentUserRole == "ADMIN" ||
+        currentUserRole == "CO_CAPTAIN";
   }
 
   bool _canOpenAddMembers(String currentUserRole) {
     if (_isGroupLocked) return false;
     if (!_isSubGroup) return _canManageMembers(currentUserRole);
+    if (!_isGroupMember(widget.rideGroup)) return false;
     if (_canManageMembers(currentUserRole)) return true;
     return widget.rideGroup["membersCanAddMembers"] == true &&
         widget.rideGroup["adminsApproveMembers"] != true;
   }
+
+  bool _canJoinCurrentSubGroup() =>
+      _isSubGroup &&
+      !_isGroupMember(widget.rideGroup) &&
+      !_canManageMembers((widget.rideGroup["myRole"] ?? "").toString()) &&
+      (widget.rideGroup["canJoinDirectly"] == true ||
+          widget.rideGroup["canRequestToJoin"] == true);
+
+  bool _canRenameGroup(String currentUserRole) => _canManageMembers(currentUserRole);
 
   String get _memberNoun => _isSubGroup ? "members" : "riders";
 
@@ -130,13 +146,24 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
   Future<void> _loadGroupDetails() async {
     try {
-      final details = await SubGroupService.fetchSubGroupDetails(
-        widget.token,
-        _groupUuid,
-      );
+      final details = _groupUuid == _rideUuid
+          ? await SubGroupService.fetchMainGroupDetails(
+              widget.token,
+              _rideUuid,
+            )
+          : await SubGroupService.fetchSubGroupDetails(
+              widget.token,
+              _groupUuid,
+            );
       if (!mounted) return;
       setState(() {
+        final preservedMyRole = widget.rideGroup["myRole"];
         widget.rideGroup.addAll(details);
+        if ((widget.rideGroup["myRole"] == null ||
+                widget.rideGroup["myRole"].toString().isEmpty) &&
+            preservedMyRole != null) {
+          widget.rideGroup["myRole"] = preservedMyRole;
+        }
       });
     } catch (_) {}
 
@@ -488,7 +515,232 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
   bool _canEditPreRide(String currentUserRole) {
     if (_isGroupLocked) return false;
-    return currentUserRole == "CAPTAIN" || currentUserRole == "ADMIN";
+    return _canManageMembers(currentUserRole);
+  }
+
+  Future<void> _shareGroupLink() async {
+    final link = "throttle://groups/$_groupUuid";
+    await Clipboard.setData(ClipboardData(text: link));
+    _showMessage("Group link copied");
+  }
+
+  Future<void> _renameCurrentGroup(String currentUserRole) async {
+    if (!_canRenameGroup(currentUserRole)) {
+      _showMessage("Only captain/admin can rename this group", isError: true);
+      return;
+    }
+
+    final controller = TextEditingController(
+      text: (widget.rideGroup["title"] ?? widget.rideGroup["name"] ?? "")
+          .toString(),
+    );
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (sheetContext) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Change Group Name",
+                style: TextStyle(color: AppColors.white),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                style: const TextStyle(color: AppColors.textPrimary),
+                decoration: const InputDecoration(
+                  hintText: "Enter group name",
+                  hintStyle: TextStyle(color: AppColors.textHint),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final updated = await SubGroupService.renameGroup(
+                      widget.token,
+                      _groupUuid,
+                      controller.text.trim(),
+                    );
+                    if (!mounted) return;
+                    Navigator.pop(sheetContext);
+                    setState(() {
+                      widget.rideGroup.addAll(updated);
+                      widget.rideGroup["title"] =
+                          updated["title"] ?? updated["name"];
+                      widget.rideGroup["name"] = updated["name"] ??
+                          updated["title"] ??
+                          widget.rideGroup["name"];
+                    });
+                    _showMessage("Group name updated");
+                  } catch (e) {
+                    _showMessage(
+                      e.toString().replaceFirst("Exception: ", ""),
+                      isError: true,
+                    );
+                  }
+                },
+                child: const Text("Save"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _joinCurrentSubGroup() async {
+    try {
+      final updated = await SubGroupService.joinSubGroup(widget.token, _groupUuid);
+      if (!mounted) return;
+      setState(() {
+        widget.rideGroup.addAll(updated);
+      });
+      _showMessage(
+        widget.rideGroup["joinRequestPending"] == true
+            ? "Join request sent"
+            : "Joined subgroup",
+      );
+      await _refreshMembers();
+      await _loadGroupDetails();
+    } catch (e) {
+      _showMessage(e.toString().replaceFirst("Exception: ", ""), isError: true);
+    }
+  }
+
+  Future<void> _leaveCurrentGroup() async {
+    try {
+      if (_isSubGroup) {
+        await SubGroupService.leaveSubGroup(widget.token, _groupUuid);
+        if (!mounted) return;
+        _showMessage("Exited subgroup");
+      } else {
+        await RideService.leaveRide(widget.token, _rideUuid);
+        if (!mounted) return;
+        _showMessage("Exited ride");
+      }
+
+      Navigator.pop(context, true);
+    } catch (e) {
+      _showMessage(e.toString().replaceFirst("Exception: ", ""), isError: true);
+    }
+  }
+
+  Widget _joinRequestsSection(String currentUserRole) {
+    if (!_isSubGroup || !_canManageMembers(currentUserRole)) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: SubGroupService.fetchJoinRequests(widget.token, _groupUuid),
+      builder: (context, snapshot) {
+        final requests = snapshot.data ?? [];
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (requests.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Join Requests",
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...requests.map((request) {
+              final requestId = request["requestId"] as int?;
+              final name =
+                  "${request["firstName"] ?? ""} ${request["lastName"] ?? ""}"
+                      .trim();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? "Rider" : name,
+                      style: const TextStyle(color: AppColors.textPrimary),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: requestId == null
+                                ? null
+                                : () async {
+                                    await SubGroupService.rejectJoinRequest(
+                                      widget.token,
+                                      _groupUuid,
+                                      requestId,
+                                    );
+                                    if (!mounted) return;
+                                    setState(() {});
+                                  },
+                            child: const Text("Reject"),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: requestId == null
+                                ? null
+                                : () async {
+                                    try {
+                                      await SubGroupService.approveJoinRequest(
+                                        widget.token,
+                                        _groupUuid,
+                                        requestId,
+                                      );
+                                      if (!mounted) return;
+                                      _showMessage("Join request approved");
+                                      await _refreshMembers();
+                                      await _loadGroupDetails();
+                                      setState(() {});
+                                    } catch (e) {
+                                      _showMessage(
+                                        e.toString().replaceFirst("Exception: ", ""),
+                                        isError: true,
+                                      );
+                                    }
+                                  },
+                            child: const Text("Approve"),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 20),
+          ],
+        );
+      },
+    );
   }
 
   Widget _quickAction({
@@ -784,8 +1036,13 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   void _editDescription() {
+    final currentUserRole = (widget.rideGroup["myRole"] ?? "").toString();
     if (_isSubGroup) {
       _showMessage("Subgroup description editing is not available yet");
+      return;
+    }
+    if (!_canManageMembers(currentUserRole)) {
+      _showMessage("Only captain/admin can edit the description", isError: true);
       return;
     }
     if (_isGroupLocked) {
@@ -889,8 +1146,25 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         return Column(
           children: subGroups.map((subgroup) {
             final memberCount = subgroup["memberCount"];
+            final subgroupRole =
+                (subgroup["myRole"] ?? widget.rideGroup["myRole"] ?? "")
+                    .toString();
+            final canManageSubgroup = _canManageMembers(subgroupRole);
+            final canShowJoinAction = !_isGroupMember(subgroup) &&
+                !canManageSubgroup &&
+                (subgroup["joinRequestPending"] == true ||
+                    subgroup["canRequestToJoin"] == true ||
+                    subgroup["canJoinDirectly"] == true);
             final subtitleParts = [
               subgroup["visibility"]?.toString() ?? "",
+              if (_isGroupMember(subgroup))
+                "Joined"
+              else if (subgroup["joinRequestPending"] == true)
+                "Request pending"
+              else if (subgroup["canRequestToJoin"] == true)
+                "Approval required"
+              else if (subgroup["canJoinDirectly"] == true)
+                "Open to join",
               if (memberCount != null) "$memberCount members",
             ].where((part) => part.isNotEmpty).toList();
 
@@ -928,10 +1202,50 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                         subtitleParts.join(" • "),
                         style: const TextStyle(color: AppColors.textSecondary),
                       ),
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textMuted,
-                ),
+                trailing: _isGroupMember(subgroup) || canManageSubgroup
+                    ? const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.textMuted,
+                      )
+                    : canShowJoinAction
+                    ? ElevatedButton(
+                        onPressed: subgroup["joinRequestPending"] == true
+                            ? null
+                            : () async {
+                                try {
+                                  final updated = await SubGroupService.joinSubGroup(
+                                    widget.token,
+                                    subgroup["uuid"].toString(),
+                                  );
+                                  if (!mounted) return;
+                                  subgroup.addAll(updated);
+                                  _showMessage(
+                                    updated["joinRequestPending"] == true
+                                        ? "Join request sent"
+                                        : "Joined subgroup",
+                                  );
+                                  setState(() {});
+                                  await _refreshMembers();
+                                  await _loadGroupDetails();
+                                } catch (e) {
+                                  _showMessage(
+                                    e.toString().replaceFirst("Exception: ", ""),
+                                    isError: true,
+                                  );
+                                }
+                              },
+                        child: Text(
+                          subgroup["joinRequestPending"] == true
+                              ? "Pending"
+                              : subgroup["canRequestToJoin"] == true
+                              ? "Request"
+                              : "Join",
+                        ),
+                      )
+                    : const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.textMuted,
+                      ),
               ),
             );
           }).toList(),
@@ -1066,6 +1380,28 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   ),
                 ],
               ),
+              if (_canJoinCurrentSubGroup()) ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: widget.rideGroup["joinRequestPending"] == true
+                        ? null
+                        : _joinCurrentSubGroup,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.white,
+                    ),
+                    child: Text(
+                      widget.rideGroup["joinRequestPending"] == true
+                          ? "Request Pending"
+                          : widget.rideGroup["canRequestToJoin"] == true
+                          ? "Request to Join"
+                          : "Join Subgroup",
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -1962,6 +2298,46 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         title: const Text("Group Info"),
+        actions: [
+          PopupMenuButton<String>(
+            color: AppColors.surface,
+            onSelected: (value) {
+              final currentUserRole =
+                  (widget.rideGroup["myRole"] ?? "").toString();
+              if (value == "share") {
+                _shareGroupLink();
+              } else if (value == "rename") {
+                _renameCurrentGroup(currentUserRole);
+              }
+            },
+            itemBuilder: (context) {
+              final currentUserRole =
+                  (widget.rideGroup["myRole"] ?? "").toString();
+              final items = <PopupMenuEntry<String>>[
+                const PopupMenuItem(
+                  value: "share",
+                  child: Text(
+                    "Share Group Link",
+                    style: TextStyle(color: AppColors.white),
+                  ),
+                ),
+              ];
+              if (_canRenameGroup(currentUserRole) &&
+                  (!_isSubGroup || _isGroupMember(widget.rideGroup))) {
+                items.add(
+                  const PopupMenuItem(
+                    value: "rename",
+                    child: Text(
+                      "Change Group Name",
+                      style: TextStyle(color: AppColors.white),
+                    ),
+                  ),
+                );
+              }
+              return items;
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<List<dynamic>>(
         key: ValueKey(
@@ -1996,7 +2372,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               ),
               const SizedBox(height: 8),
               GestureDetector(
-                onTap: (_isGroupLocked || _isSubGroup)
+                onTap: (_isGroupLocked ||
+                        _isSubGroup ||
+                        !_canManageMembers(currentUserRole))
                     ? null
                     : _editDescription,
                 child: Container(
@@ -2018,9 +2396,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
               const SizedBox(height: 20),
 
-              if (!_isSubGroup &&
-                  (currentUserRole == "ADMIN" ||
-                      currentUserRole == "CAPTAIN")) ...[
+              if (!_isSubGroup) ...[
                 const Text(
                   "Subgroups",
                   style: TextStyle(
@@ -2032,6 +2408,8 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 _subGroupsSection(),
                 const SizedBox(height: 20),
               ],
+
+              _joinRequestsSection(currentUserRole),
 
               /// SETTINGS
               const Text(
@@ -2147,37 +2525,27 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               const SizedBox(height: 30),
 
               /// EXIT GROUP
-              Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.redAccent,
-                    side: const BorderSide(color: Colors.redAccent),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 12,
+              if (!_isSubGroup || _isGroupMember(widget.rideGroup))
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.redAccent,
+                      side: const BorderSide(color: Colors.redAccent),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                    onPressed: () {
+                      _leaveCurrentGroup();
+                    },
+                    child: Text(_isSubGroup ? "Exit Subgroup" : "Exit Group"),
                   ),
-                  onPressed: () {
-                    final myRole = widget.rideGroup["myRole"];
-
-                    if (myRole == "CAPTAIN") {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Assign a new captain before leaving"),
-                        ),
-                      );
-                      return;
-                    }
-
-                    // call exit API
-                  },
-                  child: const Text("Exit Group"),
                 ),
-              ),
             ],
           );
         },

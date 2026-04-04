@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.ridersclub.common.enums.Gender;
+import com.ridersclub.common.enums.Status;
 import com.ridersclub.user.dto.request.UpdateProfileRequest;
 import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.entity.User;
@@ -131,7 +132,7 @@ public class UserService {
 
         // Let's get actual rides for weekly stats & history
         List<com.ridersclub.ride.entity.RideParticipant> participants = rideParticipantRepository
-                .findByUser_Id(user.getId());
+                .findByUser_IdAndRsvpStatusNot(user.getId(), Status.EXITED);
         List<com.ridersclub.ride.entity.Ride> userRides = rideRepository.findAllById(
                 participants.stream().map(p -> p.getRide().getId()).toList());
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
@@ -187,7 +188,17 @@ public class UserService {
                 .ifPresent(activeRide -> response.setTodayRide(new UserProfileResponse.UpcomingRideDto(
                         activeRide.getUuid(),
                         activeRide.getUuid(),
+                        activeRide.getGroups().stream()
+                                .filter(group -> group.getParentGroup() == null)
+                                .findFirst()
+                                .map(group -> group.getUuid())
+                                .orElse(null),
                         activeRide.getTitle(),
+                        activeRide.getDescription(),
+                        ((activeRide.getCreatedBy().getFirstName() != null ? activeRide.getCreatedBy().getFirstName() : "")
+                                + " "
+                                + (activeRide.getCreatedBy().getLastName() != null ? activeRide.getCreatedBy().getLastName() : "")).trim(),
+                        activeRide.getVisibility().name(),
                         "IN PROGRESS • " + activeRide.getStartTime().getMonth().name().substring(0, 3) + " "
                                 + activeRide.getStartTime().getDayOfMonth() + " • "
                                 + activeRide.getStartTime().getHour() + ":"
@@ -207,7 +218,17 @@ public class UserService {
                     response.setUpcomingRide(new UserProfileResponse.UpcomingRideDto(
                             ur.getUuid(),
                             ur.getUuid(),
+                            ur.getGroups().stream()
+                                    .filter(group -> group.getParentGroup() == null)
+                                    .findFirst()
+                                    .map(group -> group.getUuid())
+                                    .orElse(null),
                             ur.getTitle(),
+                            ur.getDescription(),
+                            ((ur.getCreatedBy().getFirstName() != null ? ur.getCreatedBy().getFirstName() : "")
+                                    + " "
+                                    + (ur.getCreatedBy().getLastName() != null ? ur.getCreatedBy().getLastName() : "")).trim(),
+                            ur.getVisibility().name(),
                             ur.getMaxRiders() + " Riders • " + ur.getStartTime().getMonth().name().substring(0, 3) + " "
                                     + ur.getStartTime().getDayOfMonth() + " • " + ur.getStartTime().getHour() + ":"
                                     + String.format("%02d", ur.getStartTime().getMinute()),

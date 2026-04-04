@@ -15,6 +15,8 @@ import com.ridersclub.message.entity.GroupMessage;
 import com.ridersclub.message.entity.MessageRead;
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.MessageType;
+import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.Status;
 import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.message.repository.GroupMessageRepository;
 import com.ridersclub.message.repository.MessageReadRepository;
@@ -180,12 +182,23 @@ public class MessageServiceImpl implements MessageService {
         }
 
         private void validateMessageAccess(RideGroup group, User user, boolean sending) {
-                boolean isRideParticipant = rideParticipantRepository.existsByRide_IdAndUser_Id(
-                                group.getRide().getId(),
-                                user.getId());
                 boolean isGroupMember = groupMemberRepository.existsByGroup_IdAndUser_Id(group.getId(), user.getId());
-                boolean isAccessible = (group.getVisibility() == com.ridersclub.common.enums.Visibility.PUBLIC
-                                && isRideParticipant) || isGroupMember;
+                boolean isMainGroup = group.getParentGroup() == null;
+                boolean isRideParticipant = rideParticipantRepository.existsByRide_IdAndUser_IdAndRsvpStatusNot(
+                                group.getRide().getId(),
+                                user.getId(),
+                                Status.EXITED);
+                boolean isRideManager = rideParticipantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
+                                group.getRide().getUuid(),
+                                user.getUuid(),
+                                Status.EXITED)
+                                .map(member -> member.getRole() == Role.ADMIN
+                                                || member.getRole() == Role.CAPTAIN
+                                                || member.getRole() == Role.CO_CAPTAIN)
+                                .orElse(false);
+                boolean isAccessible = isMainGroup
+                                ? isRideParticipant
+                                : (isGroupMember || isRideManager);
 
                 if (!isAccessible) {
                         throw new RuntimeException("You are not allowed to access this group");
@@ -199,6 +212,10 @@ public class MessageServiceImpl implements MessageService {
                         return;
                 }
 
+                if (!isMainGroup && !isGroupMember) {
+                        throw new RuntimeException("Join this subgroup to send messages");
+                }
+
                 if (!Boolean.TRUE.equals(group.getMembersCanSendMessages())) {
                         throw new RuntimeException("Members cannot send messages in this subgroup");
                 }
@@ -208,12 +225,13 @@ public class MessageServiceImpl implements MessageService {
                 return groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), user.getId())
                                 .map(member -> {
                                         String role = member.getRole() == null ? "" : member.getRole().trim().toUpperCase();
-                                        return role.equals("ADMIN") || role.equals("CAPTAIN");
+                                        return role.equals("ADMIN") || role.equals("CAPTAIN") || role.equals("CO_CAPTAIN");
                                 })
                                 .orElse(false)
                                 || rideParticipantRepository.findByRide_UuidAndUser_Uuid(group.getRide().getUuid(), user.getUuid())
                                                 .map(member -> member.getRole() == com.ridersclub.common.enums.Role.ADMIN
-                                                                || member.getRole() == com.ridersclub.common.enums.Role.CAPTAIN)
+                                                                || member.getRole() == com.ridersclub.common.enums.Role.CAPTAIN
+                                                                || member.getRole() == com.ridersclub.common.enums.Role.CO_CAPTAIN)
                                                 .orElse(false);
         }
 }
