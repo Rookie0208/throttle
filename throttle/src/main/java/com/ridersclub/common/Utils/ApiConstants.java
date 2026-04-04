@@ -80,6 +80,7 @@ public class ApiConstants {
         public static final String BASE = API_VERSION + "/notifications";
         public static final String MY = "/my";
         public static final String MARK_AS_READ = "/{id}/read";
+        public static final String DELETE = "/{id}";
     }
 
     public static final class Message {

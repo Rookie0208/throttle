@@ -67,6 +67,28 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
   int get unreadCount => notifications.where((n) => n.unread).length;
 
+  void _removeNotification(NotificationItem notification) {
+    setState(() {
+      notifications.removeWhere((item) => item.id == notification.id);
+    });
+  }
+
+  String _extractFriendNameFromMessage(NotificationItem notification) {
+    final message = notification.desc.trim();
+    const suffix = " sent you a friend request.";
+    if (message.endsWith(suffix)) {
+      return message.substring(0, message.length - suffix.length).trim();
+    }
+    return message.isNotEmpty ? message : "A friend";
+  }
+
+  bool _matchesSenderName(Map<String, dynamic> request, String expectedName) {
+    final firstName = (request['senderFirstName'] ?? "").toString().trim();
+    final lastName = (request['senderLastName'] ?? "").toString().trim();
+    final fullName = "$firstName $lastName".trim().toLowerCase();
+    return fullName.isNotEmpty && fullName == expectedName.trim().toLowerCase();
+  }
+
   void toggleRead(NotificationItem n, bool markRead) {
     setState(() {
       n.unread = !markRead;
@@ -158,8 +180,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Future<void> _handleFriendRequestNotification(
     NotificationItem notification,
   ) async {
-    final requestId = notification.referenceId;
-    if (requestId == null) return;
+    final fallbackSenderName = _extractFriendNameFromMessage(notification);
 
     if (notification.unread) {
       toggleRead(notification, true);
@@ -177,7 +198,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         final parsedRequestId = reqId is int
             ? reqId
             : int.tryParse(reqId.toString());
-        if (parsedRequestId == requestId) {
+        if ((notification.referenceId != null &&
+                parsedRequestId == notification.referenceId) ||
+            _matchesSenderName(request, fallbackSenderName)) {
           matchingRequest = request;
           break;
         }
@@ -185,9 +208,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       if (matchingRequest == null) {
         await _showFriendRequestBottomSheet(
-          requestId: requestId,
-          senderName: notification.title,
-          senderFirstName: notification.title,
+          notification: notification,
+          requestId: notification.referenceId,
+          senderName: fallbackSenderName,
+          senderFirstName: fallbackSenderName,
           senderLastName: "",
           senderUuid: null,
           senderProfileImage: null,
@@ -202,11 +226,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       final senderLastName = (matchingRequest['senderLastName'] ?? "")
           .toString();
       final senderName = "$senderFirstName $senderLastName".trim();
-      final mutualCount = (matchingRequest['mutualCount'] ?? 0) as int;
+      final dynamic mutualValue = matchingRequest['mutualCount'];
+      final mutualCount = mutualValue is int
+          ? mutualValue
+          : int.tryParse(mutualValue?.toString() ?? '') ?? 0;
+      final dynamic resolvedRequestIdValue = matchingRequest['requestId'];
+      final resolvedRequestId = resolvedRequestIdValue is int
+          ? resolvedRequestIdValue
+          : int.tryParse(resolvedRequestIdValue?.toString() ?? '');
 
       await _showFriendRequestBottomSheet(
-        requestId: requestId,
-        senderName: senderName,
+        notification: notification,
+        requestId: resolvedRequestId,
+        senderName: senderName.isEmpty ? fallbackSenderName : senderName,
         senderFirstName: senderFirstName,
         senderLastName: senderLastName,
         senderUuid: matchingRequest['senderUuid'],
@@ -228,7 +260,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Future<void> _showFriendRequestBottomSheet({
-    required int requestId,
+    required NotificationItem notification,
+    required int? requestId,
     required String senderName,
     required String senderFirstName,
     required String senderLastName,
@@ -261,11 +294,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
 
     if (action == null) {
-      await loadNotifications();
       return;
     }
 
     if (action == "accept") {
+      if (requestId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("This friend request could not be resolved."),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
       try {
         await FriendService.acceptRequest(requestId);
         if (!mounted) return;
@@ -277,13 +319,28 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceFirst("Exception: ", "")),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+    } else if (action == "reject") {
+      if (requestId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("This friend request could not be resolved."),
             backgroundColor: Colors.red,
           ),
         );
+        return;
       }
-    } else if (action == "reject") {
       try {
         await FriendService.rejectRequest(requestId);
+        await NotificationService().deleteNotification(
+          notification.id,
+          widget.token,
+        );
+        _removeNotification(notification);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Friend request rejected")),
@@ -299,18 +356,18 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       }
     } else if (action == "view_profile") {
       if (senderUuid != null) {
-        final userProfile = {
-          "uuid": senderUuid,
-          "firstName": senderFirstName,
-          "lastName": senderLastName,
-          "profileImage": senderProfileImage,
-        };
-
         if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => PublicProfileScreen(user: userProfile),
+            builder: (_) => PublicProfileScreen(
+              user: {
+                "uuid": senderUuid,
+                "firstName": senderFirstName,
+                "lastName": senderLastName,
+                "profileImage": senderProfileImage,
+              },
+            ),
           ),
         );
         return;
@@ -469,6 +526,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final isPending = requestData["isPending"] as bool? ?? true;
     final hasProfile = (requestData["senderUuid"]?.toString().isNotEmpty ??
         false);
+    final canResolveRequest = requestData["requestId"] != null;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -536,7 +594,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(
                     sheetContext,
-                    isPending ? "reject" : null,
+                    isPending && canResolveRequest ? "reject" : null,
                   ),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
@@ -545,17 +603,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                           : AppColors.borderSoft,
                     ),
                     foregroundColor: isPending
-                        ? AppColors.textPrimary
+                        ? (canResolveRequest
+                              ? AppColors.textPrimary
+                              : AppColors.textHint)
                         : AppColors.textHint,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text(isPending ? "Reject" : "Close"),
+                  child: const Text("Reject"),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: isPending
+                  onPressed: isPending && canResolveRequest
                       ? () => Navigator.pop(sheetContext, "accept")
                       : null,
                   style: ElevatedButton.styleFrom(

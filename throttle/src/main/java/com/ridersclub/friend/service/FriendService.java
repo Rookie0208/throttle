@@ -148,7 +148,7 @@ public class FriendService {
         friendRequestRepository.save(request);
         log.info("{} action=send_request_created sender={} receiver={} requestId={}", LOG_PREFIX, senderUuid,
                 receiverUuid, request.getId());
-        createFriendRequestNotification(sender, receiver);
+        createFriendRequestNotification(sender, receiver, request.getId());
         notifyUser(senderUuid);
         notifyUser(receiverUuid);
     }
@@ -160,7 +160,7 @@ public class FriendService {
         request.setStatus(FriendRequestStatus.PENDING);
         request.setCreatedAt(java.time.LocalDateTime.now());
         friendRequestRepository.save(request);
-        createFriendRequestNotification(sender, receiver);
+        createFriendRequestNotification(sender, receiver, request.getId());
         log.info(
                 "{} action=send_request_reactivated requestId={} previousStatus={} direction={} sender={} receiver={}",
                 LOG_PREFIX,
@@ -171,7 +171,7 @@ public class FriendService {
                 receiver.getUuid());
     }
 
-    private void createFriendRequestNotification(User sender, User receiver) {
+    private void createFriendRequestNotification(User sender, User receiver, Long requestId) {
         String senderName = ((sender.getFirstName() == null ? "" : sender.getFirstName()) + " "
                 + (sender.getLastName() == null ? "" : sender.getLastName())).trim();
         if (senderName.isEmpty()) {
@@ -183,8 +183,8 @@ public class FriendService {
                 "FRIEND_REQUEST",
                 "New Friend Request",
                 senderName + " sent you a friend request.",
-                sender.getId(),
-                "USER");
+                requestId,
+                "FRIEND_REQUEST");
         log.info("{} action=create_request_notification sender={} receiver={}", LOG_PREFIX, sender.getUuid(),
                 receiver.getUuid());
     }
