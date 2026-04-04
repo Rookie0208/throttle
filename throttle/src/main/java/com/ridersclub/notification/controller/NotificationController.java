@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.DeleteMapping;
 
 import com.ridersclub.common.Utils.ApiConstants;
 import com.ridersclub.common.dto.ApiResponse;
@@ -78,6 +79,19 @@ public ResponseEntity<ApiResponse<Notifications>> updateReadStatus(
     return ResponseEntity.ok(ApiResponse.success(notification, 
             read ? "Notification marked as read" : "Notification marked as unread"));
 }
+
+    @DeleteMapping(ApiConstants.Notifications.DELETE)
+    public ResponseEntity<ApiResponse<Void>> deleteNotification(
+            @PathVariable Long id,
+            Authentication authentication) {
+        String userUuid = (String) authentication.getPrincipal();
+
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        notificationService.deleteNotification(id, user.getId());
+        return ResponseEntity.ok(ApiResponse.success(null, "Notification deleted"));
+    }
 
     @PostMapping("/read-all")
     public ResponseEntity<ApiResponse<?>> markAllAsRead(Authentication authentication) {
