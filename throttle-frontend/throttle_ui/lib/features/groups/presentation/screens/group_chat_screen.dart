@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/core/globals.dart';
 import 'package:throttle_ui/features/groups/data/services/chat_service.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/create_subgroup_screen.dart';
 import 'package:throttle_ui/features/groups/presentation/widgets/group_info_sheet.dart';
@@ -191,12 +192,29 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   /// ================= UI =================
+  bool _isCurrentUserMessage(Map<String, dynamic> msg) {
+    final currentUserId = UserSession.userId?.toString().trim();
+    final senderId = msg["senderId"]?.toString().trim();
+
+    if (currentUserId != null &&
+        currentUserId.isNotEmpty &&
+        senderId != null &&
+        senderId == currentUserId) {
+      return true;
+    }
+
+    final senderName =
+        (msg["senderName"] ?? msg["sender"] ?? "").toString().trim().toLowerCase();
+    return senderName == "you";
+  }
+
   Widget _buildMessage(Map<String, dynamic> msg) {
     final senderName =
         (msg["senderName"] ?? msg["sender"] ?? "Rider").toString();
     final body = (msg["message"] ?? "").toString();
-    final isSystem = (msg["messageType"] ?? "").toString().toUpperCase() == "SYSTEM";
-    bool isMe = senderName == "You";
+    final isSystem =
+        (msg["messageType"] ?? "").toString().toUpperCase() == "SYSTEM";
+    final isMe = _isCurrentUserMessage(msg);
 
     if (isSystem) {
       return Center(
