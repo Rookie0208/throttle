@@ -94,5 +94,6 @@ public class UserProfileResponse {
         private String time;
         private Integer riders;
         private String startTime;
+        private String status;
     }
 }
