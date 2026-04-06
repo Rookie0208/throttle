@@ -80,6 +80,8 @@ public class RideService {
         private GroupJoinRequestRepository groupJoinRequestRepository;
         @Autowired
         private GroupMessageRepository groupMessageRepository;
+        @Autowired
+        private RideSessionService rideSessionService;
 
         public Ride createRide(CreateRideRequest request, String currentUserUUId) throws AccessDeniedException {
                 User currentUser = userRepository.findByUuid(currentUserUUId)
@@ -98,6 +100,7 @@ public class RideService {
                 ride.setMaxRiders(request.getMaxRiders());
                 ride.setVisibility(request.getVisibility());
                 ride.setStatus(Status.SCHEDULED);
+                ride.setCurrentCheckpointIndex(0);
 
                 List<RideRule> rideRules = new ArrayList<>();
                 for (int i = 0; i < request.getRules().size(); i++) {
@@ -462,15 +465,20 @@ public class RideService {
                                 .orElseThrow(() -> new RuntimeException("Ride not found"));
 
                 RideParticipant participant = participantRepo
-                                .findByRide_IdAndUser_Uuid(rideId, userId)
+                                .findByRide_UuidAndUser_Uuid(rideId, userId)
                                 .orElseThrow(() -> new RuntimeException("Not part of ride"));
 
-                if (participant.getRole() != Role.CAPTAIN) {
+                if (participant.getRole() != Role.CAPTAIN
+                                && participant.getRole() != Role.ADMIN
+                                && participant.getRole() != Role.CO_CAPTAIN) {
                         throw new RuntimeException("Only captain can complete ride");
                 }
 
                 ride.setStatus(Status.COMPLETED);
+                ride.setRideCompletedAt(LocalDateTime.now());
+                ride.setEndTime(LocalDateTime.now());
                 rideRepository.save(ride);
+                rideSessionService.syncCompletionState(ride);
         }
 
         public void addStats(String rideId, String userId, RideSummaryRequest req) {

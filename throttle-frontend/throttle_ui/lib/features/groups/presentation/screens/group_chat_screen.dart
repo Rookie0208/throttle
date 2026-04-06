@@ -7,16 +7,14 @@ import 'package:throttle_ui/features/groups/presentation/screens/invite_member_s
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
 
 class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
   final String token;
 
-  const GroupChatScreen({
-    super.key,
-    required this.group,
-    required this.token,
-  });
+  const GroupChatScreen({super.key, required this.group, required this.token});
 
   @override
   State<GroupChatScreen> createState() => _GroupChatScreenState();
@@ -53,9 +51,26 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
   bool get _isGroupLocked {
     final groupStatus = (widget.group["status"] ?? "").toString().toLowerCase();
-    final rideStatus = (widget.group["rideStatus"] ?? "").toString().toUpperCase();
+    final rideStatus = (widget.group["rideStatus"] ?? "")
+        .toString()
+        .toUpperCase();
     return groupStatus == "archive" ||
         {"CANCELLED", "COMPLETED", "ENDED"}.contains(rideStatus);
+  }
+
+  bool get _isRideStarted {
+    final rideStatus = (widget.group["rideStatus"] ?? "")
+        .toString()
+        .toUpperCase();
+    return {
+      "PARTIAL_STARTED",
+      "READY_TO_START",
+      "ACTIVE",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "CANCELLED",
+      "ENDED",
+    }.contains(rideStatus);
   }
 
   /// ================= FETCH SUBGROUPS =================
@@ -91,10 +106,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   Future<void> _loadGroupContext() async {
     try {
       final details = _groupUuid == _rideUuid
-          ? await SubGroupService.fetchMainGroupDetails(
-              widget.token,
-              _rideUuid,
-            )
+          ? await SubGroupService.fetchMainGroupDetails(widget.token, _rideUuid)
           : await SubGroupService.fetchSubGroupDetails(
               widget.token,
               _groupUuid,
@@ -102,15 +114,15 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       if (!mounted) return;
       setState(() {
         widget.group.addAll(details);
-        currentUserRole = (details["myRole"] ??
-                widget.group["myRole"] ??
-                currentUserRole)
-            .toString();
+        currentUserRole =
+            (details["myRole"] ?? widget.group["myRole"] ?? currentUserRole)
+                .toString();
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        currentUserRole = (widget.group["myRole"] ?? currentUserRole).toString();
+        currentUserRole = (widget.group["myRole"] ?? currentUserRole)
+            .toString();
       });
     }
   }
@@ -176,9 +188,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   /// ================= SEND =================
   void sendMessage() {
     if (_isGroupLocked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("This group is locked")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("This group is locked")));
       return;
     }
     final text = messageController.text.trim();
@@ -203,14 +215,16 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       return true;
     }
 
-    final senderName =
-        (msg["senderName"] ?? msg["sender"] ?? "").toString().trim().toLowerCase();
+    final senderName = (msg["senderName"] ?? msg["sender"] ?? "")
+        .toString()
+        .trim()
+        .toLowerCase();
     return senderName == "you";
   }
 
   Widget _buildMessage(Map<String, dynamic> msg) {
-    final senderName =
-        (msg["senderName"] ?? msg["sender"] ?? "Rider").toString();
+    final senderName = (msg["senderName"] ?? msg["sender"] ?? "Rider")
+        .toString();
     final body = (msg["message"] ?? "").toString();
     final isSystem =
         (msg["messageType"] ?? "").toString().toUpperCase() == "SYSTEM";
@@ -227,7 +241,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ),
           child: Text(
             body,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
           ),
         ),
       );
@@ -246,11 +263,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isMe)
-              Text(senderName,
-                  style:
-                      const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-            Text(body,
-                style: const TextStyle(color: AppColors.textPrimary)),
+              Text(
+                senderName,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            Text(body, style: const TextStyle(color: AppColors.textPrimary)),
           ],
         ),
       ),
@@ -283,10 +303,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               _connectChat(_groupUuid);
               fetchMessages(widget.group["uuid"]);
             },
-            child: _chip(
-              "All",
-              activeSubGroupId == null,
-            ),
+            child: _chip("All", activeSubGroupId == null),
           ),
 
           ...subGroups.map((g) {
@@ -296,10 +313,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             final joinLabel = g["joinRequestPending"] == true
                 ? "Pending"
                 : g["canJoinDirectly"] == true
-                    ? "Join"
-                    : g["canRequestToJoin"] == true
-                        ? "Request"
-                        : "Join";
+                ? "Join"
+                : g["canRequestToJoin"] == true
+                ? "Request"
+                : "Join";
 
             return GestureDetector(
               onTap: () {
@@ -343,9 +360,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: selected
-            ? AppColors.primary
-            : AppColors.background,
+        color: selected ? AppColors.primary : AppColors.background,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Center(
@@ -402,7 +417,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           IconButton(
             icon: const Icon(Icons.send, color: AppColors.primary),
             onPressed: sendMessage,
-          )
+          ),
         ],
       ),
     );
@@ -415,44 +430,73 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-     appBar: AppBar(
-  backgroundColor: AppColors.surface,
-  title: Text(
-    activeSubGroup != null
-        ? "${widget.group["title"] ?? widget.group["name"]} • ${activeSubGroup!["name"]}"
-        : (widget.group["title"] ?? widget.group["name"]).toString(),
-  ),
-  actions: [
-    PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: AppColors.white),
-      color: AppColors.surface,
-      onSelected: _handleMenuSelection,
-      itemBuilder: (context) {
-        final items = <PopupMenuEntry<String>>[
-          const PopupMenuItem(
-          value: 'info',
-          child: Text("Group Info", style: TextStyle(color: AppColors.white)),
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        title: Text(
+          activeSubGroup != null
+              ? "${widget.group["title"] ?? widget.group["name"]} • ${activeSubGroup!["name"]}"
+              : (widget.group["title"] ?? widget.group["name"]).toString(),
         ),
-        ];
-        if (_canManageRide && activeSubGroup == null) {
-          items.add(const PopupMenuItem(
-            value: 'invite',
-            child: Text("Invite Riders", style: TextStyle(color: AppColors.white)),
-          ));
-          items.add(const PopupMenuItem(
-            value: 'subgroup',
-            child: Text("Create Subgroup", style: TextStyle(color: AppColors.white)),
-          ));
-        }
-        items.add(const PopupMenuItem(
-          value: 'leave',
-          child: Text("Leave Group", style: TextStyle(color: AppColors.white)),
-        ));
-        return items;
-      },
-    ),
-  ],
-),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: AppColors.white),
+            color: AppColors.surface,
+            onSelected: _handleMenuSelection,
+            itemBuilder: (context) {
+              final items = <PopupMenuEntry<String>>[
+                const PopupMenuItem(
+                  value: 'info',
+                  child: Text(
+                    "Group Info",
+                    style: TextStyle(color: AppColors.white),
+                  ),
+                ),
+              ];
+              if (activeSubGroup == null) {
+                items.add(
+                  const PopupMenuItem(
+                    value: 'ride_console',
+                    child: Text(
+                      "Ride Console",
+                      style: TextStyle(color: AppColors.white),
+                    ),
+                  ),
+                );
+              }
+              if (_canManageRide && activeSubGroup == null && !_isRideStarted) {
+                items.add(
+                  const PopupMenuItem(
+                    value: 'invite',
+                    child: Text(
+                      "Invite Riders",
+                      style: TextStyle(color: AppColors.white),
+                    ),
+                  ),
+                );
+                items.add(
+                  const PopupMenuItem(
+                    value: 'subgroup',
+                    child: Text(
+                      "Create Subgroup",
+                      style: TextStyle(color: AppColors.white),
+                    ),
+                  ),
+                );
+              }
+              items.add(
+                const PopupMenuItem(
+                  value: 'leave',
+                  child: Text(
+                    "Leave Group",
+                    style: TextStyle(color: AppColors.white),
+                  ),
+                ),
+              );
+              return items;
+            },
+          ),
+        ],
+      ),
       body: Column(
         children: [
           _subGroupBar(),
@@ -481,121 +525,161 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _handleMenuSelection(String value) {
-  switch (value) {
-    case 'info':
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => RideInfoScreen(
-            rideGroup: activeSubGroup == null
-                ? widget.group
-                : {
-                    ...widget.group,
-                    ...activeSubGroup!,
-                    "isSubGroup": true,
-                    "myRole": activeSubGroup?["myRole"] ?? widget.group["myRole"],
-                  },
-            token: widget.token,
+    switch (value) {
+      case 'info':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RideInfoScreen(
+              rideGroup: activeSubGroup == null
+                  ? widget.group
+                  : {
+                      ...widget.group,
+                      ...activeSubGroup!,
+                      "isSubGroup": true,
+                      "myRole":
+                          activeSubGroup?["myRole"] ?? widget.group["myRole"],
+                    },
+              token: widget.token,
+            ),
           ),
-        ),
-      ).then((_) async {
-        await _loadGroupContext();
-        await fetchSubGroups();
-      });
-      break;
+        ).then((_) async {
+          await _loadGroupContext();
+          await fetchSubGroups();
+        });
+        break;
 
-    case 'invite':
-      if (_isGroupLocked) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("This group is locked")),
+      case 'invite':
+        if (_isGroupLocked || _isRideStarted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Ride setup is frozen after start")),
+          );
+          return;
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                InviteMemberScreen(rideUuid: _rideUuid, token: widget.token),
+          ),
         );
-        return;
-      }
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => InviteMemberScreen(
+        break;
+
+      case 'ride_console':
+        _openRideConsole();
+        break;
+
+      case 'subgroup':
+        if (_isGroupLocked || _isRideStarted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Ride setup is frozen after start")),
+          );
+          return;
+        }
+        _openSubGroupCreation();
+        break;
+
+      case 'leave':
+        _leaveGroup();
+        break;
+    }
+  }
+
+  void _openRideConsole() {
+    final rideStatus =
+        (widget.group["rideStatus"] ?? widget.group["status"] ?? "")
+            .toString()
+            .toUpperCase();
+    final title = (widget.group["title"] ?? widget.group["name"] ?? "Ride")
+        .toString();
+    final startTime = widget.group["startTime"]?.toString() ?? "";
+    final locations = List<Map<String, dynamic>>.from(
+      widget.group["locations"] ?? const [],
+    );
+    final startLocation = locations.isEmpty
+        ? ((widget.group["meetingPoint"] ??
+                  widget.group["startLocation"] ??
+                  "Start point")
+              .toString())
+        : (locations.first["name"] ?? "Start point").toString();
+
+    final Widget target = rideStatus == "ACTIVE"
+        ? LiveRideScreen(
+            groupName: title,
+            onEndRide: () {},
+            token: widget.token,
             rideUuid: _rideUuid,
+          )
+        : RideStartScreen(
+            groupName: title,
+            rideDate: startTime,
+            rideTime: startTime,
+            location: startLocation,
+            memberCount:
+                int.tryParse((widget.group["maxRiders"] ?? 0).toString()) ?? 0,
             token: widget.token,
-          ),
-        ),
-      );
-      break;
+            rideUuid: _rideUuid,
+          );
 
-    case 'subgroup':
-      if (_isGroupLocked) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("This group is locked")),
+    Navigator.push(context, MaterialPageRoute(builder: (_) => target));
+  }
+
+  void _openSubGroupCreation() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            CreateSubGroupScreen(rideUuid: _rideUuid, token: widget.token),
+      ),
+    );
+
+    /// If subgroup created successfully
+    if (result != null) {
+      /// Refresh subgroup list
+      await fetchSubGroups();
+
+      /// Auto-switch to new subgroup
+      setState(() {
+        activeSubGroup = result;
+        activeSubGroupId = result["uuid"];
+      });
+
+      /// Load its messages
+      fetchMessages(result["uuid"]);
+    }
+  }
+
+  void _leaveGroup() async {
+    try {
+      if (activeSubGroup != null) {
+        await SubGroupService.leaveSubGroup(
+          widget.token,
+          activeSubGroup!["uuid"].toString(),
         );
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Exited subgroup")));
+        setState(() {
+          activeSubGroup = null;
+          activeSubGroupId = null;
+        });
+        await fetchSubGroups();
+        await fetchMessages(widget.group["uuid"]);
         return;
       }
-      _openSubGroupCreation();
-      break;
 
-    case 'leave':
-      _leaveGroup();
-      break;
-  }
-}
-
-void _openSubGroupCreation() async {
-  final result = await Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => CreateSubGroupScreen(
-        rideUuid: _rideUuid,
-        token: widget.token,
-      ),
-    ),
-  );
-
-  /// If subgroup created successfully
-  if (result != null) {
-    /// Refresh subgroup list
-    await fetchSubGroups();
-
-    /// Auto-switch to new subgroup
-    setState(() {
-      activeSubGroup = result;
-      activeSubGroupId = result["uuid"];
-    });
-
-    /// Load its messages
-    fetchMessages(result["uuid"]);
-  }
-}
-
-void _leaveGroup() async {
-  try {
-    if (activeSubGroup != null) {
-      await SubGroupService.leaveSubGroup(
-        widget.token,
-        activeSubGroup!["uuid"].toString(),
-      );
+      await RideService.leaveRide(widget.token, _rideUuid);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Exited ride")));
+      Navigator.pop(context, true);
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Exited subgroup")),
+        SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
       );
-      setState(() {
-        activeSubGroup = null;
-        activeSubGroupId = null;
-      });
-      await fetchSubGroups();
-      await fetchMessages(widget.group["uuid"]);
-      return;
     }
-
-    await RideService.leaveRide(widget.token, _rideUuid);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Exited ride")),
-    );
-    Navigator.pop(context, true);
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
-    );
   }
-}
 }

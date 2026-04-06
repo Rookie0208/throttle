@@ -27,17 +27,20 @@ import com.ridersclub.ride.dto.request.AssignRoleRequest;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideAnnouncementRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
+import com.ridersclub.ride.dto.request.RideLocationUpdateRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.request.UpdateGroupRequest;
 import com.ridersclub.ride.dto.request.UpdatePreRideInfoRequest;
 import com.ridersclub.ride.dto.response.GroupJoinRequestResponse;
 import com.ridersclub.ride.dto.response.PreRideInfoResponse;
 import com.ridersclub.ride.dto.response.RideResponse;
+import com.ridersclub.ride.dto.response.RideSessionResponse;
 import com.ridersclub.ride.dto.response.SubGroupResponse;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.ride.service.RideParticipantService;
+import com.ridersclub.ride.service.RideSessionService;
 import com.ridersclub.ride.service.RideService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.common.Utils.ApiConstants;
@@ -58,6 +61,8 @@ public class RideController {
     private RideGroupRepository rideGroupRepository;
     @Autowired
     private RideParticipantService rideParticipantService;
+    @Autowired
+    private RideSessionService rideSessionService;
 
     @PostMapping(ApiConstants.Rides.CREATE)
     public ResponseEntity<ApiResponse<RideResponse>> createRide(@Valid @RequestBody CreateRideRequest request,
@@ -141,6 +146,67 @@ public class RideController {
 
         rideService.complete(id, userUuid);
         return ApiResponse.success(null, "Ride completed successfully");
+    }
+
+    @GetMapping("/{id}/session")
+    public ApiResponse<RideSessionResponse> getRideSession(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.getRideSession(id, userUuid),
+                "Ride session fetched");
+    }
+
+    @PostMapping(ApiConstants.Rides.START)
+    public ApiResponse<RideSessionResponse> startRide(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.startRide(id, userUuid),
+                "Ride started successfully");
+    }
+
+    @PostMapping("/{id}/partial-start")
+    public ApiResponse<RideSessionResponse> partialStartRide(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.partialStart(id, userUuid),
+                "Partial start updated");
+    }
+
+    @PostMapping("/{id}/arrive-start")
+    public ApiResponse<RideSessionResponse> arriveAtStart(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.markArrivedAtStart(id, userUuid),
+                "Arrival at start point updated");
+    }
+
+    @PostMapping("/{id}/location")
+    public ApiResponse<RideSessionResponse> updateRideLocation(
+            @PathVariable String id,
+            @Valid @RequestBody RideLocationUpdateRequest request,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.updateLocation(id, userUuid, request),
+                "Ride location updated");
+    }
+
+    @PostMapping("/{id}/checkpoints/advance")
+    public ApiResponse<RideSessionResponse> advanceCheckpoint(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.advanceCheckpoint(id, userUuid),
+                "Checkpoint advanced");
     }
 
     @PostMapping(ApiConstants.Rides.STATS)
