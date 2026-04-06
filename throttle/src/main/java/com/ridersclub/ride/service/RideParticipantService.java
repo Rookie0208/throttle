@@ -15,6 +15,7 @@ import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
 import com.ridersclub.common.enums.MessageType;
 import com.ridersclub.common.enums.RideInvitationStatus;
+import com.ridersclub.common.enums.RideParticipantState;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.enums.Visibility;
@@ -77,7 +78,7 @@ public class RideParticipantService {
 
     List<RideParticipant> participants = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED);
 
-    return participants.stream()
+        return participants.stream()
             .map(rp -> RideParticipantDto.builder()
                     .userUuid(rp.getUser().getUuid())
                     .riderId(rp.getUser().getRiderId())
@@ -86,6 +87,7 @@ public class RideParticipantService {
                     .profileImage(rp.getUser().getProfileImage())
                     .role(rp.getRole().toString())
                     .rsvpStatus(rp.getRsvpStatus().toString())
+                    .participantState((rp.getRideState() != null ? rp.getRideState() : RideParticipantState.JOINED).toString())
                     .joinedAt(rp.getJoinedAt())
                     .build())
             .toList();
@@ -231,6 +233,21 @@ public class RideParticipantService {
                     ride.getId(),
                     "RIDE");
         }
+
+        ride.setLatestBroadcastMessage(message);
+        ride.setLatestBroadcastAt(LocalDateTime.now());
+        rideRepository.save(ride);
+
+        RideGroup mainGroup = rideGroupRepository.findByRideAndParentGroupIsNull(ride)
+                .orElseThrow(() -> new RuntimeException("Main group not found"));
+        groupMessageRepository.save(GroupMessage.builder()
+                .uuid(UserUtility.generateUUID(UuidPrefix.CHAT.name()))
+                .sender(actor.getUser())
+                .group(mainGroup)
+                .message("Captain broadcast: " + message)
+                .messageType(MessageType.SYSTEM)
+                .edited(false)
+                .build());
     }
 
     @Transactional(readOnly = true)
@@ -462,6 +479,8 @@ public class RideParticipantService {
         RideGroup mainGroup = rideGroupRepository.findByRideAndParentGroupIsNull(ride)
                 .orElseThrow(() -> new RuntimeException("Main group not found"));
         actor.setRsvpStatus(Status.EXITED);
+        actor.setRideState(RideParticipantState.DROPPED);
+        actor.setStateUpdatedAt(LocalDateTime.now());
         participantRepository.save(actor);
         createSystemGroupMessage(mainGroup, actor.getUser(), formatUserName(actor.getUser()) + " left the group.");
     }

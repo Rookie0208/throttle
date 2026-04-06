@@ -91,10 +91,7 @@ class RideService {
     }
   }
 
-  static Future<void> leaveRide(
-    String token,
-    String rideUuid,
-  ) async {
+  static Future<void> leaveRide(String token, String rideUuid) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/participants/$rideUuid/leave"),
       headers: _headers(token),
@@ -185,6 +182,140 @@ class RideService {
     }
   }
 
+  static Future<Map<String, dynamic>> fetchRideSession(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.get(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/session"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to fetch ride session");
+  }
+
+  static Future<Map<String, dynamic>> partialStartRide(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/partial-start"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to partial start ride");
+  }
+
+  static Future<Map<String, dynamic>> arriveAtStart(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/arrive-start"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to mark arrival");
+  }
+
+  static Future<Map<String, dynamic>> startRideSession(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/start"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to start ride");
+  }
+
+  static Future<Map<String, dynamic>> updateRideLocation(
+    String token,
+    String rideUuid, {
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/location"),
+      headers: _headers(token),
+      body: jsonEncode({"latitude": latitude, "longitude": longitude}),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to update ride location");
+  }
+
+  static Future<Map<String, dynamic>> advanceCheckpoint(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/checkpoints/advance"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to advance checkpoint");
+  }
+
+  static Future<void> sendRideAnnouncement(
+    String token,
+    String rideUuid,
+    String message,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/announcement"),
+      headers: _headers(token),
+      body: jsonEncode({"message": message.trim()}),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = _decodeBody(response.body);
+      throw Exception(data["message"] ?? "Failed to send broadcast");
+    }
+  }
+
+  static Future<void> completeRide(String token, String rideUuid) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/complete"),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = _decodeBody(response.body);
+      throw Exception(data["message"] ?? "Failed to complete ride");
+    }
+  }
+
   static Map<String, dynamic> buildPreRideInfoPayload({
     required Map<String, dynamic> rideGroup,
     required String meetingPoint,
@@ -208,7 +339,9 @@ class RideService {
       "meetingPoint": meetingPoint.trim(),
       "fuelStops": fuelStops.trim(),
       "checkpoints": joinOrEmpty(checkpoints),
-      "checkpointList": checkpoints.where((item) => item.trim().isNotEmpty).toList(),
+      "checkpointList": checkpoints
+          .where((item) => item.trim().isNotEmpty)
+          .toList(),
       "rules": joinOrEmpty(rules),
       "ruleList": rules.where((item) => item.trim().isNotEmpty).toList(),
       "notes": notes.trim(),

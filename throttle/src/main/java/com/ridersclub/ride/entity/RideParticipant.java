@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.ridersclub.common.enums.Role;
+import com.ridersclub.common.enums.RideParticipantState;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.user.entity.User;
 
@@ -57,12 +58,27 @@ public class RideParticipant {
     @Column(nullable = false)
     private LocalDateTime joinedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ride_state")
+    private RideParticipantState rideState;
+
+    @Column(name = "partial_started_at")
+    private LocalDateTime partialStartedAt;
+
+    @Column(name = "arrived_at_start_at")
+    private LocalDateTime arrivedAtStartAt;
+
+    @Column(name = "state_updated_at")
+    private LocalDateTime stateUpdatedAt;
+
     public RideParticipant(Ride ride, User user) {
         this.ride = ride;
         this.user = user;
         this.role = Role.ADMIN;
         this.rsvpStatus = Status.CREATED;
         this.joinedAt = LocalDateTime.now();
+        this.rideState = RideParticipantState.JOINED;
+        this.stateUpdatedAt = LocalDateTime.now();
     }
 
     // ✅ Generic participant constructor
@@ -72,5 +88,7 @@ public class RideParticipant {
         this.role = role;
         this.rsvpStatus = status;
         this.joinedAt = LocalDateTime.now();
+        this.rideState = RideParticipantState.JOINED;
+        this.stateUpdatedAt = LocalDateTime.now();
     }
 }
