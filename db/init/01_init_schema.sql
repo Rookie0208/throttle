@@ -207,7 +207,12 @@ CREATE TABLE ride_participants (
 
     rsvp_status VARCHAR(20),
 
+    ride_state VARCHAR(30),
+
     joined_at TIMESTAMP DEFAULT now(),
+    partial_started_at TIMESTAMP,
+    arrived_at_start_at TIMESTAMP,
+    state_updated_at TIMESTAMP,
     left_at TIMESTAMP,
 
     UNIQUE (ride_id, user_id),

@@ -183,7 +183,10 @@ public class UserService {
         response.setRecentRides(recentRides);
 
         userRides.stream()
-                .filter(r -> r.getStatus() == com.ridersclub.common.enums.Status.IN_PROGRESS)
+                .filter(r -> r.getStatus() == com.ridersclub.common.enums.Status.ACTIVE
+                        || r.getStatus() == com.ridersclub.common.enums.Status.PARTIAL_STARTED
+                        || r.getStatus() == com.ridersclub.common.enums.Status.READY_TO_START
+                        || r.getStatus() == com.ridersclub.common.enums.Status.IN_PROGRESS)
                 .max(Comparator.comparing(com.ridersclub.ride.entity.Ride::getStartTime))
                 .ifPresent(activeRide -> response.setTodayRide(new UserProfileResponse.UpcomingRideDto(
                         activeRide.getUuid(),
@@ -206,7 +209,8 @@ public class UserService {
                         activeRide.getStartTime().getHour() + ":"
                                 + String.format("%02d", activeRide.getStartTime().getMinute()),
                         (int) rideParticipantRepository.countByRide_Id(activeRide.getId()),
-                        activeRide.getStartTime().toString())));
+                        activeRide.getStartTime().toString(),
+                        activeRide.getStatus().name())));
 
         userRides.stream()
                 .filter(r -> r.getStartTime() != null && r.getStartTime().isAfter(now))
@@ -235,7 +239,8 @@ public class UserService {
                             ur.getStartTime().getHour() + ":"
                                     + String.format("%02d", ur.getStartTime().getMinute()),
                             (int) rideParticipantRepository.countByRide_Id(ur.getId()),
-                            ur.getStartTime().toString()));
+                            ur.getStartTime().toString(),
+                            ur.getStatus().name()));
                 });
 
         return response;
