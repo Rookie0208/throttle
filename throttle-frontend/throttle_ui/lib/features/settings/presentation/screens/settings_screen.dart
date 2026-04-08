@@ -23,6 +23,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final secondaryController = TextEditingController(
       text: _toHex(current.secondary),
     );
+    final tertiaryController = TextEditingController(
+      text: _toHex(current.tertiary),
+    );
     final backgroundController = TextEditingController(
       text: _toHex(current.background),
     );
@@ -46,13 +49,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Future<void> applyCustomTheme() async {
               final primary = _parseHex(primaryController.text);
               final secondary = _parseHex(secondaryController.text);
+              final tertiary = _parseHex(tertiaryController.text);
               final background = _parseHex(backgroundController.text);
               final surface = _parseHex(surfaceController.text);
               final text = _parseHex(textController.text);
 
-              if ([primary, secondary, background, surface, text].contains(null)) {
+              if ([
+                primary,
+                secondary,
+                tertiary,
+                background,
+                surface,
+                text,
+              ].contains(null)) {
                 ScaffoldMessenger.of(sheetContext).showSnackBar(
-                  const SnackBar(content: Text("Use valid hex colors like #7D39EB")),
+                  const SnackBar(
+                    content: Text("Use valid hex colors like #7D39EB"),
+                  ),
                 );
                 return;
               }
@@ -60,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               await _themeController.applyCustom(
                 primary: primary!,
                 secondary: secondary!,
+                tertiary: tertiary!,
                 background: background!,
                 surface: surface!,
                 textPrimary: text!,
@@ -98,7 +112,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: AppColors.overlay,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isSelected ? AppColors.primary : AppColors.borderSoft,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.borderSoft,
                           ),
                         ),
                         child: ListTile(
@@ -141,6 +157,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 10),
                     _colorField("Primary", primaryController),
                     _colorField("Secondary", secondaryController),
+                    _colorField("Tertiary", tertiaryController),
                     _colorField("Background", backgroundController),
                     _colorField("Surface", surfaceController),
                     _colorField("Text", textController),
@@ -245,7 +262,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.16),
+                                  color: AppColors.primary.withValues(
+                                    alpha: 0.16,
+                                  ),
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: const Icon(
@@ -304,7 +323,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 decoration: BoxDecoration(
                                   color: AppColors.overlay,
                                   borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(color: AppColors.borderSoft),
+                                  border: Border.all(
+                                    color: AppColors.borderSoft,
+                                  ),
                                 ),
                                 child: const Text(
                                   "Change Theme",
@@ -332,7 +353,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     subtitle: const Text(
                       "Manage alerts",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   ListTile(
@@ -343,7 +367,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     subtitle: const Text(
                       "Chat settings",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   ListTile(
@@ -354,7 +381,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     subtitle: const Text(
                       "Manage connections",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   ListTile(
@@ -368,7 +398,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     subtitle: const Text(
                       "Add or edit bikes",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   ListTile(
@@ -379,7 +412,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     subtitle: const Text(
                       "Data & security",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -394,7 +430,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     subtitle: const Text(
                       "Manage your subscription plan",
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                     trailing: ElevatedButton(
                       onPressed: () {
