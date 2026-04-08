@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
@@ -9,6 +12,7 @@ import 'package:throttle_ui/features/groups/presentation/screens/invite_member_s
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:uuid/uuid.dart';
 
 class RideInfoScreen extends StatefulWidget {
   final Map<String, dynamic> rideGroup;
@@ -136,6 +140,88 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         backgroundColor: isError ? Colors.red : null,
       ),
     );
+  }
+
+  String? get _googlePlacesApiKey {
+    final directKey = dotenv.env["GOOGLE_PLACES_API_KEY"]?.trim();
+    if (directKey != null && directKey.isNotEmpty) return directKey;
+
+    final fallbackKey = dotenv.env["GOOGLE_MAPS_API_KEY"]?.trim();
+    if (fallbackKey != null && fallbackKey.isNotEmpty) return fallbackKey;
+
+    return null;
+  }
+
+  Future<List<Map<String, String>>> _searchGooglePlaceSuggestions(
+    String query, {
+    required String sessionToken,
+  }) async {
+    final apiKey = _googlePlacesApiKey;
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception(
+        "Google Places API key is missing. Add GOOGLE_PLACES_API_KEY to your .env file.",
+      );
+    }
+
+    final response = await http.post(
+      Uri.parse("https://places.googleapis.com/v1/places:autocomplete"),
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask":
+            "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text,suggestions.placePrediction.structuredFormat.mainText.text,suggestions.placePrediction.structuredFormat.secondaryText.text",
+      },
+      body: jsonEncode({
+        "input": query,
+        "sessionToken": sessionToken,
+        "languageCode": "en",
+      }),
+    );
+
+    final Map<String, dynamic> decoded = response.body.isEmpty
+        ? const {}
+        : Map<String, dynamic>.from(jsonDecode(response.body));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final error = decoded["error"];
+      final message = error is Map
+          ? error["message"]?.toString()
+          : decoded["message"]?.toString();
+      throw Exception(message ?? "Failed to load place suggestions");
+    }
+
+    final suggestions = decoded["suggestions"];
+    if (suggestions is! List) return const [];
+
+    return suggestions
+        .map((entry) => Map<String, dynamic>.from(entry as Map))
+        .map((entry) => Map<String, dynamic>.from(
+              entry["placePrediction"] as Map? ?? const {},
+            ))
+        .map((prediction) {
+          final structured = Map<String, dynamic>.from(
+            prediction["structuredFormat"] as Map? ?? const {},
+          );
+          final title = Map<String, dynamic>.from(
+            structured["mainText"] as Map? ?? const {},
+          )["text"]?.toString();
+          final subtitle = Map<String, dynamic>.from(
+            structured["secondaryText"] as Map? ?? const {},
+          )["text"]?.toString();
+          final fullText =
+              Map<String, dynamic>.from(prediction["text"] as Map? ?? const {})["text"]
+                  ?.toString() ??
+              "";
+
+          return <String, String>{
+            "placeId": prediction["placeId"]?.toString() ?? "",
+            "title": (title ?? fullText).trim(),
+            "subtitle": (subtitle ?? "").trim(),
+            "fullText": fullText.trim(),
+          };
+        })
+        .where((item) => item["fullText"]?.isNotEmpty == true)
+        .toList();
   }
 
   @override
@@ -1704,6 +1790,13 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     final notesController = TextEditingController(
       text: existingPreRide["notes"]?.toString() ?? "",
     );
+    final meetingFocusNode = FocusNode();
+    final placesSessionToken = const Uuid().v4();
+    Timer? meetingSearchDebounce;
+    int meetingSearchRequestId = 0;
+    bool isMeetingSearchLoading = false;
+    String? meetingSearchError;
+    List<Map<String, String>> meetingSuggestions = [];
 
     List<String> checkpoints = List<String>.from(
       existingPreRide["checkpointList"] ??
@@ -1725,6 +1818,81 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       "Follow captain",
       "Helmet mandatory",
     ];
+
+    void disposePreRideControllers() {
+      meetingSearchDebounce?.cancel();
+      meetingController.dispose();
+      fuelController.dispose();
+      checkpointController.dispose();
+      notesController.dispose();
+      meetingFocusNode.dispose();
+    }
+
+    void clearMeetingSuggestions(StateSetter setModalState) {
+      setModalState(() {
+        isMeetingSearchLoading = false;
+        meetingSearchError = null;
+        meetingSuggestions = [];
+      });
+    }
+
+    void selectMeetingSuggestion(
+      StateSetter setModalState,
+      Map<String, String> suggestion,
+    ) {
+      meetingController.text =
+          suggestion["fullText"] ?? suggestion["title"] ?? "";
+      meetingController.selection = TextSelection.collapsed(
+        offset: meetingController.text.length,
+      );
+      meetingFocusNode.unfocus();
+      clearMeetingSuggestions(setModalState);
+    }
+
+    void scheduleMeetingSearch(
+      StateSetter setModalState,
+      String rawQuery,
+    ) {
+      meetingSearchDebounce?.cancel();
+      final query = rawQuery.trim();
+
+      if (query.length < 3) {
+        clearMeetingSuggestions(setModalState);
+        return;
+      }
+
+      meetingSearchDebounce = Timer(const Duration(milliseconds: 350), () async {
+        final requestId = ++meetingSearchRequestId;
+        setModalState(() {
+          isMeetingSearchLoading = true;
+          meetingSearchError = null;
+        });
+
+        try {
+          final suggestions = await _searchGooglePlaceSuggestions(
+            query,
+            sessionToken: placesSessionToken,
+          );
+
+          if (!mounted || requestId != meetingSearchRequestId) return;
+
+          setModalState(() {
+            isMeetingSearchLoading = false;
+            meetingSuggestions = suggestions;
+            meetingSearchError = suggestions.isEmpty ? "No places found" : null;
+          });
+        } catch (error) {
+          if (!mounted || requestId != meetingSearchRequestId) return;
+
+          setModalState(() {
+            isMeetingSearchLoading = false;
+            meetingSuggestions = [];
+            meetingSearchError =
+                error.toString().replaceFirst("Exception: ", "");
+          });
+        }
+      });
+    }
 
     showModalBottomSheet(
       context: context,
@@ -1751,8 +1919,116 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   const SizedBox(height: 14),
                   TextField(
                     controller: meetingController,
+                    focusNode: meetingFocusNode,
                     style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: _inputDecoration("Enter meetup location"),
+                    decoration: _inputDecoration(
+                      "Search meetup location",
+                    ).copyWith(
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: AppColors.primary,
+                      ),
+                      suffixIcon: isMeetingSearchLoading
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            )
+                          : (meetingController.text.trim().isNotEmpty
+                              ? IconButton(
+                                  onPressed: () {
+                                    meetingController.clear();
+                                    clearMeetingSuggestions(setModalState);
+                                  },
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: AppColors.textMuted,
+                                  ),
+                                )
+                              : null),
+                    ),
+                    onChanged: (value) =>
+                        scheduleMeetingSearch(setModalState, value),
+                  ),
+                  const SizedBox(height: 10),
+                  if (_googlePlacesApiKey == null)
+                    const Text(
+                      "Autocomplete will start working after you add GOOGLE_PLACES_API_KEY to .env. Manual entry still works for now.",
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  if (meetingSearchError != null &&
+                      meetingController.text.trim().length >= 3) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      meetingSearchError!,
+                      style: const TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  if (meetingSuggestions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.white12),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: meetingSuggestions.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1, color: AppColors.white12),
+                        itemBuilder: (context, index) {
+                          final suggestion = meetingSuggestions[index];
+                          final title = suggestion["title"] ?? "";
+                          final subtitle = suggestion["subtitle"] ?? "";
+
+                          return ListTile(
+                            dense: true,
+                            leading: const Icon(
+                              Icons.location_on_outlined,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              title,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: subtitle.isEmpty
+                                ? null
+                                : Text(
+                                    subtitle,
+                                    style: const TextStyle(
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                            onTap: () =>
+                                selectMeetingSuggestion(setModalState, suggestion),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Type at least 3 characters and pick a place from the search results.",
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               );
@@ -2087,7 +2363,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
           },
         );
       },
-    );
+    ).whenComplete(disposePreRideControllers);
   }
 
   // Common input decoration for all text fields
