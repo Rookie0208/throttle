@@ -495,23 +495,264 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        title: Text("${widget.groupName} - Live Ride"),
-        actions: _hasRideSession
-            ? [
-                IconButton(
-                  onPressed: _fetching ? null : _loadSession,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ]
-            : null,
+      body: SafeArea(
+        child: _hasRideSession
+            ? (_fetching && _session == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : _liveRideView())
+            : _legacyView(),
       ),
-      body: _hasRideSession
-          ? (_fetching && _session == null
-                ? const Center(child: CircularProgressIndicator())
-                : _sessionView())
-          : _legacyView(),
+    );
+  }
+
+  Widget _liveRideView() {
+    final session = _session ?? const <String, dynamic>{};
+    final checkpoints = List<Map<String, dynamic>>.from(
+      session["checkpoints"] ?? const [],
+    );
+    final currentCheckpoint = checkpoints.firstWhere(
+      (c) => c["checkpointStatus"] == "CURRENT",
+      orElse: () => const <String, dynamic>{},
+    );
+    final totalCheckpoints = checkpoints.length;
+    final currentIndex = currentCheckpoint["sequence"] ?? 0;
+
+    // Calculate duration
+    final startTimeStr = session["startTime"];
+    Duration duration = Duration.zero;
+    if (startTimeStr != null) {
+      try {
+        final startTime = DateTime.parse(startTimeStr);
+        duration = DateTime.now().difference(startTime);
+      } catch (_) {}
+    }
+    final durationStr =
+        "${duration.inHours}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}";
+
+    return Column(
+      children: [
+        // Top bar
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                (session["title"] ?? widget.groupName).toString(),
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text(
+                    "Duration",
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Text(
+                    durationStr,
+                    style: const TextStyle(
+                      color: AppColors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Map preview
+        Container(
+          height: 150,
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Center(
+            child: Text(
+              "Map Preview\n(All riders locations)",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Broadcast card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.campaign, color: AppColors.primary, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Captain's Broadcast",
+                      style: TextStyle(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      (session["latestBroadcastMessage"] ??
+                              "No broadcast sent yet.")
+                          .toString(),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Checkpoints
+        Container(
+          height: 140,
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Checkpoints",
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    "#$currentIndex/$totalCheckpoints",
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (currentCheckpoint.isNotEmpty) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (currentCheckpoint["title"] ?? "Next Checkpoint")
+                            .toString(),
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.directions,
+                      color: AppColors.textSecondary,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Distance: ${currentCheckpoint["estimatedTime"] ?? "N/A"}",
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onLongPress: _loading ? null : _advanceCheckpoint,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: _loading
+                            ? AppColors.surfaceMuted
+                            : AppColors.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _loading ? "Marking..." : "Hold to Mark Reached",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                const Center(
+                  child: Text(
+                    "No active checkpoint",
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        // SOS Button
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () {
+                // TODO: Implement SOS
+              },
+              child: const Text(
+                "SOS / Emergency",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
