@@ -150,6 +150,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }.contains(status.toUpperCase());
   }
 
+  bool _shouldShowRideConsoleButton(String status) {
+    final normalized = status.toUpperCase();
+    return {
+      "READY_TO_START",
+      "PARTIAL_STARTED",
+      "ACTIVE",
+      "IN_PROGRESS",
+    }.contains(normalized);
+  }
+
   String _rideLocationLabel(Map<String, dynamic>? ride) {
     final locations = ride?["locations"];
     if (locations is List && locations.isNotEmpty) {
@@ -177,6 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Map<String, dynamic> ride, {
     required String rideStatus,
   }) async {
+    print('Ride data: $ride'); // Debug print
     final normalizedStatus = rideStatus.toUpperCase();
     final title = (ride["title"] ?? "Ride").toString();
 
@@ -561,6 +572,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
 
+              if (todayPlanRide != null &&
+                  _shouldShowRideConsoleButton(dashboardRideStatus))
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () => _openRideConsoleFromDashboard(
+                        todayPlanRide,
+                        rideStatus: dashboardRideStatus,
+                      ),
+                      child: Text(
+                        dashboardRideStatus == "ACTIVE"
+                            ? "Open Ride Console"
+                            : "Start Ride",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ),
+
               if (_dashboardAnnouncement != null) ...[
                 const SizedBox(height: 25),
                 Padding(
@@ -863,33 +903,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 14),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: AppColors.primary,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed: () =>
-                                            _openRideConsoleFromDashboard(
-                                              upcomingRide,
-                                              rideStatus: upcomingRideStatus,
-                                            ),
-                                        child: Text(
-                                          _isStartedRideStatus(
-                                                upcomingRideStatus,
-                                              )
-                                              ? "Open Ride"
-                                              : "Start Ride",
-                                        ),
+                                    Text(
+                                      _isStartedRideStatus(upcomingRideStatus)
+                                          ? "Ride will open once active"
+                                          : "Ride scheduled for later",
+                                      style: const TextStyle(
+                                        color: AppColors.textSecondary,
+                                        fontSize: 12,
                                       ),
                                     ),
                                   ],

@@ -14,7 +14,11 @@ class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
   final String token;
 
-  const GroupChatScreen({super.key, required this.group, required this.token});
+  const GroupChatScreen({
+    super.key,
+    required this.group,
+    required this.token,
+  });
 
   @override
   State<GroupChatScreen> createState() => _GroupChatScreenState();
@@ -188,9 +192,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   /// ================= SEND =================
   void sendMessage() {
     if (_isGroupLocked) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("This group is locked")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("This group is locked")),
+      );
       return;
     }
     final text = messageController.text.trim();
@@ -303,7 +307,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               _connectChat(_groupUuid);
               fetchMessages(widget.group["uuid"]);
             },
-            child: _chip("All", activeSubGroupId == null),
+            child: _chip(
+              "All",
+              activeSubGroupId == null,
+            ),
           ),
 
           ...subGroups.map((g) {
@@ -360,7 +367,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: selected ? AppColors.primary : AppColors.background,
+        color: selected
+            ? AppColors.primary
+            : AppColors.background,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Center(
@@ -417,7 +426,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           IconButton(
             icon: const Icon(Icons.send, color: AppColors.primary),
             onPressed: sendMessage,
-          ),
+          )
         ],
       ),
     );
@@ -586,43 +595,87 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   void _openRideConsole() {
-    final rideStatus =
-        (widget.group["rideStatus"] ?? widget.group["status"] ?? "")
-            .toString()
-            .toUpperCase();
-    final title = (widget.group["title"] ?? widget.group["name"] ?? "Ride")
-        .toString();
-    final startTime = widget.group["startTime"]?.toString() ?? "";
-    final locations = List<Map<String, dynamic>>.from(
-      widget.group["locations"] ?? const [],
-    );
-    final startLocation = locations.isEmpty
-        ? ((widget.group["meetingPoint"] ??
-                  widget.group["startLocation"] ??
-                  "Start point")
-              .toString())
-        : (locations.first["name"] ?? "Start point").toString();
+  final group = widget.group;
 
-    final Widget target = rideStatus == "ACTIVE"
-        ? LiveRideScreen(
-            groupName: title,
-            onEndRide: () {},
-            token: widget.token,
-            rideUuid: _rideUuid,
-          )
-        : RideStartScreen(
-            groupName: title,
-            rideDate: startTime,
-            rideTime: startTime,
-            location: startLocation,
-            memberCount:
-                int.tryParse((widget.group["maxRiders"] ?? 0).toString()) ?? 0,
-            token: widget.token,
-            rideUuid: _rideUuid,
-          );
+  final rideStatus =
+      (group["rideStatus"] ?? group["status"] ?? "").toString().toUpperCase();
 
-    Navigator.push(context, MaterialPageRoute(builder: (_) => target));
-  }
+  final title =
+      (group["title"] ?? group["name"] ?? "Ride").toString();
+
+  /// ✅ Parse start time safely
+  DateTime? parsedTime;
+  try {
+    parsedTime = DateTime.parse(group["startTime"] ?? "");
+  } catch (_) {}
+
+  /// ✅ Format date & time
+  final rideDate = parsedTime != null
+      ? "${parsedTime.day} ${_month(parsedTime.month)}, ${parsedTime.year}"
+      : "N/A";
+
+  final rideTime = parsedTime != null
+      ? "${_formatHour(parsedTime.hour)}:${parsedTime.minute.toString().padLeft(2, '0')} ${parsedTime.hour >= 12 ? "PM" : "AM"}"
+      : "N/A";
+
+  /// ✅ Location handling
+  final locations = List<Map<String, dynamic>>.from(
+    group["locations"] ?? const [],
+  );
+
+  final startLocation = locations.isNotEmpty
+      ? (locations.first["name"] ?? "Start point").toString()
+      : (group["meetingPoint"] ??
+              group["startLocation"] ??
+              "Start point")
+          .toString();
+
+  /// ✅ Rider count (prefer joined riders if available)
+  final memberCount =
+      int.tryParse((group["joinedRiders"] ??
+                  group["members"] ??
+                  group["maxRiders"] ??
+                  0)
+              .toString()) ??
+          0;
+
+  /// ✅ Navigation target
+  final Widget target = rideStatus == "ACTIVE"
+      ? LiveRideScreen(
+          groupName: title,
+          onEndRide: () {},
+          token: widget.token,
+          rideUuid: _rideUuid,
+        )
+      : RideStartScreen(
+          groupName: title,
+          rideDate: rideDate,
+          rideTime: rideTime,
+          location: startLocation,
+          memberCount: memberCount,
+          token: widget.token,
+          rideUuid: _rideUuid,
+        );
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => target),
+  );
+}
+
+String _month(int m) {
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+  return months[m - 1];
+}
+
+String _formatHour(int hour) {
+  if (hour == 0) return "12";
+  if (hour > 12) return (hour - 12).toString();
+  return hour.toString();
+}
 
   void _openSubGroupCreation() async {
     final result = await Navigator.push(
