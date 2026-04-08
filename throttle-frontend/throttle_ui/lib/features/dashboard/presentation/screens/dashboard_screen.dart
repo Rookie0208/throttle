@@ -187,6 +187,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     Map<String, dynamic> ride, {
     required String rideStatus,
   }) async {
+    print('Ride data: $ride'); // Debug print
     final normalizedStatus = rideStatus.toUpperCase();
     final title = (ride["title"] ?? "Ride").toString();
 
