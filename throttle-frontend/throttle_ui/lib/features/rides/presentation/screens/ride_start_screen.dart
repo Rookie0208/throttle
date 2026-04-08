@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'live_ride_screen.dart';
 
 class RideStartScreen extends StatefulWidget {
   final String groupName;
@@ -29,14 +30,14 @@ class _RideStartScreenState extends State<RideStartScreen> {
   bool _isStarted = false;
   bool _expanded = false;
   bool _markedArrived = false;
-  bool isCaptain = false; // TODO: fetch from API
+  bool isCaptain = true; // TODO: fetch from API
+  bool _fullRideStarted = false;
 
   int enRoute = 1;
   int atStart = 0;
   int inRide = 0;
 
   double _dragPosition = 0;
-  double _startRideDragPosition = 0;
 
   String get title =>
       widget.groupName[0].toUpperCase() + widget.groupName.substring(1);
@@ -95,14 +96,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
             const SizedBox(height: 20),
             _liveProgress(),
             const SizedBox(height: 20),
-            _slider(),
+            if (!_markedArrived || isCaptain) _slider(),
             if (_markedArrived) ...[
               const SizedBox(height: 20),
               _arrivalMessage(),
-              if (isCaptain) ...[
-                const SizedBox(height: 20),
-                _startRideSlider(),
-              ],
             ],
             const SizedBox(height: 20),
             _accordion(),
@@ -306,25 +303,35 @@ class _RideStartScreenState extends State<RideStartScreen> {
   // 🔷 ARRIVAL MESSAGE
   Widget _arrivalMessage() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: Colors.green.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.withOpacity(0.5), width: 2),
       ),
-      child: Column(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            "You are at the meeting point",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Waiting for others to join",
-            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          const Icon(Icons.check_circle, color: Colors.green, size: 24),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "You are at the meeting point",
+                style: TextStyle(
+                  color: Colors.green[800],
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Waiting for others to join",
+                style: TextStyle(color: Colors.green[600], fontSize: 14),
+              ),
+            ],
           ),
         ],
       ),
@@ -378,7 +385,34 @@ class _RideStartScreenState extends State<RideStartScreen> {
                 });
               },
               onHorizontalDragEnd: (_) {
-                if (_isStarted) {
+                if (_markedArrived && isCaptain) {
+                  setState(() {
+                    _dragPosition = maxWidth - thumbSize - 10;
+                    _fullRideStarted = true;
+
+                    // Start the full ride
+                    inRide = widget.memberCount;
+                    atStart = 0;
+                  });
+                  // Reset after a short delay
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (mounted) {
+                      setState(() => _dragPosition = 0);
+                      // Navigate to live ride screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LiveRideScreen(
+                            groupName: widget.groupName,
+                            onEndRide: () => Navigator.pop(context),
+                            token: widget.token,
+                            rideUuid: widget.rideUuid,
+                          ),
+                        ),
+                      );
+                    }
+                  });
+                } else if (_isStarted && !_markedArrived) {
                   setState(() {
                     _dragPosition = maxWidth - thumbSize - 10;
                     _markedArrived = true;
@@ -407,84 +441,6 @@ class _RideStartScreenState extends State<RideStartScreen> {
                   });
                 } else {
                   setState(() => _dragPosition = 0);
-                }
-              },
-              child: Container(
-                width: thumbSize,
-                height: thumbSize,
-                margin: const EdgeInsets.all(5),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.arrow_forward, color: AppColors.white),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 🔷 START RIDE SLIDER
-  Widget _startRideSlider() {
-    final double maxWidth = MediaQuery.of(context).size.width - 32;
-    const double thumbSize = 60;
-    final double progress = _startRideDragPosition / (maxWidth - thumbSize);
-
-    return Container(
-      width: maxWidth,
-      height: 70,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.blue.withOpacity(0.7),
-            Colors.purple.withOpacity(0.7),
-            Colors.pink.withOpacity(0.7),
-          ],
-          stops: [0.0, progress.clamp(0.0, 1.0), 1.0],
-        ),
-        borderRadius: BorderRadius.circular(40),
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Text(
-              "START RIDE",
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
-              ),
-            ),
-          ),
-          Positioned(
-            left: _startRideDragPosition,
-            child: GestureDetector(
-              onHorizontalDragUpdate: (details) {
-                setState(() {
-                  _startRideDragPosition += details.delta.dx;
-                  _startRideDragPosition = _startRideDragPosition.clamp(
-                    0,
-                    maxWidth - thumbSize - 10,
-                  );
-                });
-              },
-              onHorizontalDragEnd: (_) {
-                if (_startRideDragPosition >= maxWidth - thumbSize - 10) {
-                  setState(() {
-                    _startRideDragPosition = maxWidth - thumbSize - 10;
-                    // Start the full ride
-                    inRide = widget.memberCount;
-                    atStart = 0;
-                  });
-                  // Reset after a short delay
-                  Future.delayed(const Duration(milliseconds: 500), () {
-                    setState(() => _startRideDragPosition = 0);
-                  });
-                  // TODO: call API to start ride
-                } else {
-                  setState(() => _startRideDragPosition = 0);
                 }
               },
               child: Container(
