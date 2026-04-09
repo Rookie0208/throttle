@@ -622,43 +622,6 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                     ),
                   ),
                 ),
-<<<<<<< HEAD
-              ] else ...[
-                const Center(
-                  child: Text(
-                    "No active checkpoint",
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // SOS Button
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                // TODO: Implement SOS
-              },
-              child: const Text(
-                "SOS / Emergency",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ),
-=======
               ),
               const SizedBox(width: 12),
               SizedBox(
@@ -679,7 +642,6 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
             ],
           ),
         ),
->>>>>>> amitThrottle
       ],
     );
   }
