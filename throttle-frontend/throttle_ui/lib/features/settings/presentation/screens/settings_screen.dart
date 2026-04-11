@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/onboarding_screen.dart';
@@ -40,9 +41,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
@@ -64,7 +62,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ].contains(null)) {
                 ScaffoldMessenger.of(sheetContext).showSnackBar(
                   const SnackBar(
-                    content: Text("Use valid hex colors like #7D39EB"),
+                    content: Text("Use valid hex colors like #0047DE"),
                   ),
                 );
                 return;
@@ -97,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const Text(
                       "Themes",
                       style: TextStyle(
-                        color: AppColors.white,
+                        color: AppColors.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -109,22 +107,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.overlay,
-                          borderRadius: BorderRadius.circular(16),
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isSelected
                                 ? AppColors.primary
                                 : AppColors.borderSoft,
                           ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x12191B22),
+                              blurRadius: 20,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
                         ),
                         child: ListTile(
                           title: Text(
                             theme.label,
-                            style: const TextStyle(color: AppColors.white),
+                            style: GoogleFonts.lexend(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           subtitle: Text(
                             theme.fontFamily ?? "Default font",
-                            style: const TextStyle(
+                            style: GoogleFonts.plusJakartaSans(
                               color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
@@ -150,7 +158,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const Text(
                       "Custom Theme",
                       style: TextStyle(
-                        color: AppColors.white,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -208,10 +216,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
         controller: controller,
-        style: const TextStyle(color: AppColors.white),
+        style: const TextStyle(color: AppColors.textPrimary),
         decoration: InputDecoration(
           labelText: label,
-          hintText: "#7D39EB",
+          hintText: "#0047DE",
           hintStyle: const TextStyle(color: AppColors.textHint),
           labelStyle: const TextStyle(color: AppColors.textSecondary),
         ),
@@ -222,17 +230,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = _themeController.theme;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        title: const Text(
-          "Settings",
-          style: TextStyle(color: AppColors.white, fontWeight: FontWeight.bold),
-        ),
-        iconTheme: const IconThemeData(color: AppColors.white),
-      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(title: const Text("Settings")),
       body: SafeArea(
         child: Column(
           children: [
@@ -248,7 +251,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surfaceMuted,
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: AppColors.border),
                     ),
                     child: InkWell(
@@ -273,11 +276,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              const Expanded(
+                              Expanded(
                                 child: Text(
                                   "Appearance",
-                                  style: TextStyle(
-                                    color: AppColors.white,
+                                  style: GoogleFonts.lexend(
+                                    color: AppColors.textPrimary,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -292,16 +295,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const SizedBox(height: 14),
                           Text(
                             theme.label,
-                            style: const TextStyle(
-                              color: AppColors.white,
+                            style: GoogleFonts.lexend(
+                              color: AppColors.textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             "Choose from 3 presets or build your own colors.",
-                            style: TextStyle(
+                            style: GoogleFonts.plusJakartaSans(
                               color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
@@ -330,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 child: const Text(
                                   "Change Theme",
                                   style: TextStyle(
-                                    color: AppColors.white,
+                                    color: AppColors.textPrimary,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -343,79 +346,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(
-                      Icons.notifications,
-                      color: AppColors.white,
+                    leading: Icon(
+                      Icons.notifications_outlined,
+                      color: colorScheme.primary,
                     ),
-                    title: const Text(
-                      "Notifications",
-                      style: TextStyle(color: AppColors.white),
-                    ),
-                    subtitle: const Text(
-                      "Manage alerts",
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
+                    title: Text("Notifications", style: textTheme.titleMedium),
+                    subtitle: Text("Manage alerts", style: textTheme.bodySmall),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.message, color: AppColors.white),
-                    title: const Text(
-                      "Messages",
-                      style: TextStyle(color: AppColors.white),
+                    leading: Icon(
+                      Icons.message_outlined,
+                      color: colorScheme.primary,
                     ),
-                    subtitle: const Text(
-                      "Chat settings",
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
+                    title: Text("Messages", style: textTheme.titleMedium),
+                    subtitle: Text("Chat settings", style: textTheme.bodySmall),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.people, color: AppColors.white),
-                    title: const Text(
-                      "Followers",
-                      style: TextStyle(color: AppColors.white),
+                    leading: Icon(
+                      Icons.people_outline_rounded,
+                      color: colorScheme.primary,
                     ),
-                    subtitle: const Text(
+                    title: Text("Followers", style: textTheme.titleMedium),
+                    subtitle: Text(
                       "Manage connections",
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                      style: textTheme.bodySmall,
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(
-                      Icons.directions_bike,
-                      color: AppColors.white,
+                    leading: Icon(
+                      Icons.two_wheeler_outlined,
+                      color: colorScheme.primary,
                     ),
-                    title: const Text(
-                      "My Bikes",
-                      style: TextStyle(color: AppColors.white),
-                    ),
-                    subtitle: const Text(
+                    title: Text("My Bikes", style: textTheme.titleMedium),
+                    subtitle: Text(
                       "Add or edit bikes",
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                      style: textTheme.bodySmall,
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.shield, color: AppColors.white),
-                    title: const Text(
-                      "Privacy",
-                      style: TextStyle(color: AppColors.white),
+                    leading: Icon(
+                      Icons.shield_outlined,
+                      color: colorScheme.primary,
                     ),
-                    subtitle: const Text(
+                    title: Text("Privacy", style: textTheme.titleMedium),
+                    subtitle: Text(
                       "Data & security",
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                      style: textTheme.bodySmall,
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -424,16 +400,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Icons.workspace_premium,
                       color: AppColors.primary,
                     ),
-                    title: const Text(
-                      "Subscription",
-                      style: TextStyle(color: AppColors.white),
-                    ),
-                    subtitle: const Text(
+                    title: Text("Subscription", style: textTheme.titleMedium),
+                    subtitle: Text(
                       "Manage your subscription plan",
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12,
-                      ),
+                      style: textTheme.bodySmall,
                     ),
                     trailing: ElevatedButton(
                       onPressed: () {

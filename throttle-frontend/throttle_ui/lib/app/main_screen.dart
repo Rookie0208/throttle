@@ -44,12 +44,12 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   List<Widget> get _screens => [
-        DashboardScreen(userData: _userData, token: _token!),
-        GroupsScreen(token: _token!),
-        const ClubsScreen(),
-        const FriendsScreen(),
-        ProfileScreen(userData: _userData),
-      ];
+    DashboardScreen(userData: _userData, token: _token!),
+    GroupsScreen(token: _token!),
+    const ClubsScreen(),
+    const FriendsScreen(),
+    ProfileScreen(userData: _userData),
+  ];
 
   void _onTabChanged(int index) {
     setState(() {
@@ -64,10 +64,10 @@ class _MainScreenState extends State<MainScreen> {
         barrierDismissible: false,
         transitionDuration: const Duration(milliseconds: 350),
         reverseTransitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, animation, __) {
+        pageBuilder: (context, animation, secondaryAnimation) {
           return PlanRideScreen(token: _token!);
         },
-        transitionsBuilder: (_, animation, __, child) {
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final curved = CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
@@ -79,10 +79,7 @@ class _MainScreenState extends State<MainScreen> {
               begin: const Offset(0, 1),
               end: Offset.zero,
             ).animate(curved),
-            child: FadeTransition(
-              opacity: curved,
-              child: child,
-            ),
+            child: FadeTransition(opacity: curved, child: child),
           );
         },
       ),
@@ -97,9 +94,7 @@ class _MainScreenState extends State<MainScreen> {
       return const Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
-          child: CircularProgressIndicator(
-            color: AppColors.primary,
-          ),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }
@@ -118,33 +113,71 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabChanged,
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: AppColors.surface,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: "Dashboard",
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.03, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: KeyedSubtree(
+          key: ValueKey(_currentIndex),
+          child: _screens[_currentIndex],
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: _onTabChanged,
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.space_dashboard_outlined),
+                selectedIcon: Icon(Icons.space_dashboard_rounded),
+                label: "Dashboard",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.two_wheeler_outlined),
+                selectedIcon: Icon(Icons.two_wheeler_rounded),
+                label: "Rides",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.groups_2_outlined),
+                selectedIcon: Icon(Icons.groups_2_rounded),
+                label: "Clubs",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.diversity_3_outlined),
+                selectedIcon: Icon(Icons.diversity_3_rounded),
+                label: "Friends",
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                selectedIcon: Icon(Icons.person_rounded),
+                label: "Profile",
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.two_wheeler),
-            label: "Rides",
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.groups), label: "Clubs"),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: "Friends"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-        ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: AppColors.white),
+        elevation: 0,
         onPressed: _openCreateRideSheet,
+        child: const Icon(Icons.add_rounded, color: AppColors.white),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

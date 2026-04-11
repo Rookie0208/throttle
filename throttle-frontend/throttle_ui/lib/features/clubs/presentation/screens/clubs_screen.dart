@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/clubs/presentation/screens/club_chat_screen.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 
@@ -52,14 +53,14 @@ class _ClubsScreenState extends State<ClubsScreen> {
                   const Text(
                     "Clubs Community",
                     style: TextStyle(
-                      color: AppColors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  CircleAvatar(
+                  const CircleAvatar(
                     backgroundColor: AppColors.primary,
-                    child: const Icon(Icons.add, color: AppColors.white),
+                    child: Icon(Icons.add, color: AppColors.white),
                   ),
                 ],
               ),
@@ -72,16 +73,19 @@ class _ClubsScreenState extends State<ClubsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 height: 45,
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.search, color: AppColors.textMuted),
-                    SizedBox(width: 8),
+                    const Icon(Icons.search, color: AppColors.primary),
+                    const SizedBox(width: 8),
                     Text(
                       "Search clubs...",
-                      style: TextStyle(color: AppColors.textMuted),
+                      style: GoogleFonts.plusJakartaSans(
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ],
                 ),
@@ -121,7 +125,7 @@ class _ClubsScreenState extends State<ClubsScreen> {
       child: Text(
         title,
         style: const TextStyle(
-          color: AppColors.primary,
+          color: AppColors.textPrimary,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -140,8 +144,9 @@ class _ClubsScreenState extends State<ClubsScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [
@@ -151,8 +156,8 @@ class _ClubsScreenState extends State<ClubsScreen> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: isPrivate
-                    ? Colors.grey.shade800
-                    : AppColors.primary.withOpacity(0.1),
+                    ? AppColors.surfaceMuted
+                    : AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -171,13 +176,16 @@ class _ClubsScreenState extends State<ClubsScreen> {
                   Text(
                     club["name"],
                     style: const TextStyle(
-                      color: AppColors.white,
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     "${club["members"]} members • ${club["rides"]} rides/mo",
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -195,8 +203,9 @@ class _ClubsScreenState extends State<ClubsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -215,7 +224,7 @@ class _ClubsScreenState extends State<ClubsScreen> {
             child: Text(
               club["name"],
               style: const TextStyle(
-                color: AppColors.white,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -240,7 +249,6 @@ class _ClubsScreenState extends State<ClubsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -272,13 +280,20 @@ class _ClubsScreenState extends State<ClubsScreen> {
                           decoration: BoxDecoration(
                             color: selectedTab == tab
                                 ? AppColors.primary
-                                : AppColors.surface,
+                                : AppColors.card,
                             borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppColors.border),
                           ),
                           child: Text(
                             tab.toUpperCase(),
                             textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppColors.textPrimary),
+                            style: GoogleFonts.lexend(
+                              color: selectedTab == tab
+                                  ? AppColors.white
+                                  : AppColors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ),
@@ -300,8 +315,9 @@ class _ClubsScreenState extends State<ClubsScreen> {
                   ),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.border),
                   ),
                   child: Row(
                     children: [
@@ -321,7 +337,10 @@ class _ClubsScreenState extends State<ClubsScreen> {
                       if (isCaptain)
                         const Text(
                           "Captain",
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                          ),
                         ),
                     ],
                   ),
