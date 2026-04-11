@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
@@ -221,17 +222,22 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xff0f1114),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: const Color(0xff1a1c20),
-          title: const Text("Friends"),
+          backgroundColor: colorScheme.surface,
+          title: Text(
+            "Friends",
+            style: GoogleFonts.lexend(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           bottom: TabBar(
-            indicatorColor: const Color(0xfffe6603),
-            labelColor: const Color(0xfffe6603),
-            unselectedLabelColor: Colors.white54,
             tabs: [
               const Tab(text: "My Friends"),
               Tab(
@@ -244,8 +250,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
           ),
         ),
         body: isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Color(0xfffe6603)),
+            ? Center(
+                child: CircularProgressIndicator(color: colorScheme.primary),
               )
             : TabBarView(
                 children: [
@@ -259,16 +265,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _buildFriendsTab() {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
         _buildSearchBar(),
         Expanded(
           child: filteredFriends.isEmpty
-              ? const Center(
-                  child: Text(
-                    "No friends found",
-                    style: TextStyle(color: Colors.white54),
-                  ),
+              ? Center(
+                  child: Text("No friends found", style: textTheme.bodyMedium),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(
@@ -285,12 +289,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _buildRequestsTab() {
+    final textTheme = Theme.of(context).textTheme;
     if (pendingRequests.isEmpty) {
-      return const Center(
-        child: Text(
-          "No pending requests",
-          style: TextStyle(color: Colors.white54),
-        ),
+      return Center(
+        child: Text("No pending requests", style: textTheme.bodyMedium),
       );
     }
     return ListView.builder(
@@ -301,15 +303,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _buildDiscoverTab() {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       children: [
         _buildSearchBar(),
         Expanded(
           child: filteredSuggested.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
                     "No recommendations found",
-                    style: TextStyle(color: Colors.white54),
+                    style: textTheme.bodyMedium,
                   ),
                 )
               : ListView.builder(
@@ -329,27 +332,32 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _buildSearchBar() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
-        borderRadius: BorderRadius.circular(12),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: TextField(
-        style: const TextStyle(color: Colors.white),
+        style: textTheme.bodyLarge,
         onChanged: (val) => setState(() => query = val),
-        decoration: const InputDecoration(
+        decoration: InputDecoration(
           hintText: "Search riders...",
-          hintStyle: TextStyle(color: Colors.white38),
+          hintStyle: textTheme.bodyMedium,
           border: InputBorder.none,
-          icon: Icon(Icons.search, color: Colors.white38),
+          icon: Icon(Icons.search_rounded, color: colorScheme.primary),
         ),
       ),
     );
   }
 
   Widget _userCard(Map user, {required UserCardType type}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     String name = "${user['firstName'] ?? ''} ${user['lastName'] ?? ''}".trim();
     final riderId = (user['riderId'] ?? '').toString();
     if (name.isEmpty) name = "Unknown Rider";
@@ -358,20 +366,24 @@ class _FriendsScreenState extends State<FriendsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
-        borderRadius: BorderRadius.circular(14),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: const Color(0xfffe6603),
+            backgroundColor: colorScheme.primary,
             backgroundImage: user['profileImage'] != null
                 ? NetworkImage(user['profileImage'])
                 : null,
             child: user['profileImage'] == null
                 ? Text(
                     name[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   )
                 : null,
           ),
@@ -382,16 +394,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.lexend(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 if (riderId.isNotEmpty)
                   Text(
                     "@$riderId",
-                    style: const TextStyle(
-                      color: Color(0xfffe6603),
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -400,19 +412,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     (user['mutualFriends'] as int) > 0)
                   Text(
                     "${user['mutualFriends']} Mutual Friends",
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
+                    style: textTheme.bodyMedium,
                   )
                 else if (user['city'] != null)
-                  Text(
-                    user['city'],
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
-                  ),
+                  Text(user['city'], style: textTheme.bodyMedium),
               ],
             ),
           ),
@@ -422,25 +425,28 @@ class _FriendsScreenState extends State<FriendsScreen> {
               children: [
                 TextButton(
                   onPressed: () => _openPublicProfile(user),
-                  child: const Text(
+                  child: Text(
                     "Profile",
-                    style: TextStyle(color: Colors.white54),
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    disabledBackgroundColor: Colors.grey,
+                    disabledBackgroundColor: colorScheme.outlineVariant,
                     backgroundColor: user['requestSent'] == true
-                        ? Colors.grey
-                        : const Color(0xfffe6603),
+                        ? colorScheme.outlineVariant
+                        : colorScheme.primary,
                   ),
                   onPressed: user['requestSent'] == true
                       ? null
                       : () => _sendRequest(user['uuid']),
                   child: Text(
                     user['requestSent'] == true ? "Sent" : "Add",
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.lexend(fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -448,9 +454,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
           else
             TextButton(
               onPressed: () => _openPublicProfile(user),
-              child: const Text(
+              child: Text(
                 "View Profile",
-                style: TextStyle(color: Colors.white54),
+                style: GoogleFonts.lexend(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
         ],
@@ -459,6 +468,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _requestCard(Map req) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     String name =
         "${req['senderFirstName'] ?? ''} ${req['senderLastName'] ?? ''}".trim();
     final riderId = (req['senderRiderId'] ?? '').toString();
@@ -467,20 +478,24 @@ class _FriendsScreenState extends State<FriendsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xff1a1c20),
-        borderRadius: BorderRadius.circular(14),
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: const Color(0xfffe6603),
+            backgroundColor: colorScheme.primary,
             backgroundImage: req['senderProfileImage'] != null
                 ? NetworkImage(req['senderProfileImage'])
                 : null,
             child: req['senderProfileImage'] == null
                 ? Text(
                     name[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white),
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.onPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   )
                 : null,
           ),
@@ -491,16 +506,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.lexend(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 if (riderId.isNotEmpty)
                   Text(
                     "@$riderId",
-                    style: const TextStyle(
-                      color: Color(0xfffe6603),
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -508,10 +523,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                 if (req['mutualCount'] != null && req['mutualCount'] > 0)
                   Text(
                     "${req['mutualCount']} Mutual Friends",
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
+                    style: textTheme.bodyMedium,
                   ),
               ],
             ),
@@ -524,17 +536,20 @@ class _FriendsScreenState extends State<FriendsScreen> {
               'lastName': req['senderLastName'],
               'profileImage': req['senderProfileImage'],
             }),
-            child: const Text(
+            child: Text(
               "Profile",
-              style: TextStyle(color: Colors.white54),
+              style: GoogleFonts.lexend(
+                color: colorScheme.primary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.check_circle, color: Colors.green),
+            icon: Icon(Icons.check_circle_rounded, color: colorScheme.primary),
             onPressed: () => _acceptRequest(req['requestId']),
           ),
           IconButton(
-            icon: const Icon(Icons.cancel, color: Colors.redAccent),
+            icon: const Icon(Icons.cancel_rounded, color: Colors.redAccent),
             onPressed: () => _rejectRequest(req['requestId']),
           ),
         ],

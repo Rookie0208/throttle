@@ -1,14 +1,25 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
-import 'package:throttle_ui/features/auth/presentation/widgets/web_signin.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/signup_screen.dart';
 import 'package:throttle_ui/app/main_screen.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/otp_screen.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/features/auth/presentation/widgets/web_signin_stub.dart';
+
+class LoginColors {
+  static const Color primary = Color(0xff0047DE);
+  static const Color background = Color(0xffF4F7FC);
+  static const Color textPrimary = Color(0xff191B22);
+  static const Color textSecondary = Color(0xff4F596E);
+  static const Color border = Color(0x52B8C6DA);
+  static const Color shadow = Color(0x14191B22);
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -152,9 +163,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      await Logger.warn("This is the second data : " + result.toString());
+      await Logger.warn("This is the second data : $result");
       if (result["success"]) {
         // Smooth slide transition
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
@@ -256,6 +268,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -274,28 +289,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       width: 50,
                       height: 6,
-                      color: AppColors.primary,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.speed, color: AppColors.primary, size: 30),
+                    Icon(
+                      Icons.speed_rounded,
+                      color: colorScheme.primary,
+                      size: 30,
+                    ),
                     const SizedBox(width: 8),
                     Container(
                       width: 50,
                       height: 6,
-                      color: AppColors.primary,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                   ],
                 ),
 
                 const SizedBox(height: 20),
 
-                const Text(
+                Text(
                   "THROTTLE",
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: GoogleFonts.lexend(
                     fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.white,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
                   ),
                 ),
 
@@ -304,10 +329,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 // EMAIL
                 TextField(
                   controller: emailController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
+                  style: textTheme.bodyLarge,
+                  decoration: InputDecoration(
                     labelText: "Email",
-                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    prefixIcon: Icon(
+                      Icons.mail_outline_rounded,
+                      color: colorScheme.primary,
+                    ),
                   ),
                 ),
 
@@ -317,10 +345,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextField(
                   controller: passwordController,
                   obscureText: true,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
+                  style: textTheme.bodyLarge,
+                  decoration: InputDecoration(
                     labelText: "Password",
-                    labelStyle: TextStyle(color: AppColors.textSecondary),
+                    prefixIcon: Icon(
+                      Icons.lock_outline_rounded,
+                      color: colorScheme.primary,
+                    ),
                   ),
                 ),
 
@@ -332,17 +363,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: ElevatedButton(
                     onPressed: isLoading ? null : login,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(35),
+                        borderRadius: BorderRadius.circular(22),
                       ),
                     ),
                     child: isLoading
-                        ? const CircularProgressIndicator(color: AppColors.white)
-                        : const Text(
+                        ? const CircularProgressIndicator(
+                            color: AppColors.white,
+                          )
+                        : Text(
                             "Login",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                            style: GoogleFonts.lexend(
+                              fontWeight: FontWeight.w700,
                               fontSize: 16,
                               color: AppColors.white,
                             ),
@@ -353,8 +385,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
 
                 // OR separator
-                const Center(
-                  child: Text("OR", style: TextStyle(color: AppColors.textSecondary)),
+                Center(
+                  child: Text(
+                    "OR",
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.onSurface.withValues(alpha: 0.65),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 15),
 
@@ -387,10 +425,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Text(
                           "Don't have an account? ",
-                          style: TextStyle(color: AppColors.white),
+                          style: TextStyle(color: colorScheme.onSurface),
                         ),
                         Text(
                           "Sign Up",
@@ -408,6 +446,151 @@ class _LoginScreenState extends State<LoginScreen> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignupLink() {
+    return TextButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SignupScreen()),
+        );
+      },
+      child: RichText(
+        text: TextSpan(
+          style: GoogleFonts.lexend(
+            color: LoginColors.textSecondary,
+            fontSize: 14,
+          ),
+          children: const [
+            TextSpan(text: "New to the trail? "),
+            TextSpan(
+              text: "Join the Pack",
+              style: TextStyle(
+                color: LoginColors.primary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginInputField extends StatefulWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final bool isPassword;
+
+  const _LoginInputField({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    this.isPassword = false,
+  });
+
+  @override
+  State<_LoginInputField> createState() => _LoginInputFieldState();
+}
+
+class _LoginInputFieldState extends State<_LoginInputField> {
+  bool _isFocused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onFocusChange: (hasFocus) => setState(() => _isFocused = hasFocus),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.8),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: _isFocused ? LoginColors.primary : LoginColors.border,
+            width: _isFocused ? 1.5 : 1,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: LoginColors.shadow,
+              blurRadius: 20,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: widget.controller,
+          obscureText: widget.isPassword,
+          style: GoogleFonts.lexend(color: LoginColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: widget.hint,
+            hintStyle: GoogleFonts.lexend(
+              color: LoginColors.textSecondary.withOpacity(0.6),
+              fontSize: 14,
+            ),
+            prefixIcon: Icon(
+              widget.icon,
+              color: _isFocused
+                  ? LoginColors.primary
+                  : LoginColors.textSecondary,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 18),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialSyncCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SocialSyncCard({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: LoginColors.border),
+          boxShadow: const [
+            BoxShadow(
+              color: LoginColors.shadow,
+              blurRadius: 15,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: LoginColors.textPrimary, size: 24),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: GoogleFonts.lexend(
+                color: LoginColors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

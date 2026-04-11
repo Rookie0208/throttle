@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
@@ -322,10 +323,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(e.toString().replaceFirst("Exception: ", "")),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else if (action == "reject") {
       if (requestId == null) {
         if (!mounted) return;
@@ -413,33 +414,38 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => _subgroupJoinRequestSheet(
-        sheetContext,
-        details,
-      ),
+      builder: (sheetContext) =>
+          _subgroupJoinRequestSheet(sheetContext, details),
     );
 
     if (action == null) return;
 
     if (action == "accept") {
       await SubGroupService.approveJoinRequestById(widget.token, requestId);
-      await NotificationService().deleteNotification(notification.id, widget.token);
+      await NotificationService().deleteNotification(
+        notification.id,
+        widget.token,
+      );
       _removeNotification(notification);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Join request approved")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Join request approved")));
     } else if (action == "reject") {
       await SubGroupService.rejectJoinRequestById(widget.token, requestId);
-      await NotificationService().deleteNotification(notification.id, widget.token);
+      await NotificationService().deleteNotification(
+        notification.id,
+        widget.token,
+      );
       _removeNotification(notification);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Join request rejected")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Join request rejected")));
     } else if (action == "view_profile") {
       final userUuid = details["userUuid"]?.toString();
       if (userUuid != null && userUuid.isNotEmpty) {
+        if (!mounted) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -486,9 +492,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(.08),
+              color: AppColors.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.primary.withOpacity(.24)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: .24),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -566,9 +574,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(.08),
+              color: AppColors.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.primary.withOpacity(.24)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: .24),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -688,8 +698,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final senderName = (requestData["senderName"] ?? "A friend").toString();
     final mutualCount = requestData["mutualCount"] as int? ?? 0;
     final isPending = requestData["isPending"] as bool? ?? true;
-    final hasProfile = (requestData["senderUuid"]?.toString().isNotEmpty ??
-        false);
+    final hasProfile =
+        (requestData["senderUuid"]?.toString().isNotEmpty ?? false);
     final canResolveRequest = requestData["requestId"] != null;
 
     return Padding(
@@ -707,9 +717,11 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(.08),
+              color: AppColors.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.primary.withOpacity(.24)),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: .24),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,10 +887,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             ),
             const SizedBox(height: 10),
             ...grouped[section]!.map(
-              (notification) => _notificationCard(
-                notification,
-                unreadSection: unreadSection,
-              ),
+              (notification) =>
+                  _notificationCard(notification, unreadSection: unreadSection),
             ),
             const SizedBox(height: 18),
           ],
@@ -894,6 +904,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
     final unread = notifications.where((n) => n.unread).toList();
     final read = notifications.where((n) => !n.unread).toList();
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -904,12 +915,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     "Notifications",
-                    style: TextStyle(
-                      color: Colors.white,
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.onSurface,
                       fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -925,15 +936,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       ),
                       child: Text(
                         "$unreadCount",
-                        style: const TextStyle(
-                          color: AppColors.black,
+                        style: TextStyle(
+                          color: colorScheme.onPrimary,
                           fontSize: 12,
                         ),
                       ),
                     ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.white),
+                    icon: Icon(Icons.close, color: colorScheme.onSurface),
                     onPressed: () {
                       Navigator.pop(context, notifications);
                       widget.onClose();
@@ -946,26 +957,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.white.withOpacity(.04),
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.white12),
+                  border: Border.all(color: colorScheme.outlineVariant),
                 ),
                 child: TabBar(
                   controller: _tabController,
                   indicatorSize: TabBarIndicatorSize.tab,
                   indicatorPadding: const EdgeInsets.all(4),
                   indicator: BoxDecoration(
-                    color: AppColors.primary,
+                    color: colorScheme.primary.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x447D39EB),
-                        blurRadius: 12,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
                   ),
-                  labelColor: AppColors.white,
+                  labelColor: colorScheme.primary,
                   unselectedLabelColor: AppColors.textMuted,
                   dividerColor: Colors.transparent,
                   tabs: [
@@ -991,10 +995,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _notificationCard(
-    NotificationItem n, {
-    required bool unreadSection,
-  }) {
+  Widget _notificationCard(NotificationItem n, {required bool unreadSection}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final canMarkRead = unreadSection && n.unread;
     final canMarkUnread = !unreadSection && !n.unread;
 
@@ -1041,13 +1044,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: n.unread
-                ? AppColors.primary.withOpacity(.05)
-                : AppColors.surfaceSoft,
+                ? colorScheme.primary.withValues(alpha: 0.08)
+                : colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: n.unread
-                  ? AppColors.primary.withOpacity(.3)
-                  : AppColors.primary.withOpacity(.15),
+                  ? colorScheme.primary.withValues(alpha: 0.25)
+                  : colorScheme.outlineVariant,
             ),
           ),
           child: Row(
@@ -1058,15 +1061,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 height: 38,
                 decoration: BoxDecoration(
                   color: n.unread
-                      ? AppColors.secondary.withOpacity(.14)
-                      : AppColors.white.withOpacity(.05),
+                      ? colorScheme.primary.withValues(alpha: 0.14)
+                      : colorScheme.onSurface.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   n.unread
                       ? Icons.notifications_active
                       : Icons.notifications_none,
-                  color: n.unread ? AppColors.secondary : AppColors.white70,
+                  color: n.unread ? colorScheme.primary : AppColors.textMuted,
                   size: 20,
                 ),
               ),
@@ -1081,14 +1084,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: n.unread ? AppColors.white : AppColors.white70,
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       n.desc,
                       style: TextStyle(
-                        color: n.unread ? AppColors.white : AppColors.white70,
+                        color: textTheme.bodyMedium?.color,
                         height: 1.3,
                       ),
                     ),
