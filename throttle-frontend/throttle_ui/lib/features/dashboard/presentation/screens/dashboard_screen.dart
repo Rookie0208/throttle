@@ -14,28 +14,7 @@ import 'package:throttle_ui/core/services/weather_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
-
-class DashboardColors {
-  DashboardColors._();
-
-  static const Color primary = Color(0xff0047DE);
-  static const Color primaryContainer = Color(0xff3463F7);
-  static const Color secondary = Color(0xff3463F7);
-  static const Color tertiary = Color(0xff4B600E);
-  static const Color tertiaryFixed = Color(0xffD2ED8D);
-  static const Color background = Color(0xffF4F7FC);
-  static const Color surface = Color(0xffE7EEF8);
-  static const Color surfaceStrong = Color(0xffDCE7F6);
-  static const Color card = Color(0xffffffff);
-  static const Color overlay = Color(0xE8FFFFFF);
-  static const Color textPrimary = Color(0xff191B22);
-  static const Color textSecondary = Color(0xff4F596E);
-  static const Color textMuted = Color(0xff697389);
-  static const Color textHint = Color(0xff8C95A8);
-  static const Color border = Color(0x52B8C6DA);
-  static const Color shadow = Color(0x14191B22);
-  static const Color white = Colors.white;
-}
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -57,52 +36,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _userUuid;
   StompClient? _notificationClient;
 
-  TextStyle get _eyebrowStyle => GoogleFonts.lexend(
-    color: DashboardColors.textMuted,
+  TextStyle _eyebrowStyle(Color color) => GoogleFonts.lexend(
+    color: color.withValues(alpha: 0.6),
     fontSize: 11,
     fontWeight: FontWeight.w700,
     letterSpacing: 1.1,
   );
 
-  TextStyle get _sectionTitleStyle => GoogleFonts.lexend(
-    color: DashboardColors.textPrimary,
+  TextStyle _sectionTitleStyle(Color color) => GoogleFonts.lexend(
+    color: color,
     fontSize: 22,
     fontWeight: FontWeight.w700,
     height: 1.05,
   );
 
-  TextStyle get _cardTitleStyle => GoogleFonts.lexend(
-    color: DashboardColors.textPrimary,
+  TextStyle _cardTitleStyle(Color color) => GoogleFonts.lexend(
+    color: color,
     fontSize: 17,
     fontWeight: FontWeight.w700,
     height: 1.15,
   );
 
-  TextStyle get _bodyStyle => GoogleFonts.plusJakartaSans(
-    color: DashboardColors.textSecondary,
+  TextStyle _bodyStyle(Color color) => GoogleFonts.plusJakartaSans(
+    color: color.withValues(alpha: 0.7),
     fontSize: 13,
     fontWeight: FontWeight.w500,
     height: 1.45,
   );
 
-  BoxDecoration _sectionDecoration({Color? color}) {
+  BoxDecoration _sectionDecoration(AppThemeConfig theme, {Color? color}) {
     return BoxDecoration(
-      color: color ?? DashboardColors.surface,
+      color: color ?? theme.surface.withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(30),
-      border: Border.all(color: DashboardColors.border),
+      border: Border.all(color: const Color(0x52B8C6DA)),
     );
   }
 
-  BoxDecoration _cardDecoration({Color? color}) {
+  BoxDecoration _cardDecoration(AppThemeConfig theme, {Color? color}) {
     return BoxDecoration(
-      color: color ?? DashboardColors.card,
+      color: color ?? theme.surface,
       borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: DashboardColors.border.withValues(alpha: 0.75)),
-      boxShadow: const [
+      border: Border.all(
+        color: const Color(0x52B8C6DA).withValues(alpha: 0.75),
+      ),
+      boxShadow: [
         BoxShadow(
-          color: DashboardColors.shadow,
+          color: theme.textPrimary.withValues(alpha: 0.08),
           blurRadius: 24,
-          offset: Offset(0, 10),
+          offset: const Offset(0, 10),
         ),
       ],
     );
@@ -113,11 +94,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String title,
     String? action,
     required Widget child,
+    required AppThemeConfig theme,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-      decoration: _sectionDecoration(),
+      padding: const EdgeInsets.all(20),
+      decoration: _sectionDecoration(theme),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -130,9 +112,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(eyebrow.toUpperCase(), style: _eyebrowStyle),
+                      Text(
+                        eyebrow.toUpperCase(),
+                        style: _eyebrowStyle(theme.textPrimary),
+                      ),
                       const SizedBox(height: 8),
-                      Text(title, style: _sectionTitleStyle),
+                      Text(title, style: _sectionTitleStyle(theme.textPrimary)),
                     ],
                   ),
                 ),
@@ -143,7 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: Text(
                     action,
                     style: GoogleFonts.lexend(
-                      color: DashboardColors.primary,
+                      color: theme.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -158,24 +143,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _metaPill(IconData icon, String text) {
+  Widget _metaPill(IconData icon, String text, AppThemeConfig theme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: DashboardColors.surface,
+        color: theme.surface.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: DashboardColors.tertiary),
+          Icon(icon, size: 14, color: theme.tertiary),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               text,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.plusJakartaSans(
-                color: DashboardColors.textMuted,
+                color: theme.textPrimary.withValues(alpha: 0.6),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -566,638 +551,352 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final miles = _userData['weeklyMiles'] ?? 0;
-    final avg = _userData['weeklyAvgMph'] ?? 0;
-    final duration = _userData['weeklyDuration'] ?? 0;
-    final todayRide = _mapValue('todayRide');
-    final upcomingRide = _mapValue('upcomingRide');
-    final recentRides = _mapListValue('recentRides');
-    final achievements = _mapListValue('achievements');
-    final todayPlanRide =
-        todayRide ??
-        (_isSameDay(_rideStartTime(upcomingRide), DateTime.now())
-            ? upcomingRide
-            : null);
-    final dashboardRideStatus = _rideStatusForDashboard(
-      todayRide: todayRide,
-      todayPlanRide: todayPlanRide,
-    );
-    final showUpcomingRide =
-        upcomingRide != null &&
-        !_isSameDay(
-          _rideStartTime(upcomingRide),
-          _rideStartTime(todayPlanRide),
-        ) &&
-        !_isSameDay(_rideStartTime(upcomingRide), DateTime.now());
-    final upcomingRideStatus = _normalizedRideStatus(upcomingRide);
-    final cleanedTodaySubtitle = _cleanSubtitle(todayPlanRide);
-    final upcomingDateLabel = _upcomingRideDateLabel(upcomingRide);
-    final latestCompletedRide = recentRides.isNotEmpty
-        ? recentRides.first
-        : null;
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+        final borderSideColor = const Color(0x52B8C6DA);
 
-    return Scaffold(
-      backgroundColor: DashboardColors.background,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xffF4F7FC), Color(0xffE3ECF8)],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 30),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                /// HEADER
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 18,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _getGreeting(),
-                            style: GoogleFonts.plusJakartaSans(
-                              color: DashboardColors.textSecondary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.userData != null
-                                ? "${(_userData['firstName'] ?? '').toString().toCapitalized()} ${(_userData['lastName'] ?? '').toString().toCapitalized()}"
-                                      .trim()
-                                : "Guest",
-                            style: GoogleFonts.lexend(
-                              color: DashboardColors.textPrimary,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w700,
-                              height: 1,
-                            ),
-                          ),
-                        ],
+        final miles = _userData['weeklyMiles'] ?? 0;
+        final avg = _userData['weeklyAvgMph'] ?? 0;
+        final duration = _userData['weeklyDuration'] ?? 0;
+        final todayRide = _mapValue('todayRide');
+        final upcomingRide = _mapValue('upcomingRide');
+        final recentRides = _mapListValue('recentRides');
+        final achievements = _mapListValue('achievements');
+        final todayPlanRide =
+            todayRide ??
+            (_isSameDay(_rideStartTime(upcomingRide), DateTime.now())
+                ? upcomingRide
+                : null);
+        final dashboardRideStatus = _rideStatusForDashboard(
+          todayRide: todayRide,
+          todayPlanRide: todayPlanRide,
+        );
+        final showUpcomingRide =
+            upcomingRide != null &&
+            !_isSameDay(
+              _rideStartTime(upcomingRide),
+              _rideStartTime(todayPlanRide),
+            ) &&
+            !_isSameDay(_rideStartTime(upcomingRide), DateTime.now());
+        final upcomingRideStatus = _normalizedRideStatus(upcomingRide);
+        final cleanedTodaySubtitle = _cleanSubtitle(todayPlanRide);
+        final upcomingDateLabel = _upcomingRideDateLabel(upcomingRide);
+        final latestCompletedRide = recentRides.isNotEmpty
+            ? recentRides.first
+            : null;
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  theme.background,
+                  theme.background.withValues(alpha: 0.9),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    /// HEADER
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 18,
                       ),
-
-                      /// RIGHT SIDE ICONS
-                      Row(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Stack(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: DashboardColors.overlay,
-                                  borderRadius: BorderRadius.circular(30),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: DashboardColors.shadow,
-                                      blurRadius: 18,
-                                      offset: Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.notifications_none,
-                                    color: DashboardColors.textPrimary,
-                                    size: 22,
+                              Text(
+                                _getGreeting(),
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.7,
                                   ),
-                                  onPressed: () async {
-                                    final result =
-                                        await Navigator.push<
-                                          List<NotificationItem>
-                                        >(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => NotificationsScreen(
-                                              onClose: () {},
-                                              token: widget.token,
-                                              initialNotifications:
-                                                  _notifications,
-                                            ),
-                                          ),
-                                        );
-
-                                    if (result != null && mounted) {
-                                      setState(() {
-                                        _notifications = result;
-                                        unreadNotificationCount = result
-                                            .where((n) => n.unread)
-                                            .length;
-                                      });
-                                    }
-                                  },
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              Text(
+                                widget.userData != null
+                                    ? "${(_userData['firstName'] ?? '').toString().toCapitalized()} ${(_userData['lastName'] ?? '').toString().toCapitalized()}"
+                                          .trim()
+                                    : "Guest",
+                                style: GoogleFonts.lexend(
+                                  color: theme.textPrimary,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1,
+                                ),
+                              ),
+                            ],
+                          ),
 
-                              /// 🔥 SHOW COUNT (only if > 0)
-                              if (unreadNotificationCount > 0)
-                                Positioned(
-                                  right: 6,
-                                  top: 6,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
+                          /// RIGHT SIDE ICONS
+                          Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
                                     decoration: BoxDecoration(
-                                      color: DashboardColors.primary,
-                                      borderRadius: BorderRadius.circular(12),
+                                      color: theme.surface.withValues(
+                                        alpha: 0.8,
+                                      ),
+                                      borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          blurRadius: 18,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ],
                                     ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 18,
-                                      minHeight: 18,
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.notifications_none,
+                                        color: theme.textPrimary,
+                                        size: 22,
+                                      ),
+                                      onPressed: () async {
+                                        final result =
+                                            await Navigator.push<
+                                              List<NotificationItem>
+                                            >(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    NotificationsScreen(
+                                                      onClose: () {},
+                                                      token: widget.token,
+                                                      initialNotifications:
+                                                          _notifications,
+                                                    ),
+                                              ),
+                                            );
+
+                                        if (result != null && mounted) {
+                                          setState(() {
+                                            _notifications = result;
+                                            unreadNotificationCount = result
+                                                .where((n) => n.unread)
+                                                .length;
+                                          });
+                                        }
+                                      },
                                     ),
-                                    child: Center(
-                                      child: Text(
-                                        unreadNotificationCount > 99
-                                            ? "99+"
-                                            : "$unreadNotificationCount",
-                                        style: const TextStyle(
-                                          color: DashboardColors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                  ),
+
+                                  /// 🔥 SHOW COUNT (only if > 0)
+                                  if (unreadNotificationCount > 0)
+                                    Positioned(
+                                      right: 6,
+                                      top: 6,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: theme.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 18,
+                                          minHeight: 18,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            unreadNotificationCount > 99
+                                                ? "99+"
+                                                : "$unreadNotificationCount",
+                                            style: TextStyle(
+                                              color: theme.surface,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ),
+                                ],
+                              ),
                             ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-
-                if (todayPlanRide != null &&
-                    _shouldShowRideConsoleButton(dashboardRideStatus))
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 20, 18),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: DashboardColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        onPressed: () => _openRideConsoleFromDashboard(
-                          todayPlanRide,
-                          rideStatus: dashboardRideStatus,
-                        ),
-                        child: Text(
-                          dashboardRideStatus == "ACTIVE"
-                              ? "Open Ride Console"
-                              : "Start Ride",
-                          style: GoogleFonts.lexend(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
                     ),
-                  ),
 
-                if (_dashboardAnnouncement != null) ...[
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 20, 24),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xffF2F6FF), Color(0xffE4EDFF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: DashboardColors.border),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: DashboardColors.shadow,
-                            blurRadius: 20,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: const Color(0x140047DE),
-                              borderRadius: BorderRadius.circular(12),
+                    if (todayPlanRide != null &&
+                        _shouldShowRideConsoleButton(dashboardRideStatus))
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 20, 18),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.campaign_rounded,
-                              color: DashboardColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _dashboardAnnouncement!.title,
-                                  style: GoogleFonts.lexend(
-                                    color: DashboardColors.textPrimary,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  _dashboardAnnouncement!.desc,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    color: DashboardColors.textSecondary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                ],
-                if (_dashboardAnnouncement == null) const SizedBox(height: 8),
-
-                /// TODAY'S PLAN
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-                  child: _sectionShell(
-                    eyebrow: "Live ride",
-                    title: _sectionHeading(todayRide),
-                    child: todayPlanRide == null
-                        ? Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(18),
-                            decoration: _cardDecoration(
-                              color: DashboardColors.card,
-                            ),
-                            child: Text(
-                              "No plans for today. Time to explore! 🏍️",
-                              style: _bodyStyle,
-                            ),
-                          )
-                        : GestureDetector(
-                            onTap: () => _openRideConsoleFromDashboard(
+                            onPressed: () => _openRideConsoleFromDashboard(
                               todayPlanRide,
                               rideStatus: dashboardRideStatus,
                             ),
-                            child: Container(
-                              padding: const EdgeInsets.all(18),
-                              decoration: _cardDecoration(),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0x170047DE),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: const Icon(
-                                      Icons.map_outlined,
-                                      color: DashboardColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          todayPlanRide['title']?.toString() ??
-                                              "Ride",
-                                          style: _cardTitleStyle,
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          cleanedTodaySubtitle,
-                                          style: _bodyStyle,
-                                        ),
-                                        const SizedBox(height: 14),
-                                        if (dashboardRideStatus == "ACTIVE")
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton(
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    DashboardColors.primary,
-                                                foregroundColor: Colors.white,
-                                                elevation: 0,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 14,
-                                                    ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(16),
-                                                ),
-                                              ),
-                                              onPressed: () =>
-                                                  _openRideConsoleFromDashboard(
-                                                    todayPlanRide,
-                                                    rideStatus:
-                                                        dashboardRideStatus,
-                                                  ),
-                                              child: Text(
-                                                "Open Ride",
-                                                style: GoogleFonts.lexend(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        else
-                                          Text(
-                                            "Tap to open partial start and ride controls",
-                                            style: GoogleFonts.lexend(
-                                              color: DashboardColors.primary,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                  ),
-                ),
-
-                /// UPCOMING RIDE
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-                  child: _sectionShell(
-                    eyebrow: "Next departure",
-                    title: "Upcoming Ride",
-                    action: showUpcomingRide ? "View Route" : null,
-                    child: !showUpcomingRide
-                        ? Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(18),
-                            decoration: _cardDecoration(),
                             child: Text(
-                              "No upcoming rides yet.",
-                              style: _bodyStyle,
-                            ),
-                          )
-                        : GestureDetector(
-                            onTap: () => _openRideGroup(
-                              upcomingRide,
-                              rideStatus: upcomingRideStatus,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.all(18),
-                              decoration: _cardDecoration(),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0x170047DE),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: const Icon(
-                                      Icons.directions_bike_rounded,
-                                      color: DashboardColors.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          upcomingRide['title']?.toString() ??
-                                              "Ride",
-                                          style: _cardTitleStyle,
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          upcomingDateLabel,
-                                          style: _bodyStyle,
-                                        ),
-                                        const SizedBox(height: 14),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            _metaPill(
-                                              Icons.schedule_outlined,
-                                              upcomingRide['time']
-                                                      ?.toString() ??
-                                                  "",
-                                            ),
-                                            _metaPill(
-                                              Icons.people_outline,
-                                              "${(upcomingRide['riders'] ?? 1) == 0 ? 1 : upcomingRide['riders']} joined",
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 14),
-                                        Text(
-                                          _isStartedRideStatus(
-                                                upcomingRideStatus,
-                                              )
-                                              ? "Ride will open once active"
-                                              : "Ride scheduled for later",
-                                          style: _bodyStyle,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: 4),
-                                    child: Icon(
-                                      Icons.chevron_right,
-                                      color: DashboardColors.textHint,
-                                    ),
-                                  ),
-                                ],
+                              dashboardRideStatus == "ACTIVE"
+                                  ? "Open Ride Console"
+                                  : "Start Ride",
+                              style: GoogleFonts.lexend(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
-                  ),
-                ),
-
-                /// RECENT RIDE
-                if (latestCompletedRide != null) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-                    child: _sectionShell(
-                      eyebrow: "Recently completed",
-                      title: "Last Ride",
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: _cardDecoration(),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0x170047DE),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.route_rounded,
-                                color: DashboardColors.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                latestCompletedRide['title']?.toString() ??
-                                    "Ride",
-                                style: _cardTitleStyle,
-                              ),
-                            ),
-                          ],
                         ),
                       ),
-                    ),
-                  ),
-                ],
 
-                /// ACHIEVEMENT
-                if (achievements.isNotEmpty) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-                    child: _sectionShell(
-                      eyebrow: "Progress marker",
-                      title: "Latest Achievement",
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: _cardDecoration(),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: DashboardColors.tertiaryFixed,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.emoji_events_rounded,
-                                color: DashboardColors.tertiary,
-                              ),
+                    if (_dashboardAnnouncement != null) ...[
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 20, 24),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xffFAF9FF), Color(0xffEEF4FF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Text(
-                                achievements.last['title']?.toString() ??
-                                    "Achievement",
-                                style: _cardTitleStyle,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: borderSideColor),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.textPrimary.withValues(
+                                  alpha: 0.08,
+                                ),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: theme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.campaign_rounded,
+                                  color: theme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _dashboardAnnouncement!.title,
+                                      style: GoogleFonts.lexend(
+                                        color: theme.textPrimary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _dashboardAnnouncement!.desc,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(height: 6),
+                    ],
+                    if (_dashboardAnnouncement == null)
+                      const SizedBox(height: 8),
 
-                /// WEEK STATS (ONLY IF DATA EXISTS)
-                if (!(miles == 0 && avg == 0 && duration == 0)) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
-                    child: _sectionShell(
-                      eyebrow: "At a glance",
-                      title: "This Week",
-                      child: Row(
-                        children: [
-                          if (miles != 0) ...[
-                            Expanded(
-                              child: StatCard(title: "Miles", value: "$miles"),
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                          if (avg != 0) ...[
-                            Expanded(
-                              child: StatCard(title: "Avg MPH", value: "$avg"),
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                          if (duration != 0)
-                            Expanded(
-                              child: StatCard(
-                                title: "Duration",
-                                value: "${duration}h",
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-
-                /// WEATHER
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                  child: _sectionShell(
-                    eyebrow: "Road conditions",
-                    title: "Weather",
-                    child: Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: _cardDecoration(
-                        color: DashboardColors.surfaceStrong,
-                      ),
-                      child: _isLoadingWeather
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                color: DashboardColors.primary,
-                              ),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
+                    /// TODAY'S PLAN
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                      child: _sectionShell(
+                        eyebrow: "Live ride",
+                        title: _sectionHeading(todayRide),
+                        theme: theme,
+                        child: todayPlanRide == null
+                            ? Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: _cardDecoration(
+                                  theme,
+                                  color: theme.surface,
+                                ),
+                                child: Text(
+                                  "No plans for today. Time to explore! 🏍️",
+                                  style: _bodyStyle(theme.textPrimary),
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: () => _openRideConsoleFromDashboard(
+                                  todayPlanRide,
+                                  rideStatus: dashboardRideStatus,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: _cardDecoration(theme),
                                   child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Container(
-                                        width: 52,
-                                        height: 52,
+                                        padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
-                                          color: DashboardColors.card,
+                                          color: theme.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
                                           borderRadius: BorderRadius.circular(
-                                            18,
+                                            16,
                                           ),
                                         ),
                                         child: Icon(
-                                          _getIconData(_weatherData?['icon']),
-                                          color: DashboardColors.primary,
-                                          size: 28,
+                                          Icons.map_outlined,
+                                          color: theme.primary,
                                         ),
                                       ),
                                       const SizedBox(width: 14),
@@ -1207,47 +906,413 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              _weatherData?['description'] ??
-                                                  "Weather Unavailable",
-                                              style: _cardTitleStyle.copyWith(
-                                                fontSize: 15,
+                                              todayPlanRide['title']
+                                                      ?.toString() ??
+                                                  "Ride",
+                                              style: _cardTitleStyle(
+                                                theme.textPrimary,
                                               ),
-                                              overflow: TextOverflow.ellipsis,
                                             ),
-                                            const SizedBox(height: 4),
+                                            const SizedBox(height: 6),
                                             Text(
-                                              _cityName ??
-                                                  "Location Unavailable",
-                                              style: _bodyStyle,
-                                              overflow: TextOverflow.ellipsis,
+                                              cleanedTodaySubtitle,
+                                              style: _bodyStyle(
+                                                theme.textPrimary,
+                                              ),
                                             ),
+                                            const SizedBox(height: 14),
+                                            if (dashboardRideStatus == "ACTIVE")
+                                              SizedBox(
+                                                width: double.infinity,
+                                                child: ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        theme.primary,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    elevation: 0,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            16,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  onPressed: () =>
+                                                      _openRideConsoleFromDashboard(
+                                                        todayPlanRide,
+                                                        rideStatus:
+                                                            dashboardRideStatus,
+                                                      ),
+                                                  child: Text(
+                                                    "Open Ride",
+                                                    style: GoogleFonts.lexend(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              Text(
+                                                "Tap to open partial start and ride controls",
+                                                style: GoogleFonts.lexend(
+                                                  color: theme.primary,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
                                           ],
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 16),
-                                Text(
-                                  _weatherData != null
-                                      ? "${_weatherData!['temperature']}°"
-                                      : "--°",
-                                  style: GoogleFonts.lexend(
-                                    color: DashboardColors.textPrimary,
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.w700,
+                              ),
+                      ),
+                    ),
+
+                    /// UPCOMING RIDE
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                      child: _sectionShell(
+                        eyebrow: "Next departure",
+                        title: "Upcoming Ride",
+                        theme: theme,
+                        action: showUpcomingRide ? "View Route" : null,
+                        child: !showUpcomingRide
+                            ? Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: _cardDecoration(theme),
+                                child: Text(
+                                  "No upcoming rides yet.",
+                                  style: _bodyStyle(theme.textPrimary),
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: () => _openRideGroup(
+                                  upcomingRide,
+                                  rideStatus: upcomingRideStatus,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: _cardDecoration(theme),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: theme.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.directions_bike_rounded,
+                                          color: theme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              upcomingRide['title']
+                                                      ?.toString() ??
+                                                  "Ride",
+                                              style: _cardTitleStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              upcomingDateLabel,
+                                              style: _bodyStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                _metaPill(
+                                                  Icons.schedule_outlined,
+                                                  upcomingRide['time']
+                                                          ?.toString() ??
+                                                      "",
+                                                  theme,
+                                                ),
+                                                _metaPill(
+                                                  Icons.people_outline,
+                                                  "${(upcomingRide['riders'] ?? 1) == 0 ? 1 : upcomingRide['riders']} joined",
+                                                  theme,
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Text(
+                                              _isStartedRideStatus(
+                                                    upcomingRideStatus,
+                                                  )
+                                                  ? "Ride will open once active"
+                                                  : "Ride scheduled for later",
+                                              style: _bodyStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Icon(
+                                          Icons.chevron_right,
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    /// RECENT RIDE
+                    if (latestCompletedRide != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                        child: _sectionShell(
+                          eyebrow: "Recently completed",
+                          title: "Last Ride",
+                          theme: theme,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: _cardDecoration(theme),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.route_rounded,
+                                    color: theme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    latestCompletedRide['title']?.toString() ??
+                                        "Ride",
+                                    style: _cardTitleStyle(theme.textPrimary),
                                   ),
                                 ),
                               ],
                             ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    /// ACHIEVEMENT
+                    if (achievements.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                        child: _sectionShell(
+                          eyebrow: "Progress marker",
+                          title: "Latest Achievement",
+                          theme: theme,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: _cardDecoration(theme),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.tertiary.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.emoji_events_rounded,
+                                    color: theme.tertiary,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    achievements.last['title']?.toString() ??
+                                        "Achievement",
+                                    style: _cardTitleStyle(theme.textPrimary),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    /// WEEK STATS (ONLY IF DATA EXISTS)
+                    if (!(miles == 0 && avg == 0 && duration == 0)) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                        child: _sectionShell(
+                          eyebrow: "At a glance",
+                          title: "This Week",
+                          theme: theme,
+                          child: Row(
+                            children: [
+                              if (miles != 0) ...[
+                                Expanded(
+                                  child: StatCard(
+                                    title: "Miles",
+                                    value: "$miles",
+                                    theme: theme,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              if (avg != 0) ...[
+                                Expanded(
+                                  child: StatCard(
+                                    title: "Avg MPH",
+                                    value: "$avg",
+                                    theme: theme,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              if (duration != 0)
+                                Expanded(
+                                  child: StatCard(
+                                    title: "Duration",
+                                    value: "${duration}h",
+                                    theme: theme,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    /// WEATHER
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      child: _sectionShell(
+                        eyebrow: "Road conditions",
+                        title: "Weather",
+                        theme: theme,
+                        child: Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: _cardDecoration(
+                            theme,
+                            color: theme.surface.withValues(alpha: 0.9),
+                          ),
+                          child: _isLoadingWeather
+                              ? Center(
+                                  child: CircularProgressIndicator(
+                                    color: theme.primary,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 52,
+                                            height: 52,
+                                            decoration: BoxDecoration(
+                                              color: theme.surface,
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                            ),
+                                            child: Icon(
+                                              _getIconData(
+                                                _weatherData?['icon'],
+                                              ),
+                                              color: theme.primary,
+                                              size: 28,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _weatherData?['description'] ??
+                                                      "Weather Unavailable",
+                                                  style: _cardTitleStyle(
+                                                    theme.textPrimary,
+                                                  ).copyWith(fontSize: 15),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  _cityName ??
+                                                      "Location Unavailable",
+                                                  style: _bodyStyle(
+                                                    theme.textPrimary,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      _weatherData != null
+                                          ? "${_weatherData!['temperature']}°"
+                                          : "--°",
+                                      style: GoogleFonts.lexend(
+                                        color: theme.textPrimary,
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1281,8 +1346,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
+  final AppThemeConfig theme;
 
-  const StatCard({super.key, required this.title, required this.value});
+  const StatCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.theme,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1290,14 +1361,14 @@ class StatCard extends StatelessWidget {
       width: 100,
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       decoration: BoxDecoration(
-        color: DashboardColors.card,
+        color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: DashboardColors.border),
-        boxShadow: const [
+        border: Border.all(color: const Color(0x52B8C6DA)),
+        boxShadow: [
           BoxShadow(
-            color: DashboardColors.shadow,
+            color: theme.textPrimary.withValues(alpha: 0.08),
             blurRadius: 20,
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -1306,7 +1377,7 @@ class StatCard extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.lexend(
-              color: DashboardColors.textPrimary,
+              color: theme.textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.w700,
             ),
@@ -1315,7 +1386,7 @@ class StatCard extends StatelessWidget {
           Text(
             title.toUpperCase(),
             style: GoogleFonts.lexend(
-              color: DashboardColors.textSecondary,
+              color: theme.textPrimary.withValues(alpha: 0.6),
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,

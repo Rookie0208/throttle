@@ -5,6 +5,7 @@ import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class PlanRideScreen extends StatefulWidget {
   final String token;
@@ -134,7 +135,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   boxShadow: isActive
                       ? [
                           BoxShadow(
-                            color: primaryColor.withOpacity(0.35),
+                            color: primaryColor.withValues(alpha: 0.35),
                             blurRadius: 10,
                             spreadRadius: 1,
                           ),
@@ -904,7 +905,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                             level,
                             style: TextStyle(
                               color: selected
-                                  ? Colors.white
+                                  ? primaryColor
                                   : const Color(0xff191B22),
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
@@ -933,12 +934,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                           height: 34,
                           width: 34,
                           decoration: BoxDecoration(
-                            color: const Color(0xff0047DE).withOpacity(0.12),
+                            color: primaryColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.person_add_alt_1,
-                            color: Color(0xff0047DE),
+                            color: primaryColor,
                             size: 18,
                           ),
                         ),
@@ -1151,7 +1152,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     final modalHeight = MediaQuery.of(context).size.height * 0.56;
 
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.40),
+      backgroundColor: Colors.black.withValues(alpha: 0.40),
       body: SafeArea(
         child: Align(
           alignment: Alignment.bottomCenter,
