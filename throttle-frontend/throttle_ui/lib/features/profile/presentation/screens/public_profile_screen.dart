@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
@@ -38,7 +40,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     _fetchRelationshipStatus();
   }
 
-  String? get _targetUuid => (_profile['uuid'] ?? widget.user['uuid']) as String?;
+  String? get _targetUuid =>
+      (_profile['uuid'] ?? widget.user['uuid']) as String?;
 
   Map<String, dynamic> get _displayUser => _profile;
 
@@ -62,9 +65,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   Future<void> _fetchFriendCount() async {
     final uuid = _targetUuid;
     if (uuid == null) return;
-    await Logger.info(
-      _ctx('fetch_friend_count', {'target': uuid}),
-    );
+    await Logger.info(_ctx('fetch_friend_count', {'target': uuid}));
     final friends = await FriendService.getFriends(uuid);
     if (mounted) setState(() => friendCount = friends.length);
   }
@@ -75,12 +76,8 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
       setState(() => isLoadingMutual = false);
       return;
     }
-    await Logger.info(
-      _ctx('fetch_mutual_count', {'target': uuid}),
-    );
-    final count = await FriendService.getMutualFriendsCount(
-      uuid,
-    );
+    await Logger.info(_ctx('fetch_mutual_count', {'target': uuid}));
+    final count = await FriendService.getMutualFriendsCount(uuid);
     if (mounted) {
       setState(() {
         mutualCount = count;
@@ -101,9 +98,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
       return;
     }
 
-    await Logger.info(
-      _ctx('fetch_relationship', {'target': uuid}),
-    );
+    await Logger.info(_ctx('fetch_relationship', {'target': uuid}));
     final data = await FriendService.getRelationshipStatus(uuid);
     if (mounted) {
       setState(() {
@@ -182,13 +177,14 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Widget _buildRelationshipButton() {
+    final colorScheme = Theme.of(context).colorScheme;
     if (isActionLoading) {
-      return const SizedBox(
+      return SizedBox(
         height: 36,
         width: 36,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: Color(0xfffe6603),
+          color: colorScheme.primary,
         ),
       );
     }
@@ -216,7 +212,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         return ElevatedButton(
           onPressed: _acceptFriendRequest,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xfffe6603),
+            backgroundColor: colorScheme.primary,
             foregroundColor: Colors.white,
           ),
           child: const Text('Accept Request'),
@@ -228,7 +224,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         return ElevatedButton(
           onPressed: _sendFriendRequest,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xfffe6603),
+            backgroundColor: colorScheme.primary,
             foregroundColor: Colors.white,
           ),
           child: const Text('Add Friend'),
@@ -238,38 +234,37 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final user = _displayUser;
-    final String name =
-        "${user["firstName"] ?? ""} ${user["lastName"] ?? ""}"
-            .trim();
+    final String name = "${user["firstName"] ?? ""} ${user["lastName"] ?? ""}"
+        .trim();
     final String riderId = (user["riderId"] ?? "").toString();
 
     return Scaffold(
-      backgroundColor: const Color(0xff0f1114),
-      appBar: AppBar(
-        backgroundColor: const Color(0xff1a1c20),
-        title: const Text("Rider Profile"),
-      ),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(title: const Text("Rider Profile")),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xff1a1c20),
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colorScheme.outlineVariant),
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: const Color(0xfffe6603),
+                  backgroundColor: colorScheme.primary,
                   child: Text(
                     name.isNotEmpty ? name[0] : "R",
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: GoogleFonts.lexend(
+                      color: colorScheme.onPrimary,
                       fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -280,18 +275,18 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                     children: [
                       Text(
                         name,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: GoogleFonts.lexend(
+                          color: colorScheme.onSurface,
                           fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       if (riderId.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           "@$riderId",
-                          style: const TextStyle(
-                            color: Color(0xfffe6603),
+                          style: GoogleFonts.lexend(
+                            color: colorScheme.primary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -300,7 +295,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                       const SizedBox(height: 4),
                       Text(
                         user["bio"] ?? "Motorcycle enthusiast",
-                        style: const TextStyle(color: Colors.white70),
+                        style: textTheme.bodyMedium,
                       ),
                       const SizedBox(height: 6),
                       Row(
@@ -308,13 +303,13 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           const Icon(
                             Icons.people,
                             size: 13,
-                            color: Colors.white54,
+                            color: AppColors.textMuted,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             "$friendCount Friends",
                             style: const TextStyle(
-                              color: Colors.white54,
+                              color: AppColors.textMuted,
                               fontSize: 12,
                             ),
                           ),
@@ -322,13 +317,13 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             const SizedBox(width: 10),
                             const Text(
                               "·",
-                              style: TextStyle(color: Colors.white38),
+                              style: TextStyle(color: AppColors.textHint),
                             ),
                             const SizedBox(width: 10),
                             Text(
                               "$mutualCount Mutual",
                               style: const TextStyle(
-                                color: Color(0xfffe6603),
+                                color: AppColors.primary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -344,22 +339,30 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                             width: 10,
                             child: CircularProgressIndicator(
                               strokeWidth: 1.5,
-                              color: Color(0xfffe6603),
+                              color: AppColors.primary,
                             ),
-                          ),
-                        ),
-                      if (isLoadingProfile)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 6),
-                          child: Text(
-                            "Loading profile...",
-                            style: TextStyle(color: Colors.white38, fontSize: 11),
                           ),
                         ),
                     ],
                   ),
                 ),
-                _buildRelationshipButton(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    _buildRelationshipButton(),
+                    if (isLoadingProfile)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Text(
+                          "Loading profile...",
+                          style: TextStyle(
+                            color: AppColors.textHint,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -382,25 +385,30 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
   }
 
   Widget _stat(String label, String value) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xff1a1c20),
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colorScheme.outlineVariant),
         ),
         child: Column(
           children: [
             Text(
               value,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
             ),
           ],
         ),

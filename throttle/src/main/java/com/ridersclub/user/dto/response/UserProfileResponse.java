@@ -85,10 +85,15 @@ public class UserProfileResponse {
     public static class UpcomingRideDto {
         private String uuid;
         private String id;
+        private String groupUuid;
         private String title;
+        private String description;
+        private String createdByName;
+        private String visibility;
         private String subtitle; // e.g. "8 Riders • Feb 15 • 7:30 AM"
         private String time;
         private Integer riders;
         private String startTime;
+        private String status;
     }
 }

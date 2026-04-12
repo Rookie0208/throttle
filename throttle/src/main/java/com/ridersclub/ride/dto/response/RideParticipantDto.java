@@ -18,6 +18,10 @@ public class RideParticipantDto {
 
     private String role; // CAPTAIN / MEMBER
     private String rsvpStatus; // ACCEPTED / PENDING
+    private String participantState;
+    private Double lastLatitude;
+    private Double lastLongitude;
+    private LocalDateTime lastLocationUpdatedAt;
 
     private LocalDateTime joinedAt;
 }

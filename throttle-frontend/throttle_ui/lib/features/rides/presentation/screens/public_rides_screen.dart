@@ -262,7 +262,11 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Failed to join ride")));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceFirst("Exception: ", "")),
+        ),
+      );
     }
   }
 

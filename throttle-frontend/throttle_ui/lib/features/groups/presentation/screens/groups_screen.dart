@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/public_rides_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
 import 'group_chat_screen.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class GroupsScreen extends StatefulWidget {
   final String token;
@@ -19,6 +21,9 @@ class _GroupsScreenState extends State<GroupsScreen>
   List<Map<String, dynamic>> groups = [];
   bool isLoading = true;
   late TabController _tabController;
+  Set<String> hiddenExitedGroupUuids = <String>{};
+
+  static const String _hiddenGroupsKey = 'hidden_exited_group_uuids';
 
   Map<String, dynamic> _normalizeRide(Map<String, dynamic> ride) {
     final now = DateTime.now();
@@ -44,42 +49,46 @@ class _GroupsScreenState extends State<GroupsScreen>
 
     return {
       ...ride,
-      "id": ride["groupUuid"],
-      "groupId": ride["groupUuid"],
-      "rideId": ride["uuid"],
+      "id": ride["uuid"],
+      "rideUuid": ride["uuid"],
+      "uuid": ride["groupUuid"] ?? ride["uuid"],
       "name": ride["title"],
       "rideStatus": effectiveRideStatus,
       "status": sectionStatus,
+      "myRole": ride["myRole"],
+      "membershipStatus": ride["membershipStatus"] ?? "CREATED",
+      "isMember": ride["isMember"] ?? true,
       "members": [],
     };
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppThemeConfig theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.motorcycle, size: 70, color: AppColors.white30),
+          Icon(
+            Icons.motorcycle,
+            size: 70,
+            color: theme.textPrimary.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 20),
-
-          const Text(
+          Text(
             "No rides yet",
-            style: TextStyle(
-              color: AppColors.white,
+            style: GoogleFonts.lexend(
+              color: theme.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
             ),
           ),
-
           const SizedBox(height: 8),
-
-          const Text(
+          Text(
             "Join a ride or create your own.",
-            style: TextStyle(color: AppColors.textMuted),
+            style: GoogleFonts.plusJakartaSans(
+              color: theme.textPrimary.withValues(alpha: 0.6),
+            ),
           ),
-
           const SizedBox(height: 25),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -92,15 +101,11 @@ class _GroupsScreenState extends State<GroupsScreen>
                     ),
                   );
                 },
+                style: TextButton.styleFrom(foregroundColor: theme.primary),
                 child: const Text("Join Ride"),
               ),
-
               const SizedBox(width: 20),
-
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                ),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -109,10 +114,11 @@ class _GroupsScreenState extends State<GroupsScreen>
                     ),
                   );
                 },
-                child: const Text(
-                  "Create Ride",
-                  style: TextStyle(color: AppColors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primary,
+                  foregroundColor: Colors.white,
                 ),
+                child: const Text("Create Ride"),
               ),
             ],
           ),
@@ -125,7 +131,26 @@ class _GroupsScreenState extends State<GroupsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    fetchGroups();
+    _loadHiddenGroups().then((_) => fetchGroups());
+  }
+
+  Future<void> _loadHiddenGroups() async {
+    final prefs = await SharedPreferences.getInstance();
+    hiddenExitedGroupUuids =
+        (prefs.getStringList(_hiddenGroupsKey) ?? <String>[]).toSet();
+  }
+
+  Future<void> _hideExitedGroup(String groupUuid) async {
+    final prefs = await SharedPreferences.getInstance();
+    hiddenExitedGroupUuids = {...hiddenExitedGroupUuids, groupUuid};
+    await prefs.setStringList(
+      _hiddenGroupsKey,
+      hiddenExitedGroupUuids.toList(),
+    );
+    if (!mounted) return;
+    setState(() {
+      groups.removeWhere((group) => group["uuid"] == groupUuid);
+    });
   }
 
   Future<void> fetchGroups() async {
@@ -134,8 +159,6 @@ class _GroupsScreenState extends State<GroupsScreen>
         widget.token,
       );
 
-      print("RIDES API DATA => ${result["data"]}");
-
       if (result["data"] != null && result["data"].isNotEmpty) {
         List<Map<String, dynamic>> rides = List<Map<String, dynamic>>.from(
           result["data"],
@@ -143,6 +166,11 @@ class _GroupsScreenState extends State<GroupsScreen>
 
         List<Map<String, dynamic>> mappedGroups = rides
             .map(_normalizeRide)
+            .where(
+              (group) =>
+                  !(group["membershipStatus"] == "EXITED" &&
+                      hiddenExitedGroupUuids.contains(group["uuid"])),
+            )
             .toList();
 
         setState(() {
@@ -163,86 +191,140 @@ class _GroupsScreenState extends State<GroupsScreen>
     }
   }
 
-  // change this dummy data
-  void _loadDummyData() {
-    setState(() {
-      groups = [
-        {
-          "id": "1",
-          "name": "Morning Riders",
-          "status": "active",
-          "rideStatus": "CREATED",
-          "members": [
-            {"id": "u1", "name": "Amit", "role": "CAPTAIN"},
-            {"id": "u2", "name": "Sara", "role": "RIDER"},
-            {"id": "u3", "name": "John", "role": "NAVIGATOR"},
-          ],
-        },
-        {
-          "id": "2",
-          "name": "Weekend Warriors",
-          "status": "archive",
-          "rideStatus": "STARTED",
-          "members": [
-            {"id": "u4", "name": "Lily", "role": "CAPTAIN"},
-            {"id": "u5", "name": "Tom", "role": "RIDER"},
-          ],
-        },
-      ];
-      isLoading = false;
-    });
-  }
+  Widget _buildGroupCard(Map<String, dynamic> group, AppThemeConfig theme) {
+    final isExited = group["membershipStatus"] == "EXITED";
 
-  Widget _buildGroupCard(Map<String, dynamic> group) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GroupChatScreen(group: group, token: widget.token),
-          ),
-        );
-      },
+      onTap: isExited
+          ? null
+          : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      GroupChatScreen(group: group, token: widget.token),
+                ),
+              ).then((result) {
+                if (result == true) {
+                  fetchGroups();
+                }
+              });
+            },
       child: Container(
         padding: const EdgeInsets.all(14),
         margin: const EdgeInsets.symmetric(vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: theme.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.white24),
+          border: Border.all(color: const Color(0x52B8C6DA)),
         ),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              height: 45,
-              width: 45,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                group["name"][0], // first letter
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Container(
+                  height: 45,
+                  width: 45,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: theme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    group["name"][0],
+                    style: TextStyle(
+                      color: theme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                group["name"],
-                style: const TextStyle(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        group["name"],
+                        style: GoogleFonts.lexend(
+                          color: theme.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (isExited) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          "You are no longer a member of this group",
+                          style: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.6),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
+                if (!isExited)
+                  Text(
+                    group["rideStatus"],
+                    style: GoogleFonts.lexend(
+                      color: theme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+            if (isExited) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        try {
+                          await GroupService.joinRide(
+                            widget.token,
+                            group["rideUuid"].toString(),
+                          );
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Rejoined ride")),
+                          );
+                          await fetchGroups();
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                e.toString().replaceFirst("Exception: ", ""),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: theme.primary),
+                        foregroundColor: theme.primary,
+                      ),
+                      child: const Text("Rejoin"),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () =>
+                          _hideExitedGroup(group["uuid"].toString()),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.textPrimary.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                      child: const Text("Delete"),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Text(
-              group["rideStatus"], // show ride status
-              style: const TextStyle(color: AppColors.textHint),
-            ),
+            ],
           ],
         ),
       ),
@@ -251,67 +333,94 @@ class _GroupsScreenState extends State<GroupsScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
 
-    // Separate active and completed groups
-    // If no rides exist
-    if (groups.isEmpty) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          title: const Text("Rides"),
-        ),
-        body: _buildEmptyState(),
-      );
-    }
+        if (isLoading) {
+          return Scaffold(
+            backgroundColor: theme.background,
+            body: Center(
+              child: CircularProgressIndicator(color: theme.primary),
+            ),
+          );
+        }
 
-    // Separate active and completed groups
-    final activeGroups = groups.where((g) => g["status"] == "active").toList();
-    final completedGroups = groups
-        .where((g) => g["status"] == "archive")
-        .toList();
+        // Separate active and completed groups
+        if (groups.isEmpty) {
+          return Scaffold(
+            backgroundColor: theme.background,
+            appBar: AppBar(
+              backgroundColor: theme.background,
+              title: Text(
+                "Rides",
+                style: GoogleFonts.lexend(
+                  color: theme.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            body: _buildEmptyState(theme),
+          );
+        }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        title: const Text("Rides"),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.white,
-          unselectedLabelColor: AppColors.textSecondary,
-          tabs: const [
-            Tab(text: "Active"),
-            Tab(text: "Completed"),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Active Groups Tab
-          ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: activeGroups.length,
-            itemBuilder: (context, index) {
-              return _buildGroupCard(activeGroups[index]);
-            },
+        final activeGroups = groups
+            .where((g) => g["status"] == "active")
+            .toList();
+        final completedGroups = groups
+            .where((g) => g["status"] == "archive")
+            .toList();
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          appBar: AppBar(
+            backgroundColor: theme.background,
+            title: Text(
+              "Rides",
+              style: GoogleFonts.lexend(
+                color: theme.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            bottom: TabBar(
+              controller: _tabController,
+              labelColor: theme.primary,
+              unselectedLabelColor: theme.textPrimary.withValues(alpha: 0.6),
+              indicator: BoxDecoration(
+                color: theme.primary.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              tabs: const [
+                Tab(text: "Active"),
+                Tab(text: "Completed"),
+              ],
+            ),
           ),
-
-          // Completed Groups Tab
-          ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: completedGroups.length,
-            itemBuilder: (context, index) {
-              return _buildGroupCard(completedGroups[index]);
-            },
+          body: TabBarView(
+            controller: _tabController,
+            children: [
+              // Active Groups Tab
+              ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: activeGroups.length,
+                itemBuilder: (context, index) {
+                  return _buildGroupCard(activeGroups[index], theme);
+                },
+              ),
+              // Completed Groups Tab
+              ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: completedGroups.length,
+                itemBuilder: (context, index) {
+                  return _buildGroupCard(completedGroups[index], theme);
+                },
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
@@ -11,7 +12,9 @@ import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/core/services/weather_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -23,6 +26,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  Map<String, dynamic>? _profileData;
   String? _cityName;
   Map<String, dynamic>? _weatherData;
   bool _isLoadingWeather = true;
@@ -32,7 +36,143 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _userUuid;
   StompClient? _notificationClient;
 
-  Map<String, dynamic> get _userData => widget.userData ?? const {};
+  TextStyle _eyebrowStyle(Color color) => GoogleFonts.lexend(
+    color: color.withValues(alpha: 0.6),
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 1.1,
+  );
+
+  TextStyle _sectionTitleStyle(Color color) => GoogleFonts.lexend(
+    color: color,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    height: 1.05,
+  );
+
+  TextStyle _cardTitleStyle(Color color) => GoogleFonts.lexend(
+    color: color,
+    fontSize: 17,
+    fontWeight: FontWeight.w700,
+    height: 1.15,
+  );
+
+  TextStyle _bodyStyle(Color color) => GoogleFonts.plusJakartaSans(
+    color: color.withValues(alpha: 0.7),
+    fontSize: 13,
+    fontWeight: FontWeight.w500,
+    height: 1.45,
+  );
+
+  BoxDecoration _sectionDecoration(AppThemeConfig theme, {Color? color}) {
+    return BoxDecoration(
+      color: color ?? theme.surface.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(30),
+      border: Border.all(color: const Color(0x52B8C6DA)),
+    );
+  }
+
+  BoxDecoration _cardDecoration(AppThemeConfig theme, {Color? color}) {
+    return BoxDecoration(
+      color: color ?? theme.surface,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(
+        color: const Color(0x52B8C6DA).withValues(alpha: 0.75),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: theme.textPrimary.withValues(alpha: 0.08),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionShell({
+    required String eyebrow,
+    required String title,
+    String? action,
+    required Widget child,
+    required AppThemeConfig theme,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: _sectionDecoration(theme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        eyebrow.toUpperCase(),
+                        style: _eyebrowStyle(theme.textPrimary),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(title, style: _sectionTitleStyle(theme.textPrimary)),
+                    ],
+                  ),
+                ),
+              ),
+              if (action != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    action,
+                    style: GoogleFonts.lexend(
+                      color: theme.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _metaPill(IconData icon, String text, AppThemeConfig theme) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.surface.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: theme.tertiary),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                color: theme.textPrimary.withValues(alpha: 0.6),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Map<String, dynamic> get _userData =>
+      _profileData ?? widget.userData ?? const {};
 
   Map<String, dynamic>? _mapValue(String key) {
     final value = _userData[key];
@@ -73,30 +213,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return "$day/$month/${startTime.year}";
   }
 
-  void _openRideGroup(Map<String, dynamic> ride, {String rideStatus = "SCHEDULED"}) {
+  Future<void> _openRideGroup(
+    Map<String, dynamic> ride, {
+    String rideStatus = "SCHEDULED",
+  }) async {
     final group = {
-      "uuid": ride["uuid"] ?? ride["id"],
-      "id": ride["uuid"] ?? ride["id"],
+      "uuid": ride["groupUuid"] ?? ride["uuid"] ?? ride["id"],
+      "id": ride["groupUuid"] ?? ride["uuid"] ?? ride["id"],
+      "rideUuid": ride["uuid"] ?? ride["id"],
       "name": ride["title"] ?? "Ride",
       "title": ride["title"] ?? "Ride",
       "status": rideStatus == "CANCELLED" || rideStatus == "COMPLETED"
           ? "archive"
           : "active",
       "rideStatus": rideStatus,
-      "description": ride["subtitle"] ?? "",
-      "visibility": "PUBLIC",
+      "description": ride["description"] ?? _cleanSubtitle(ride),
+      "visibility": ride["visibility"] ?? "PUBLIC",
+      "createdByName": ride["createdByName"],
+      "createdAt": ride["createdAt"],
+      "myRole": ride["myRole"],
       "members": <Map<String, dynamic>>[],
     };
 
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => GroupChatScreen(
-          group: group,
-          token: widget.token,
-        ),
+        builder: (_) => GroupChatScreen(group: group, token: widget.token),
       ),
     );
+    await _refreshProfileData();
   }
 
   String _sectionHeading(Map<String, dynamic>? ride) {
@@ -107,12 +252,117 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return "Today's Plan";
   }
 
+  String _rideStatusForDashboard({
+    required Map<String, dynamic>? todayRide,
+    required Map<String, dynamic>? todayPlanRide,
+  }) {
+    if (todayRide != null) {
+      return "ACTIVE";
+    }
+    final rawStatus =
+        (todayPlanRide?["status"] ?? todayPlanRide?["rideStatus"] ?? "")
+            .toString()
+            .toUpperCase();
+    if (rawStatus.isNotEmpty) return rawStatus;
+    return "SCHEDULED";
+  }
+
+  String _normalizedRideStatus(Map<String, dynamic>? ride) {
+    final rawStatus = (ride?["rideStatus"] ?? ride?["status"] ?? "")
+        .toString()
+        .toUpperCase();
+    if (rawStatus.isNotEmpty) return rawStatus;
+    return "SCHEDULED";
+  }
+
+  bool _isStartedRideStatus(String status) {
+    return {
+      "PARTIAL_STARTED",
+      "READY_TO_START",
+      "ACTIVE",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "CANCELLED",
+    }.contains(status.toUpperCase());
+  }
+
+  bool _shouldShowRideConsoleButton(String status) {
+    final normalized = status.toUpperCase();
+    return {
+      "READY_TO_START",
+      "PARTIAL_STARTED",
+      "ACTIVE",
+      "IN_PROGRESS",
+    }.contains(normalized);
+  }
+
+  String _rideLocationLabel(Map<String, dynamic>? ride) {
+    final locations = ride?["locations"];
+    if (locations is List && locations.isNotEmpty) {
+      final first = locations.first;
+      if (first is Map && first["name"] != null) {
+        return first["name"].toString();
+      }
+    }
+    return (ride?["meetingPoint"] ??
+            ride?["startLocation"] ??
+            ride?["location"] ??
+            "Start point")
+        .toString();
+  }
+
+  int _rideMemberCount(Map<String, dynamic>? ride) {
+    final riders = ride?["riders"];
+    if (riders is int) return riders;
+    final maxRiders = ride?["maxRiders"];
+    if (maxRiders is int) return maxRiders;
+    return int.tryParse((maxRiders ?? riders ?? 0).toString()) ?? 0;
+  }
+
+  Future<void> _openRideConsoleFromDashboard(
+    Map<String, dynamic> ride, {
+    required String rideStatus,
+  }) async {
+    print('Ride data: $ride'); // Debug print
+    final normalizedStatus = rideStatus.toUpperCase();
+    final title = (ride["title"] ?? "Ride").toString();
+
+    final Widget target = normalizedStatus == "ACTIVE"
+        ? LiveRideScreen(
+            groupName: title,
+            onEndRide: () {},
+            token: widget.token,
+            rideUuid: (ride["uuid"] ?? ride["id"]).toString(),
+          )
+        : RideStartScreen(
+            groupName: title,
+            rideDate: _upcomingRideDateLabel(ride),
+            rideTime: ride["time"]?.toString() ?? "",
+            location: _rideLocationLabel(ride),
+            memberCount: _rideMemberCount(ride),
+            token: widget.token,
+            rideUuid: (ride["uuid"] ?? ride["id"]).toString(),
+          );
+
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => target));
+    await _refreshProfileData();
+  }
+
   @override
   void initState() {
     super.initState();
+    _refreshProfileData();
     _fetchLocationAndWeather();
     _initializeNotifications();
     _syncUpcomingRideReminderNotifications();
+  }
+
+  Future<void> _refreshProfileData() async {
+    final freshProfile = await UserService.getMe();
+    if (!mounted || freshProfile == null) return;
+    setState(() {
+      _profileData = freshProfile;
+    });
   }
 
   @override
@@ -183,7 +433,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           position.latitude,
           position.longitude,
         );
-        
+
         final weather = await WeatherService.getCurrentWeather(
           position.latitude,
           position.longitude,
@@ -251,730 +501,844 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-Future<void> _fetchUnreadNotificationCount() async {
-  final data = await NotificationService().fetchNotifications(widget.token);
-  final dashboardAnnouncement = await _pickDashboardAnnouncement(data);
+  Future<void> _fetchUnreadNotificationCount() async {
+    final data = await NotificationService().fetchNotifications(widget.token);
+    final dashboardAnnouncement = await _pickDashboardAnnouncement(data);
 
-  if (!mounted) return;
-  setState(() {
-    _notifications = data;
-    _dashboardAnnouncement = dashboardAnnouncement;
-    unreadNotificationCount =
-        data.where((n) => n.unread).length;
-  });
-}
+    if (!mounted) return;
+    setState(() {
+      _notifications = data;
+      _dashboardAnnouncement = dashboardAnnouncement;
+      unreadNotificationCount = data.where((n) => n.unread).length;
+    });
+  }
 
-Future<NotificationItem?> _pickDashboardAnnouncement(
-  List<NotificationItem> notifications,
-) async {
-  final prefs = await SharedPreferences.getInstance();
-  final announcement = notifications
-      .where((item) => item.type == "ANNOUNCEMENT_PUBLISHED")
-      .cast<NotificationItem?>()
-      .firstWhere((item) => item != null, orElse: () => null);
+  Future<NotificationItem?> _pickDashboardAnnouncement(
+    List<NotificationItem> notifications,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final announcement = notifications
+        .where((item) => item.type == "ANNOUNCEMENT_PUBLISHED")
+        .cast<NotificationItem?>()
+        .firstWhere((item) => item != null, orElse: () => null);
 
-  if (announcement == null) return null;
+    if (announcement == null) return null;
 
-  final seenKey = "seen_dashboard_announcement_${announcement.id}";
-  final hasSeen = prefs.getBool(seenKey) ?? false;
-  if (hasSeen) return null;
+    final seenKey = "seen_dashboard_announcement_${announcement.id}";
+    final hasSeen = prefs.getBool(seenKey) ?? false;
+    if (hasSeen) return null;
 
-  await prefs.setBool(seenKey, true);
-  return announcement;
-}
+    await prefs.setBool(seenKey, true);
+    return announcement;
+  }
 
-Future<void> _syncUpcomingRideReminderNotifications() async {
-  final upcomingRide = widget.userData?['upcomingRide'];
-  if (upcomingRide is! Map<String, dynamic>) return;
+  Future<void> _syncUpcomingRideReminderNotifications() async {
+    final upcomingRide = widget.userData?['upcomingRide'];
+    if (upcomingRide is! Map<String, dynamic>) return;
 
-  final startTimeRaw = upcomingRide['startTime']?.toString();
-  if (startTimeRaw == null || startTimeRaw.isEmpty) return;
+    final startTimeRaw = upcomingRide['startTime']?.toString();
+    if (startTimeRaw == null || startTimeRaw.isEmpty) return;
 
-  final parsedStartTime = DateTime.tryParse(startTimeRaw);
-  if (parsedStartTime == null) return;
+    final parsedStartTime = DateTime.tryParse(startTimeRaw);
+    if (parsedStartTime == null) return;
 
-  await NotificationService().notifyRideReminders(
-    token: widget.token,
-    rideTitle: upcomingRide['title']?.toString() ?? "Ride",
-    rideId: upcomingRide['uuid']?.toString(),
-    startTime: parsedStartTime.toLocal(),
-  );
-}
+    await NotificationService().notifyRideReminders(
+      token: widget.token,
+      rideTitle: upcomingRide['title']?.toString() ?? "Ride",
+      rideId: upcomingRide['uuid']?.toString(),
+      startTime: parsedStartTime.toLocal(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final miles = _userData['weeklyMiles'] ?? 0;
-    final avg = _userData['weeklyAvgMph'] ?? 0;
-    final duration = _userData['weeklyDuration'] ?? 0;
-    final todayRide = _mapValue('todayRide');
-    final upcomingRide = _mapValue('upcomingRide');
-    final recentRides = _mapListValue('recentRides');
-    final achievements = _mapListValue('achievements');
-    final todayPlanRide = todayRide ??
-        (_isSameDay(_rideStartTime(upcomingRide), DateTime.now())
-            ? upcomingRide
-            : null);
-    final showUpcomingRide = upcomingRide != null &&
-        !_isSameDay(_rideStartTime(upcomingRide), _rideStartTime(todayPlanRide)) &&
-        !_isSameDay(_rideStartTime(upcomingRide), DateTime.now());
-    final cleanedTodaySubtitle = _cleanSubtitle(todayPlanRide);
-    final upcomingDateLabel = _upcomingRideDateLabel(upcomingRide);
-    final latestCompletedRide =
-        recentRides.isNotEmpty ? recentRides.first : null;
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+        final borderSideColor = const Color(0x52B8C6DA);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.only(bottom: 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// HEADER
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 15,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        final miles = _userData['weeklyMiles'] ?? 0;
+        final avg = _userData['weeklyAvgMph'] ?? 0;
+        final duration = _userData['weeklyDuration'] ?? 0;
+        final todayRide = _mapValue('todayRide');
+        final upcomingRide = _mapValue('upcomingRide');
+        final recentRides = _mapListValue('recentRides');
+        final achievements = _mapListValue('achievements');
+        final todayPlanRide =
+            todayRide ??
+            (_isSameDay(_rideStartTime(upcomingRide), DateTime.now())
+                ? upcomingRide
+                : null);
+        final dashboardRideStatus = _rideStatusForDashboard(
+          todayRide: todayRide,
+          todayPlanRide: todayPlanRide,
+        );
+        final showUpcomingRide =
+            upcomingRide != null &&
+            !_isSameDay(
+              _rideStartTime(upcomingRide),
+              _rideStartTime(todayPlanRide),
+            ) &&
+            !_isSameDay(_rideStartTime(upcomingRide), DateTime.now());
+        final upcomingRideStatus = _normalizedRideStatus(upcomingRide);
+        final cleanedTodaySubtitle = _cleanSubtitle(todayPlanRide);
+        final upcomingDateLabel = _upcomingRideDateLabel(upcomingRide);
+        final latestCompletedRide = recentRides.isNotEmpty
+            ? recentRides.first
+            : null;
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  theme.background,
+                  theme.background.withValues(alpha: 0.9),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _getGreeting(),
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.userData != null
-                              ? "${(_userData['firstName'] ?? '').toString().toCapitalized()} ${(_userData['lastName'] ?? '').toString().toCapitalized()}"
-                                    .trim()
-                              : "Guest",
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    /// RIGHT SIDE ICONS
-                    Row(
-  children: [
-    Stack(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(30),
-          ),
-          child: IconButton(
-            icon: const Icon(
-              Icons.notifications_none,
-              color: AppColors.textPrimary,
-              size: 22,
-            ),
-            onPressed: () async {
-              final result = await Navigator.push<List<NotificationItem>>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => NotificationsScreen(
-                    onClose: () {},
-                    token: widget.token,
-                    initialNotifications: _notifications,
-                  ),
-                ),
-              );
-
-              if (result != null && mounted) {
-                setState(() {
-                  _notifications = result;
-                  unreadNotificationCount =
-                      result.where((n) => n.unread).length;
-                });
-              }
-            },
-          ),
-        ),
-
-        /// 🔥 SHOW COUNT (only if > 0)
-        if (unreadNotificationCount > 0)
-          Positioned(
-            right: 6,
-            top: 6,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              constraints: const BoxConstraints(
-                minWidth: 18,
-                minHeight: 18,
-              ),
-              child: Center(
-                child: Text(
-                  unreadNotificationCount > 99
-                      ? "99+"
-                      : "$unreadNotificationCount",
-                  style: const TextStyle(
-                    color: AppColors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  ],
-)
-                  ],
-                ),
-              ),
-
-              /// START RIDE BUTTON
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GestureDetector(
-                  onTap: () {},
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: const [
-                            Icon(Icons.flash_on, color: AppColors.white, size: 26),
-                            SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Start Ride",
-                                  style: TextStyle(
-                                    color: AppColors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 3),
-                                Text(
-                                  "Begin tracking your ride",
-                                  style: TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          color: AppColors.textSecondary,
-                          size: 18,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              if (_dashboardAnnouncement != null) ...[
-                const SizedBox(height: 25),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0x337D39EB), Color(0x22C6FF33)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                    /// HEADER
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 18,
                       ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: AppColors.primary.withOpacity(.35)),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(.14),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.campaign_rounded,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _dashboardAnnouncement!.title,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontWeight: FontWeight.bold,
+                                _getGreeting(),
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               Text(
-                                _dashboardAnnouncement!.desc,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
-                                  height: 1.3,
+                                widget.userData != null
+                                    ? "${(_userData['firstName'] ?? '').toString().toCapitalized()} ${(_userData['lastName'] ?? '').toString().toCapitalized()}"
+                                          .trim()
+                                    : "Guest",
+                                style: GoogleFonts.lexend(
+                                  color: theme.textPrimary,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          /// RIGHT SIDE ICONS
+                          Row(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: theme.surface.withValues(
+                                        alpha: 0.8,
+                                      ),
+                                      borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.08,
+                                          ),
+                                          blurRadius: 18,
+                                          offset: const Offset(0, 8),
+                                        ),
+                                      ],
+                                    ),
+                                    child: IconButton(
+                                      icon: Icon(
+                                        Icons.notifications_none,
+                                        color: theme.textPrimary,
+                                        size: 22,
+                                      ),
+                                      onPressed: () async {
+                                        final result =
+                                            await Navigator.push<
+                                              List<NotificationItem>
+                                            >(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    NotificationsScreen(
+                                                      onClose: () {},
+                                                      token: widget.token,
+                                                      initialNotifications:
+                                                          _notifications,
+                                                    ),
+                                              ),
+                                            );
+
+                                        if (result != null && mounted) {
+                                          setState(() {
+                                            _notifications = result;
+                                            unreadNotificationCount = result
+                                                .where((n) => n.unread)
+                                                .length;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ),
+
+                                  /// 🔥 SHOW COUNT (only if > 0)
+                                  if (unreadNotificationCount > 0)
+                                    Positioned(
+                                      right: 6,
+                                      top: 6,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: theme.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 18,
+                                          minHeight: 18,
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            unreadNotificationCount > 99
+                                                ? "99+"
+                                                : "$unreadNotificationCount",
+                                            style: TextStyle(
+                                              color: theme.surface,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (todayPlanRide != null &&
+                        _shouldShowRideConsoleButton(dashboardRideStatus))
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 20, 18),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 18),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            onPressed: () => _openRideConsoleFromDashboard(
+                              todayPlanRide,
+                              rideStatus: dashboardRideStatus,
+                            ),
+                            child: Text(
+                              dashboardRideStatus == "ACTIVE"
+                                  ? "Open Ride Console"
+                                  : "Start Ride",
+                              style: GoogleFonts.lexend(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    if (_dashboardAnnouncement != null) ...[
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 20, 24),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xffFAF9FF), Color(0xffEEF4FF)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: borderSideColor),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.textPrimary.withValues(
+                                  alpha: 0.08,
+                                ),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: theme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.campaign_rounded,
+                                  color: theme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _dashboardAnnouncement!.title,
+                                      style: GoogleFonts.lexend(
+                                        color: theme.textPrimary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _dashboardAnnouncement!.desc,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 25),
-              ],
-              if (_dashboardAnnouncement == null) const SizedBox(height: 25),
-              /// TODAY'S PLAN
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 20),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        _sectionHeading(todayRide),
-        style: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      const SizedBox(height: 12),
-
-      if (todayPlanRide == null)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Text(
-            "No plans for today. Time to explore! 🏍️",
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        )
-      else
-        GestureDetector(
-          onTap: () => _openRideGroup(
-            todayPlanRide,
-            rideStatus: todayRide != null ? "IN_PROGRESS" : "SCHEDULED",
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.map, color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
-
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        todayPlanRide['title']?.toString() ?? "Ride",
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        cleanedTodaySubtitle,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
-        ),
-    ],
-  ),
-),
-
-const SizedBox(height: 25),
-
-/// UPCOMING RIDE
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 20),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        "Upcoming Ride",
-        style: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      const SizedBox(height: 12),
-      if (!showUpcomingRide)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Text(
-            "No upcoming rides yet.",
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        )
-      else
-        GestureDetector(
-          onTap: () => _openRideGroup(upcomingRide, rideStatus: "SCHEDULED"),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.directions_bike, color: AppColors.primary),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        upcomingRide['title']?.toString() ?? "Ride",
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        upcomingDateLabel,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
+                    ],
+                    if (_dashboardAnnouncement == null)
+                      const SizedBox(height: 8),
+
+                    /// TODAY'S PLAN
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                      child: _sectionShell(
+                        eyebrow: "Live ride",
+                        title: _sectionHeading(todayRide),
+                        theme: theme,
+                        child: todayPlanRide == null
+                            ? Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: _cardDecoration(
+                                  theme,
+                                  color: theme.surface,
+                                ),
+                                child: Text(
+                                  "No plans for today. Time to explore! 🏍️",
+                                  style: _bodyStyle(theme.textPrimary),
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: () => _openRideConsoleFromDashboard(
+                                  todayPlanRide,
+                                  rideStatus: dashboardRideStatus,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: _cardDecoration(theme),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: theme.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.map_outlined,
+                                          color: theme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              todayPlanRide['title']
+                                                      ?.toString() ??
+                                                  "Ride",
+                                              style: _cardTitleStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              cleanedTodaySubtitle,
+                                              style: _bodyStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 14),
+                                            if (dashboardRideStatus == "ACTIVE")
+                                              SizedBox(
+                                                width: double.infinity,
+                                                child: ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        theme.primary,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    elevation: 0,
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 14,
+                                                        ),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            16,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                  onPressed: () =>
+                                                      _openRideConsoleFromDashboard(
+                                                        todayPlanRide,
+                                                        rideStatus:
+                                                            dashboardRideStatus,
+                                                      ),
+                                                  child: Text(
+                                                    "Open Ride",
+                                                    style: GoogleFonts.lexend(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              Text(
+                                                "Tap to open partial start and ride controls",
+                                                style: GoogleFonts.lexend(
+                                                  color: theme.primary,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.schedule,
-                            size: 13,
-                            color: AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            upcomingRide['time']?.toString() ?? "",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
+                    ),
+
+                    /// UPCOMING RIDE
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                      child: _sectionShell(
+                        eyebrow: "Next departure",
+                        title: "Upcoming Ride",
+                        theme: theme,
+                        action: showUpcomingRide ? "View Route" : null,
+                        child: !showUpcomingRide
+                            ? Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: _cardDecoration(theme),
+                                child: Text(
+                                  "No upcoming rides yet.",
+                                  style: _bodyStyle(theme.textPrimary),
+                                ),
+                              )
+                            : GestureDetector(
+                                onTap: () => _openRideGroup(
+                                  upcomingRide,
+                                  rideStatus: upcomingRideStatus,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: _cardDecoration(theme),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: theme.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.directions_bike_rounded,
+                                          color: theme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              upcomingRide['title']
+                                                      ?.toString() ??
+                                                  "Ride",
+                                              style: _cardTitleStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              upcomingDateLabel,
+                                              style: _bodyStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Wrap(
+                                              spacing: 8,
+                                              runSpacing: 8,
+                                              children: [
+                                                _metaPill(
+                                                  Icons.schedule_outlined,
+                                                  upcomingRide['time']
+                                                          ?.toString() ??
+                                                      "",
+                                                  theme,
+                                                ),
+                                                _metaPill(
+                                                  Icons.people_outline,
+                                                  "${(upcomingRide['riders'] ?? 1) == 0 ? 1 : upcomingRide['riders']} joined",
+                                                  theme,
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 14),
+                                            Text(
+                                              _isStartedRideStatus(
+                                                    upcomingRideStatus,
+                                                  )
+                                                  ? "Ride will open once active"
+                                                  : "Ride scheduled for later",
+                                              style: _bodyStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Icon(
+                                          Icons.chevron_right,
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    /// RECENT RIDE
+                    if (latestCompletedRide != null) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                        child: _sectionShell(
+                          eyebrow: "Recently completed",
+                          title: "Last Ride",
+                          theme: theme,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: _cardDecoration(theme),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.route_rounded,
+                                    color: theme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    latestCompletedRide['title']?.toString() ??
+                                        "Ride",
+                                    style: _cardTitleStyle(theme.textPrimary),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          const Icon(
-                            Icons.people,
-                            size: 13,
-                            color: AppColors.textMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "${(upcomingRide['riders'] ?? 1) == 0 ? 1 : upcomingRide['riders']} joined",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.textMuted,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
-                  ),
+
+                    /// ACHIEVEMENT
+                    if (achievements.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                        child: _sectionShell(
+                          eyebrow: "Progress marker",
+                          title: "Latest Achievement",
+                          theme: theme,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: _cardDecoration(theme),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.tertiary.withValues(
+                                      alpha: 0.2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Icon(
+                                    Icons.emoji_events_rounded,
+                                    color: theme.tertiary,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Text(
+                                    achievements.last['title']?.toString() ??
+                                        "Achievement",
+                                    style: _cardTitleStyle(theme.textPrimary),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    /// WEEK STATS (ONLY IF DATA EXISTS)
+                    if (!(miles == 0 && avg == 0 && duration == 0)) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
+                        child: _sectionShell(
+                          eyebrow: "At a glance",
+                          title: "This Week",
+                          theme: theme,
+                          child: Row(
+                            children: [
+                              if (miles != 0) ...[
+                                Expanded(
+                                  child: StatCard(
+                                    title: "Miles",
+                                    value: "$miles",
+                                    theme: theme,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              if (avg != 0) ...[
+                                Expanded(
+                                  child: StatCard(
+                                    title: "Avg MPH",
+                                    value: "$avg",
+                                    theme: theme,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                              ],
+                              if (duration != 0)
+                                Expanded(
+                                  child: StatCard(
+                                    title: "Duration",
+                                    value: "${duration}h",
+                                    theme: theme,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    /// WEATHER
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      child: _sectionShell(
+                        eyebrow: "Road conditions",
+                        title: "Weather",
+                        theme: theme,
+                        child: Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: _cardDecoration(
+                            theme,
+                            color: theme.surface.withValues(alpha: 0.9),
+                          ),
+                          child: _isLoadingWeather
+                              ? Center(
+                                  child: CircularProgressIndicator(
+                                    color: theme.primary,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 52,
+                                            height: 52,
+                                            decoration: BoxDecoration(
+                                              color: theme.surface,
+                                              borderRadius:
+                                                  BorderRadius.circular(18),
+                                            ),
+                                            child: Icon(
+                                              _getIconData(
+                                                _weatherData?['icon'],
+                                              ),
+                                              color: theme.primary,
+                                              size: 28,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _weatherData?['description'] ??
+                                                      "Weather Unavailable",
+                                                  style: _cardTitleStyle(
+                                                    theme.textPrimary,
+                                                  ).copyWith(fontSize: 15),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  _cityName ??
+                                                      "Location Unavailable",
+                                                  style: _bodyStyle(
+                                                    theme.textPrimary,
+                                                  ),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      _weatherData != null
+                                          ? "${_weatherData!['temperature']}°"
+                                          : "--°",
+                                      style: GoogleFonts.lexend(
+                                        color: theme.textPrimary,
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.textHint),
-              ],
+              ),
             ),
           ),
-        ),
-    ],
-  ),
-),
-
-/// RECENT RIDE
-if (latestCompletedRide != null) ...[
-  const SizedBox(height: 25),
-
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Last Ride",
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.route, color: AppColors.primary),
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  latestCompletedRide['title']?.toString() ?? "Ride",
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-],
-
-/// ACHIEVEMENT
-if (achievements.isNotEmpty) ...[
-  const SizedBox(height: 25),
-
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Latest Achievement",
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.emoji_events, color: Colors.amber),
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: Text(
-                  achievements.last['title']?.toString() ??
-                      "Achievement",
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  ),
-],
-
-              /// WEEK STATS (ONLY IF DATA EXISTS)
-if (!(miles == 0 && avg == 0 && duration == 0)) ...[
-  const SizedBox(height: 25),
-
-  const Padding(
-    padding: EdgeInsets.symmetric(horizontal: 20),
-    child: Text(
-      "This Week",
-      style: TextStyle(
-        color: AppColors.textPrimary,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  ),
-
-  const SizedBox(height: 15),
-
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    child: Row(
-      children: [
-        if (miles != 0) ...[
-          Expanded(child: StatCard(title: "Miles", value: "$miles")),
-          const SizedBox(width: 10),
-        ],
-        if (avg != 0) ...[
-          Expanded(child: StatCard(title: "Avg MPH", value: "$avg")),
-          const SizedBox(width: 10),
-        ],
-        if (duration != 0)
-          Expanded(child: StatCard(title: "Duration", value: "${duration}h")),
-      ],
-    ),
-  ),
-],
-              const SizedBox(height: 15),
-
-              const SizedBox(height: 25),
-
-              /// WEATHER
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: _isLoadingWeather
-                      ? const Center(
-                          child: CircularProgressIndicator(color: AppColors.primary),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    // Map weather icon string to Flutter IconData
-                                    _getIconData(_weatherData?['icon']),
-                                    color: AppColors.textSecondary,
-                                    size: 28,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _weatherData?['description'] ?? "Weather Unavailable",
-                                          style: const TextStyle(
-                                            color: AppColors.textPrimary,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _cityName ?? "Location Unavailable",
-                                          style: const TextStyle(
-                                            color: AppColors.textSecondary,
-                                            fontSize: 12,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Text(
-                              _weatherData != null ? "${_weatherData!['temperature']}°" : "--°",
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   IconData _getIconData(String? iconName) {
     if (iconName == null) return Icons.cloud;
-    
+
     switch (iconName) {
-      case 'cloud_off': return Icons.wb_sunny;
-      case 'cloud': return Icons.cloud;
-      case 'foggy': return Icons.foggy;
-      case 'grain': return Icons.grain;
-      case 'ac_unit': return Icons.ac_unit;
-      case 'water_drop': return Icons.water_drop;
-      case 'tsunami': return Icons.waves; // Generic closest for rain shower
-      case 'thunderstorm': return Icons.thunderstorm;
-      default: return Icons.cloud;
+      case 'cloud_off':
+        return Icons.wb_sunny;
+      case 'cloud':
+        return Icons.cloud;
+      case 'foggy':
+        return Icons.foggy;
+      case 'grain':
+        return Icons.grain;
+      case 'ac_unit':
+        return Icons.ac_unit;
+      case 'water_drop':
+        return Icons.water_drop;
+      case 'tsunami':
+        return Icons.waves; // Generic closest for rain shower
+      case 'thunderstorm':
+        return Icons.thunderstorm;
+      default:
+        return Icons.cloud;
     }
   }
 }
@@ -983,35 +1347,50 @@ if (!(miles == 0 && avg == 0 && duration == 0)) ...[
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
+  final AppThemeConfig theme;
 
-  const StatCard({super.key, required this.title, required this.value});
+  const StatCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.theme,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 100,
-      padding: const EdgeInsets.symmetric(vertical: 18),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x52B8C6DA)),
+        boxShadow: [
+          BoxShadow(
+            color: theme.textPrimary.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         children: [
           Text(
             value,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+            style: GoogleFonts.lexend(
+              color: theme.textPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 8),
           Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            title.toUpperCase(),
+            style: GoogleFonts.lexend(
+              color: theme.textPrimary.withValues(alpha: 0.6),
               fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
             ),
           ),
         ],
