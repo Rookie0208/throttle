@@ -15,7 +15,11 @@ class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
   final String token;
 
-  const GroupChatScreen({super.key, required this.group, required this.token});
+  const GroupChatScreen({
+    super.key,
+    required this.group,
+    required this.token,
+  });
 
   @override
   State<GroupChatScreen> createState() => _GroupChatScreenState();
@@ -43,6 +47,22 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   String get _groupUuid => widget.group["uuid"].toString();
 
   String currentUserRole = "";
+
+  List<Map<String, dynamic>> _orderedMessagesFromHistory(List<dynamic> data) {
+    return data
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList()
+        .reversed
+        .toList();
+  }
+
+  void _scrollToLatest() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !scrollController.hasClients) return;
+      scrollController.jumpTo(scrollController.position.maxScrollExtent);
+    });
+  }
 
   bool get _canManageRide =>
       {"CAPTAIN", "ADMIN", "CO_CAPTAIN"}.contains(currentUserRole);
@@ -138,12 +158,10 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       final data = await ChatService.fetchMessages(id);
       if (!mounted) return;
       setState(() {
-        messages = data
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+        messages = _orderedMessagesFromHistory(data);
         loadingMessages = false;
       });
+      _scrollToLatest();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -182,6 +200,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         setState(() {
           messages.add(Map<String, dynamic>.from(message as Map));
         });
+        _scrollToLatest();
       },
     );
   }
@@ -189,9 +208,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   /// ================= SEND =================
   void sendMessage() {
     if (_isGroupLocked) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("This group is locked")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("This group is locked")),
+      );
       return;
     }
     final text = messageController.text.trim();
@@ -223,13 +242,34 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     return senderName == "you";
   }
 
+  String _systemMessageText(Map<String, dynamic> msg) {
+    final body = (msg["message"] ?? "").toString();
+
+    if (!_isCurrentUserMessage(msg)) {
+      return body;
+    }
+
+    final trimmedBody = body.trimLeft();
+    final actionMatch = RegExp(
+      r'^(.*?)(\s+(joined|left|is en route|accepted|declined)\b.*)$',
+      caseSensitive: false,
+    ).firstMatch(trimmedBody);
+
+    if (actionMatch != null) {
+      final suffix = actionMatch.group(2) ?? "";
+      return "You$suffix";
+    }
+
+    return body;
+  }
+
   Widget _buildMessage(Map<String, dynamic> msg, AppThemeConfig theme) {
     final senderName = (msg["senderName"] ?? msg["sender"] ?? "Rider")
         .toString();
-    final body = (msg["message"] ?? "").toString();
     final isSystem =
         (msg["messageType"] ?? "").toString().toUpperCase() == "SYSTEM";
     final isMe = _isCurrentUserMessage(msg);
+    final body = isSystem ? _systemMessageText(msg) : (msg["message"] ?? "").toString();
 
     if (isSystem) {
       return Center(
@@ -432,7 +472,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           IconButton(
             icon: Icon(Icons.send, color: theme.primary),
             onPressed: sendMessage,
-          ),
+          )
         ],
       ),
     );
@@ -670,32 +710,25 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             rideUuid: _rideUuid,
           );
 
-    Navigator.push(context, MaterialPageRoute(builder: (_) => target));
-  }
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => target),
+  );
+}
 
-  String _month(int m) {
-    const months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    return months[m - 1];
-  }
+String _month(int m) {
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+  ];
+  return months[m - 1];
+}
 
-  String _formatHour(int hour) {
-    if (hour == 0) return "12";
-    if (hour > 12) return (hour - 12).toString();
-    return hour.toString();
-  }
+String _formatHour(int hour) {
+  if (hour == 0) return "12";
+  if (hour > 12) return (hour - 12).toString();
+  return hour.toString();
+}
 
   void _openSubGroupCreation() async {
     final result = await Navigator.push(
