@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 
@@ -51,8 +52,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final page = pages[currentIndex];
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -63,11 +66,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 alignment: Alignment.topRight,
                 child: TextButton(
                   onPressed: skip,
-                  child: const Text(
+                  child: Text(
                     "Skip",
-                    style: TextStyle(
-                      color: Color.fromARGB(255, 225, 202, 186),
+                    style: GoogleFonts.lexend(
+                      color: AppColors.textSecondary,
                       fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -78,16 +82,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               Icon(
                 page["icon"] as IconData,
                 size: 100,
-                color: AppColors.primary,
+                color: colorScheme.primary,
               ),
 
               const SizedBox(height: 40),
 
               Text(
                 page["title"] as String,
-                style: const TextStyle(
+                style: GoogleFonts.lexend(
                   fontSize: 26,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -96,7 +101,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               Text(
                 page["desc"] as String,
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: GoogleFonts.plusJakartaSans(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
               ),
 
@@ -114,7 +122,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     decoration: BoxDecoration(
                       color: currentIndex == index
                           ? AppColors.primary
-                          : Colors.grey,
+                          : AppColors.borderSoft,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -129,14 +137,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 height: 55,
                 child: ElevatedButton(
                   onPressed: next,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                  ),
                   child: Text(
                     currentIndex == pages.length - 1
                         ? "Get Started"
                         : "Next  >",
-                    style: const TextStyle(fontSize: 14, color: AppColors.white),
+                    style: GoogleFonts.lexend(
+                      fontSize: 14,
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),

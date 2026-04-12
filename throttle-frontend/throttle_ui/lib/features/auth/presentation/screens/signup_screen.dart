@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/main_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
@@ -137,6 +138,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
 
       if (result["success"]) {
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           PageRouteBuilder(
@@ -203,16 +205,17 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.primary
-                  : AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
+              color: isSelected ? AppColors.primary : AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected ? AppColors.primary : AppColors.border,
+              ),
             ),
             child: Text(
               e,
-              style: TextStyle(
+              style: GoogleFonts.lexend(
                 color: isSelected ? AppColors.white : AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -233,16 +236,10 @@ class _SignupScreenState extends State<SignupScreen> {
       keyboardType: type,
       readOnly: hint == "Email" && widget.isGoogleRegistration,
       obscureText: isPassword ? obscurePassword : false,
-      style: const TextStyle(color: AppColors.textPrimary),
+      style: GoogleFonts.plusJakartaSans(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.textHint),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey, width: 0.6),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primary, width: 1),
-        ),
+        fillColor: AppColors.card,
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
@@ -263,6 +260,7 @@ class _SignupScreenState extends State<SignupScreen> {
   // ================= BUILD =================
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -270,8 +268,8 @@ class _SignupScreenState extends State<SignupScreen> {
           children: [
             LinearProgressIndicator(
               value: (step + 1) / 3,
-              backgroundColor: Colors.grey.shade900,
-              color: AppColors.primary,
+              backgroundColor: AppColors.surface,
+              color: colorScheme.primary,
             ),
             Expanded(
               child: PageView(
@@ -375,14 +373,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     height: 55,
                     child: ElevatedButton(
                       onPressed: next,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                      ),
-                      child: const Text(
+                      child: Text(
                         "CONTINUE",
-                        style: TextStyle(
+                        style: GoogleFonts.lexend(
                           color: AppColors.white,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -391,9 +386,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   if (step > 0)
                     TextButton(
                       onPressed: back,
-                      child: const Text(
+                      child: Text(
                         "Back",
-                        style: TextStyle(color: AppColors.textMuted),
+                        style: GoogleFonts.lexend(
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                 ],
@@ -416,10 +414,10 @@ class _SignupScreenState extends State<SignupScreen> {
             const SizedBox(height: 30),
             Text(
               title,
-              style: const TextStyle(
+              style: GoogleFonts.lexend(
                 fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.white,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 40),

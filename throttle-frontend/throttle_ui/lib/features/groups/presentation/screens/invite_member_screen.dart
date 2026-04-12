@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class InviteMemberScreen extends StatefulWidget {
   final String rideUuid;
@@ -81,10 +82,14 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
       );
       final subgroupMembersFuture = widget.subgroupUuid == null
           ? Future.value(<Map<String, dynamic>>[])
-          : SubGroupService.fetchSubGroupMembers(widget.token, widget.subgroupUuid!);
+          : SubGroupService.fetchSubGroupMembers(
+              widget.token,
+              widget.subgroupUuid!,
+            );
 
       final results = await Future.wait([membersFuture, subgroupMembersFuture]);
-      final rideMembers = (results[0] as Map<String, dynamic>)['data'] as List? ?? const [];
+      final rideMembers =
+          (results[0] as Map<String, dynamic>)['data'] as List? ?? const [];
       final subgroupMembers = results[1] as List<Map<String, dynamic>>;
 
       final subgroupMemberUuids = subgroupMembers
@@ -134,7 +139,10 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
   List<Map<String, dynamic>> get _filteredCandidates {
     final query = _searchController.text.trim().toLowerCase();
     return _candidates.where((candidate) {
-      final uuid = candidate['userUuid']?.toString() ?? candidate['uuid']?.toString() ?? '';
+      final uuid =
+          candidate['userUuid']?.toString() ??
+          candidate['uuid']?.toString() ??
+          '';
       if (_excludedUuids.contains(uuid)) {
         return false;
       }
@@ -143,12 +151,15 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
       final name = _displayName(candidate).toLowerCase();
       final riderId = (candidate['riderId'] ?? '').toString().toLowerCase();
       final email = (candidate['email'] ?? '').toString().toLowerCase();
-      return name.contains(query) || riderId.contains(query) || email.contains(query);
+      return name.contains(query) ||
+          riderId.contains(query) ||
+          email.contains(query);
     }).toList();
   }
 
   Future<void> _inviteFriend(Map<String, dynamic> friend) async {
-    final friendUuid = friend['userUuid']?.toString() ?? friend['uuid']?.toString();
+    final friendUuid =
+        friend['userUuid']?.toString() ?? friend['uuid']?.toString();
     if (friendUuid == null || friendUuid.isEmpty) return;
 
     setState(() => _invitingUuids.add(friendUuid));
@@ -221,225 +232,276 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final candidates = _filteredCandidates;
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+        final candidates = _filteredCandidates;
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          _screenTitle(),
-          style: const TextStyle(color: AppColors.white),
-        ),
-      ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.primary),
-            )
-          : Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(color: AppColors.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: 'Search riders',
-                      hintStyle: const TextStyle(color: AppColors.textHint),
-                      prefixIcon: const Icon(
-                        Icons.search,
-                        color: AppColors.textHint,
-                      ),
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: candidates.isEmpty
-                        ? Center(
-                            child: Text(
-                              widget.isRideInviteMode
-                                  ? 'No friends available to invite.'
-                                  : 'No ride members available to add.',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          )
-                        : ListView.separated(
-                            itemCount: candidates.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final candidate = candidates[index];
-                              final uuid =
-                                  candidate['userUuid']?.toString() ??
-                                  candidate['uuid']?.toString() ??
-                                  '';
-                              final isInviting = _invitingUuids.contains(uuid);
-                              final isInvited = _pendingInviteUuids.contains(uuid);
-                              final isSelected = _selectedUuids.contains(uuid);
-                              final subtitle = _subtitle(candidate);
-
-                              return Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surface,
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: AppColors.borderSoft),
-                                ),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor: AppColors.surfaceMuted,
-                                      backgroundImage:
-                                          (candidate['profileImage'] != null &&
-                                              candidate['profileImage']
-                                                  .toString()
-                                                  .isNotEmpty)
-                                          ? NetworkImage(
-                                              candidate['profileImage'].toString(),
-                                            )
-                                          : null,
-                                      child: (candidate['profileImage'] == null ||
-                                              candidate['profileImage']
-                                                  .toString()
-                                                  .isEmpty)
-                                          ? const Icon(
-                                              Icons.person,
-                                              color: AppColors.textSecondary,
-                                            )
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  _displayName(candidate),
-                                                  style: const TextStyle(
-                                                    color: AppColors.textPrimary,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ),
-                                              if (candidate['clubFriend'] == true)
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.primary.withOpacity(0.12),
-                                                    borderRadius: BorderRadius.circular(999),
-                                                  ),
-                                                  child: const Text(
-                                                    'Club',
-                                                    style: TextStyle(
-                                                      color: AppColors.primary,
-                                                      fontSize: 11,
-                                                      fontWeight: FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                          if (subtitle.isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              subtitle,
-                                              style: const TextStyle(
-                                                color: AppColors.textHint,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    if (widget.isRideInviteMode)
-                                      ElevatedButton(
-                                        onPressed: isInviting || isInvited
-                                            ? null
-                                            : () => _inviteFriend(candidate),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: isInvited
-                                              ? AppColors.surfaceMuted
-                                              : AppColors.primary,
-                                          foregroundColor: AppColors.white,
-                                          disabledBackgroundColor:
-                                              AppColors.surfaceMuted,
-                                          disabledForegroundColor:
-                                              AppColors.textMuted,
-                                        ),
-                                        child: isInviting
-                                            ? const SizedBox(
-                                                width: 16,
-                                                height: 16,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: AppColors.white,
-                                                ),
-                                              )
-                                            : Text(isInvited ? 'Invited' : 'Send Invite'),
-                                      )
-                                    else
-                                      Checkbox(
-                                        value: isSelected,
-                                        activeColor: AppColors.primary,
-                                        onChanged: (_) {
-                                          setState(() {
-                                            if (isSelected) {
-                                              _selectedUuids.remove(uuid);
-                                            } else {
-                                              _selectedUuids.add(uuid);
-                                            }
-                                          });
-                                        },
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  if (!widget.isRideInviteMode) ...[
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.white,
-                          minimumSize: const Size.fromHeight(48),
-                        ),
-                        onPressed: _submittingSelection ? null : _submitSelectedMembers,
-                        child: Text(
-                          _submittingSelection
-                              ? 'Saving...'
-                              : widget.selectionOnly
-                              ? 'Use Selected'
-                              : 'Add Selected',
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
+        return Scaffold(
+          backgroundColor: theme.background,
+          appBar: AppBar(
+            backgroundColor: theme.background,
+            elevation: 0,
+            surfaceTintColor: Colors.transparent,
+            title: Text(
+              _screenTitle(),
+              style: GoogleFonts.lexend(
+                color: theme.textPrimary,
+                fontWeight: FontWeight.bold,
               ),
             ),
+            iconTheme: IconThemeData(color: theme.textPrimary),
+          ),
+          body: _loading
+              ? Center(child: CircularProgressIndicator(color: theme.primary))
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
+                        style: TextStyle(color: theme.textPrimary),
+                        decoration: InputDecoration(
+                          hintText: 'Search riders',
+                          hintStyle: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.4),
+                          ),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: theme.textPrimary.withValues(alpha: 0.6),
+                          ),
+                          filled: true,
+                          fillColor: theme.surface,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: candidates.isEmpty
+                            ? Center(
+                                child: Text(
+                                  widget.isRideInviteMode
+                                      ? 'No friends available to invite.'
+                                      : 'No ride members available to add.',
+                                  style: TextStyle(
+                                    color: theme.textPrimary.withValues(
+                                      alpha: 0.7,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: candidates.length,
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  final candidate = candidates[index];
+                                  final uuid =
+                                      candidate['userUuid']?.toString() ??
+                                      candidate['uuid']?.toString() ??
+                                      '';
+                                  final isInviting = _invitingUuids.contains(
+                                    uuid,
+                                  );
+                                  final isInvited = _pendingInviteUuids
+                                      .contains(uuid);
+                                  final isSelected = _selectedUuids.contains(
+                                    uuid,
+                                  );
+                                  final subtitle = _subtitle(candidate);
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: theme.surface,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: const Color(0x52B8C6DA),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 24,
+                                          backgroundColor: theme.primary
+                                              .withValues(alpha: 0.1),
+                                          backgroundImage:
+                                              (candidate['profileImage'] !=
+                                                      null &&
+                                                  candidate['profileImage']
+                                                      .toString()
+                                                      .isNotEmpty)
+                                              ? NetworkImage(
+                                                  candidate['profileImage']
+                                                      .toString(),
+                                                )
+                                              : null,
+                                          child:
+                                              (candidate['profileImage'] ==
+                                                      null ||
+                                                  candidate['profileImage']
+                                                      .toString()
+                                                      .isEmpty)
+                                              ? const Icon(
+                                                  Icons.person,
+                                                  color: Color(0xff4F596E),
+                                                )
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      _displayName(candidate),
+                                                      style: TextStyle(
+                                                        color:
+                                                            theme.textPrimary,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (candidate['clubFriend'] ==
+                                                      true)
+                                                    Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 8,
+                                                            vertical: 4,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: theme.primary
+                                                            .withValues(
+                                                              alpha: 0.12,
+                                                            ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              999,
+                                                            ),
+                                                      ),
+                                                      child: Text(
+                                                        'Club',
+                                                        style: TextStyle(
+                                                          color: theme.primary,
+                                                          fontSize: 11,
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                              if (subtitle.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  subtitle,
+                                                  style: TextStyle(
+                                                    color: theme.textPrimary
+                                                        .withValues(alpha: 0.4),
+                                                    fontSize: 12,
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        if (widget.isRideInviteMode)
+                                          ElevatedButton(
+                                            onPressed: isInviting || isInvited
+                                                ? null
+                                                : () =>
+                                                      _inviteFriend(candidate),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: isInvited
+                                                  ? theme.primary.withValues(
+                                                      alpha: 0.1,
+                                                    )
+                                                  : theme.primary,
+                                              foregroundColor: isInvited
+                                                  ? theme.primary
+                                                  : Colors.white,
+                                              disabledBackgroundColor:
+                                                  theme.surface,
+                                              disabledForegroundColor: theme
+                                                  .textPrimary
+                                                  .withValues(alpha: 0.4),
+                                            ),
+                                            child: isInviting
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.white,
+                                                        ),
+                                                  )
+                                                : Text(
+                                                    isInvited
+                                                        ? 'Invited'
+                                                        : 'Send Invite',
+                                                  ),
+                                          )
+                                        else
+                                          Checkbox(
+                                            value: isSelected,
+                                            activeColor: theme.primary,
+                                            onChanged: (_) {
+                                              setState(() {
+                                                if (isSelected) {
+                                                  _selectedUuids.remove(uuid);
+                                                } else {
+                                                  _selectedUuids.add(uuid);
+                                                }
+                                              });
+                                            },
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      if (!widget.isRideInviteMode) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            onPressed: _submittingSelection
+                                ? null
+                                : _submitSelectedMembers,
+                            child: Text(
+                              _submittingSelection
+                                  ? 'Saving...'
+                                  : widget.selectionOnly
+                                  ? 'Use Selected'
+                                  : 'Add Selected',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+        );
+      },
     );
   }
 }
