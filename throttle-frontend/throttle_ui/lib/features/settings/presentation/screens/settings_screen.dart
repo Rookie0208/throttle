@@ -17,30 +17,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ThemeController get _themeController => ThemeController.instance;
 
   Future<void> _openThemePicker() async {
-    final current = _themeController.theme;
+    final theme = _themeController.theme;
     final primaryController = TextEditingController(
-      text: _toHex(current.primary),
+      text: _toHex(theme.primary),
     );
     final secondaryController = TextEditingController(
-      text: _toHex(current.secondary),
+      text: _toHex(theme.secondary),
     );
     final tertiaryController = TextEditingController(
-      text: _toHex(current.tertiary),
+      text: _toHex(theme.tertiary),
     );
     final backgroundController = TextEditingController(
-      text: _toHex(current.background),
+      text: _toHex(theme.background),
     );
     final surfaceController = TextEditingController(
-      text: _toHex(current.surface),
+      text: _toHex(theme.surface),
     );
     final textController = TextEditingController(
-      text: _toHex(current.textPrimary),
+      text: _toHex(theme.textPrimary),
     );
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: theme.background,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
@@ -92,27 +92,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "Themes",
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: theme.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 14),
-                    ...ThemeController.presets.map((theme) {
+                    ...ThemeController.presets.map((preset) {
                       final isSelected =
-                          _themeController.theme.preset == theme.preset;
+                          _themeController.theme.preset == preset.preset;
                       return Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.card,
+                          color: theme.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isSelected
-                                ? AppColors.primary
-                                : AppColors.borderSoft,
+                                ? theme.primary
+                                : const Color(0x52B8C6DA),
                           ),
                           boxShadow: const [
                             BoxShadow(
@@ -124,29 +124,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         child: ListTile(
                           title: Text(
-                            theme.label,
+                            preset.label,
                             style: GoogleFonts.lexend(
-                              color: AppColors.textPrimary,
+                              color: theme.textPrimary,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                           subtitle: Text(
-                            theme.fontFamily ?? "Default font",
+                            preset.fontFamily ?? "Default font",
                             style: GoogleFonts.plusJakartaSans(
-                              color: AppColors.textSecondary,
+                              color: theme.textPrimary.withValues(alpha: 0.65),
                               fontSize: 12,
                             ),
                           ),
                           trailing: Wrap(
                             spacing: 6,
                             children: [
-                              _swatch(theme.primary),
-                              _swatch(theme.secondary),
-                              _swatch(theme.surface),
+                              _swatch(preset.primary),
+                              _swatch(preset.secondary),
+                              _swatch(preset.surface),
                             ],
                           ),
                           onTap: () async {
-                            await _themeController.applyPreset(theme.preset);
+                            await _themeController.applyPreset(preset.preset);
                             if (!mounted || !sheetContext.mounted) return;
                             Navigator.pop(sheetContext);
                             setState(() {});
@@ -155,24 +155,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     }),
                     const SizedBox(height: 14),
-                    const Text(
+                    Text(
                       "Custom Theme",
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: theme.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 10),
-                    _colorField("Primary", primaryController),
-                    _colorField("Secondary", secondaryController),
-                    _colorField("Tertiary", tertiaryController),
-                    _colorField("Background", backgroundController),
-                    _colorField("Surface", surfaceController),
-                    _colorField("Text", textController),
+                    _colorField("Primary", primaryController, theme),
+                    _colorField("Secondary", secondaryController, theme),
+                    _colorField("Tertiary", tertiaryController, theme),
+                    _colorField("Background", backgroundController, theme),
+                    _colorField("Surface", surfaceController, theme),
+                    _colorField("Text", textController, theme),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.primary,
+                          foregroundColor: Colors.white,
+                        ),
                         onPressed: applyCustomTheme,
                         child: const Text("Apply Custom Theme"),
                       ),
@@ -206,22 +210,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: AppColors.white12),
+        border: Border.all(color: const Color(0x52B8C6DA)),
       ),
     );
   }
 
-  Widget _colorField(String label, TextEditingController controller) {
+  Widget _colorField(
+    String label,
+    TextEditingController controller,
+    AppThemeConfig theme,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
         controller: controller,
-        style: const TextStyle(color: AppColors.textPrimary),
+        style: TextStyle(color: theme.textPrimary),
         decoration: InputDecoration(
           labelText: label,
           hintText: "#0047DE",
-          hintStyle: const TextStyle(color: AppColors.textHint),
-          labelStyle: const TextStyle(color: AppColors.textSecondary),
+          hintStyle: TextStyle(color: theme.textPrimary.withValues(alpha: 0.4)),
+          labelStyle: TextStyle(
+            color: theme.textPrimary.withValues(alpha: 0.65),
+          ),
         ),
       ),
     );
@@ -229,233 +239,272 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = _themeController.theme;
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    return ListenableBuilder(
+      listenable: _themeController,
+      builder: (context, _) {
+        final theme = _themeController.theme;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text("Settings")),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 16),
+        return Scaffold(
+          backgroundColor: theme.background,
+          appBar: AppBar(
+            backgroundColor: theme.background,
+            elevation: 0,
+            title: Text(
+              "Settings",
+              style: GoogleFonts.lexend(
+                color: theme.textPrimary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            iconTheme: IconThemeData(color: theme.textPrimary),
+          ),
+          body: SafeArea(
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
                     padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceMuted,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: _openThemePicker,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: theme.surface,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: const Color(0x52B8C6DA)),
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: _openThemePicker,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(
-                                    alpha: 0.16,
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: theme.primary.withValues(
+                                        alpha: 0.16,
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Icon(
+                                      Icons.palette_outlined,
+                                      color: theme.primary,
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: const Icon(
-                                  Icons.palette_outlined,
-                                  color: AppColors.primary,
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      "Appearance",
+                                      style: GoogleFonts.lexend(
+                                        color: theme.textPrimary,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: theme.textPrimary.withValues(
+                                      alpha: 0.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                theme.label,
+                                style: GoogleFonts.lexend(
+                                  color: theme.textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  "Appearance",
-                                  style: GoogleFonts.lexend(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
+                              const SizedBox(height: 4),
+                              Text(
+                                "Choose from 3 presets or build your own colors.",
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.65,
                                   ),
+                                  fontSize: 12,
                                 ),
                               ),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: AppColors.textHint,
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  _swatch(theme.primary),
+                                  const SizedBox(width: 8),
+                                  _swatch(theme.secondary),
+                                  const SizedBox(width: 8),
+                                  _swatch(theme.surface),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: theme.primary.withValues(
+                                        alpha: 0.12,
+                                      ),
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(
+                                        color: theme.primary.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      "Change Theme",
+                                      style: TextStyle(
+                                        color: theme.primary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 14),
-                          Text(
-                            theme.label,
-                            style: GoogleFonts.lexend(
-                              color: AppColors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Choose from 3 presets or build your own colors.",
-                            style: GoogleFonts.plusJakartaSans(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              _swatch(theme.primary),
-                              const SizedBox(width: 8),
-                              _swatch(theme.secondary),
-                              const SizedBox(width: 8),
-                              _swatch(theme.surface),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.overlay,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: AppColors.borderSoft,
-                                  ),
-                                ),
-                                child: const Text(
-                                  "Change Theme",
-                                  style: TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.notifications_outlined,
-                      color: colorScheme.primary,
-                    ),
-                    title: Text("Notifications", style: textTheme.titleMedium),
-                    subtitle: Text("Manage alerts", style: textTheme.bodySmall),
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.message_outlined,
-                      color: colorScheme.primary,
-                    ),
-                    title: Text("Messages", style: textTheme.titleMedium),
-                    subtitle: Text("Chat settings", style: textTheme.bodySmall),
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.people_outline_rounded,
-                      color: colorScheme.primary,
-                    ),
-                    title: Text("Followers", style: textTheme.titleMedium),
-                    subtitle: Text(
-                      "Manage connections",
-                      style: textTheme.bodySmall,
-                    ),
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.two_wheeler_outlined,
-                      color: colorScheme.primary,
-                    ),
-                    title: Text("My Bikes", style: textTheme.titleMedium),
-                    subtitle: Text(
-                      "Add or edit bikes",
-                      style: textTheme.bodySmall,
-                    ),
-                  ),
-                  ListTile(
-                    leading: Icon(
-                      Icons.shield_outlined,
-                      color: colorScheme.primary,
-                    ),
-                    title: Text("Privacy", style: textTheme.titleMedium),
-                    subtitle: Text(
-                      "Data & security",
-                      style: textTheme.bodySmall,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.workspace_premium,
-                      color: AppColors.primary,
-                    ),
-                    title: Text("Subscription", style: textTheme.titleMedium),
-                    subtitle: Text(
-                      "Manage your subscription plan",
-                      style: textTheme.bodySmall,
-                    ),
-                    trailing: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SubscriptionScreen(
-                              onClose: () => Navigator.pop(context),
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.white,
-                        minimumSize: const Size(80, 36),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text("Manage"),
+                      _settingsTile(
+                        icon: Icons.notifications_outlined,
+                        title: "Notifications",
+                        subtitle: "Manage alerts",
+                        theme: theme,
+                      ),
+                      _settingsTile(
+                        icon: Icons.message_outlined,
+                        title: "Messages",
+                        subtitle: "Chat settings",
+                        theme: theme,
+                      ),
+                      _settingsTile(
+                        icon: Icons.people_outline_rounded,
+                        title: "Followers",
+                        subtitle: "Manage connections",
+                        theme: theme,
+                      ),
+                      _settingsTile(
+                        icon: Icons.two_wheeler_outlined,
+                        title: "My Bikes",
+                        subtitle: "Add or edit bikes",
+                        theme: theme,
+                      ),
+                      _settingsTile(
+                        icon: Icons.shield_outlined,
+                        title: "Privacy",
+                        subtitle: "Data & security",
+                        theme: theme,
+                      ),
+                      const SizedBox(height: 16),
+                      ListTile(
+                        leading: Icon(
+                          Icons.workspace_premium,
+                          color: theme.primary,
+                        ),
+                        title: Text(
+                          "Subscription",
+                          style: TextStyle(
+                            color: theme.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          "Manage your subscription plan",
+                          style: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.6),
+                            fontSize: 12,
+                          ),
+                        ),
+                        trailing: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SubscriptionScreen(
+                                  onClose: () => Navigator.pop(context),
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: theme.primary,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(80, 36),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text("Manage"),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await AuthService.logout();
+                      if (context.mounted) {
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const OnboardingScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.logout),
+                    label: const Text("Log Out"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  await AuthService.logout();
-                  if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const OnboardingScreen(),
-                      ),
-                      (route) => false,
-                    );
-                  }
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text("Log Out"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.white,
-                  minimumSize: const Size.fromHeight(50),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _settingsTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required AppThemeConfig theme,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: theme.primary),
+      title: Text(
+        title,
+        style: TextStyle(color: theme.textPrimary, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: theme.textPrimary.withValues(alpha: 0.6),
+          fontSize: 12,
         ),
+      ),
+      trailing: Icon(
+        Icons.chevron_right,
+        color: theme.textPrimary.withValues(alpha: 0.3),
+        size: 20,
       ),
     );
   }
