@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
@@ -26,9 +27,13 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
   bool _loading = false;
   bool _fetching = false;
   Map<String, dynamic>? _session;
+  bool _isPaused = false;
   bool _showSosActions = false;
   String? _activeEmergencyAlert;
   String? _activeEmergencyResolution;
+  Timer? _refreshTimer;
+  Duration _totalPausedTime = Duration.zero;
+  DateTime? _pauseStartTime;
 
   bool get _hasRideSession => widget.token != null && widget.rideUuid != null;
 
@@ -46,6 +51,15 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     if (_hasRideSession) {
       _loadSession();
     }
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadSession() async {
@@ -94,6 +108,112 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
         _session = session;
       });
     });
+  }
+
+  Future<void> _addCustomCheckpoint1(AppThemeConfig theme) async {
+    final controller = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          "Custom Checkpoint",
+          style: GoogleFonts.bebasNeue(color: theme.textPrimary),
+        ),
+        content: TextField(
+          controller: controller,
+          style: TextStyle(color: theme.textPrimary),
+          decoration: InputDecoration(
+            hintText: "e.g., View Point, Tea Break",
+            hintStyle: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text("Mark Location"),
+          ),
+        ],
+      ),
+    );
+
+    if (title != null && title.isNotEmpty) {
+      await _withLoading(() async {
+        // Logic: Captain adds to ride stats, Normal Rider adds to personal stats
+        if (_canManageRide) {
+          await RideService.addRideCheckpoint(
+            widget.token!,
+            widget.rideUuid!,
+            title,
+          );
+          _showSnack("Checkpoint '$title' added to group ride");
+          await _loadSession(); // Refresh to show new point
+        } else {
+          // Mock personal stat update for regular riders
+          await Future.delayed(const Duration(seconds: 1));
+          _showSnack("Point '$title' saved to your personal stats");
+        }
+      });
+    }
+  }
+
+  Future<void> _addCustomCheckpoint(AppThemeConfig theme) async {
+    final controller = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text(
+          "Custom Checkpoint",
+          style: GoogleFonts.bebasNeue(color: theme.textPrimary),
+        ),
+        content: TextField(
+          controller: controller,
+          style: TextStyle(color: theme.textPrimary),
+          decoration: InputDecoration(
+            hintText: "e.g., View Point, Tea Break",
+            hintStyle: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.4),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text("Mark Location"),
+          ),
+        ],
+      ),
+    );
+
+    if (title != null && title.isNotEmpty) {
+      await _withLoading(() async {
+        // Logic: Captain adds to ride stats, Normal Rider adds to personal stats
+        if (_canManageRide) {
+          await RideService.addRideCheckpoint(
+            widget.token!,
+            widget.rideUuid!,
+            title,
+          );
+          _showSnack("Checkpoint '$title' added to group ride");
+          await _loadSession(); // Refresh to show new point
+        } else {
+          // Mock personal stat update for regular riders
+          await Future.delayed(const Duration(seconds: 1));
+          _showSnack("Point '$title' saved to your personal stats");
+        }
+      });
+    }
   }
 
   void _showSnack(String message) {
@@ -259,21 +379,57 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
           (c["checkpointStatus"] ?? "").toString().toUpperCase() == "CURRENT",
       orElse: () => const <String, dynamic>{},
     );
+    final bool allReached =
+        checkpoints.isNotEmpty &&
+        checkpoints.every(
+          (c) =>
+              (c["checkpointStatus"] ?? "").toString().toUpperCase() ==
+              "REACHED",
+        );
     final totalCheckpoints = checkpoints.length;
     final currentIndex = currentCheckpoint["sequence"] ?? 0;
     final emergencyMessage = _activeEmergencyAlert;
 
     // Calculate duration
     final startTimeStr = session["startTime"];
-    Duration duration = Duration.zero;
+    DateTime? startTime;
     if (startTimeStr != null) {
       try {
-        final startTime = DateTime.parse(startTimeStr);
-        duration = DateTime.now().difference(startTime);
+        startTime = DateTime.parse(startTimeStr);
       } catch (_) {}
     }
-    final durationStr =
-        "${duration.inHours}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}";
+
+    final now = DateTime.now();
+    final journeyDuration = startTime != null
+        ? now.difference(startTime)
+        : Duration.zero;
+
+    Duration ridingDuration = Duration.zero;
+    if (startTime != null) {
+      if (_isPaused && _pauseStartTime != null) {
+        ridingDuration =
+            _pauseStartTime!.difference(startTime) - _totalPausedTime;
+      } else {
+        ridingDuration = now.difference(startTime) - _totalPausedTime;
+      }
+    }
+
+    String format(Duration d) {
+      final h = d.inHours;
+      final m = d.inMinutes % 60;
+      final s = d.inSeconds % 60;
+      return "$h:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}";
+    }
+
+    // Determine descriptive labels
+    String checkpointLabelText = "Checkpoint";
+    if (currentIndex == 1) {
+      checkpointLabelText = "Start Point";
+    } else if (currentIndex == totalCheckpoints && currentIndex > 1) {
+      checkpointLabelText = "Destination";
+    } else if (currentIndex > 1) {
+      checkpointLabelText = "Checkpoint ${currentIndex - 1}";
+    }
 
     return Column(
       children: [
@@ -294,23 +450,63 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         letterSpacing: 1.2,
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    Row(
                       children: [
                         Text(
-                          "Duration",
-                          style: TextStyle(
-                            color: theme.textPrimary.withValues(alpha: 0.65),
-                            fontSize: 12,
+                          _isPaused ? "PAUSED" : "RIDING",
+                          style: GoogleFonts.bebasNeue(
+                            color: _isPaused ? Colors.orange : theme.primary,
+                            fontSize: 10,
+                            letterSpacing: 1,
                           ),
                         ),
-                        Text(
-                          durationStr,
-                          style: GoogleFonts.bebasNeue(
-                            color: theme.textPrimary,
-                            fontSize: 18,
-                            letterSpacing: 1.1,
-                          ),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              "Riding",
+                              style: TextStyle(
+                                color: theme.textPrimary.withValues(
+                                  alpha: 0.65,
+                                ),
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              format(ridingDuration),
+                              style: GoogleFonts.bebasNeue(
+                                color: _isPaused
+                                    ? Colors.orange
+                                    : theme.textPrimary,
+                                fontSize: 18,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              "Journey",
+                              style: TextStyle(
+                                color: theme.textPrimary.withValues(
+                                  alpha: 0.65,
+                                ),
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              format(journeyDuration),
+                              style: GoogleFonts.bebasNeue(
+                                color: theme.textPrimary,
+                                fontSize: 18,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -495,11 +691,47 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                           ),
                         ),
                         Text(
-                          "#$currentIndex/$totalCheckpoints",
+                          allReached
+                              ? "FINISHED"
+                              : "#$currentIndex/$totalCheckpoints",
                           style: TextStyle(
                             color: theme.textPrimary.withValues(alpha: 0.65),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _checkpointLabel(
+                          currentIndex,
+                          totalCheckpoints,
+                          theme,
+                          allReached,
+                        ),
+                        if (_isPaused) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: Colors.orange.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Text(
+                              "PAUSED",
+                              style: GoogleFonts.bebasNeue(
+                                color: Colors.orange,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -535,7 +767,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "Distance: ${currentCheckpoint["estimatedTime"] ?? "N/A"}",
+                            "Distance to $checkpointLabelText: ${currentCheckpoint["estimatedTime"] ?? "N/A"}",
                             style: TextStyle(
                               color: theme.textPrimary.withValues(alpha: 0.65),
                             ),
@@ -553,10 +785,12 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                               decoration: BoxDecoration(
                                 color: _loading
                                     ? theme.textPrimary.withValues(alpha: 0.1)
-                                    : theme.primary,
+                                    : (_isPaused
+                                          ? theme.surface
+                                          : theme.primary),
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
-                                  if (!_loading)
+                                  if (!_loading && !_isPaused)
                                     BoxShadow(
                                       color: theme.primary.withValues(
                                         alpha: 0.3,
@@ -570,13 +804,56 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                                 child: Text(
                                   _loading
                                       ? "Marking..."
-                                      : "Hold to Mark Reached",
+                                      : (_isPaused
+                                            ? "Resume to Continue"
+                                            : "Hold to Mark Reached"),
                                   style: GoogleFonts.bebasNeue(
                                     color: Colors.white,
                                     fontSize: 18,
                                     letterSpacing: 1.2,
                                   ),
                                 ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ] else if (allReached) ...[
+                      if (_canManageRide)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: widget.onEndRide,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              "END RIDE",
+                              style: GoogleFonts.bebasNeue(
+                                color: Colors.white,
+                                fontSize: 18,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text(
+                              "Destination Reached! Waiting for Captain to end ride.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
@@ -591,6 +868,68 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _addCustomCheckpoint(theme),
+                            icon: const Icon(
+                              Icons.add_location_alt_outlined,
+                              size: 18,
+                            ),
+                            label: Text(
+                              "MARK POINT",
+                              style: GoogleFonts.bebasNeue(letterSpacing: 1.1),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: theme.primary,
+                              side: BorderSide(
+                                color: theme.primary.withValues(alpha: 0.5),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                _isPaused = !_isPaused;
+                                if (_isPaused) {
+                                  _pauseStartTime = DateTime.now();
+                                } else if (_pauseStartTime != null) {
+                                  _totalPausedTime += DateTime.now().difference(
+                                    _pauseStartTime!,
+                                  );
+                                  _pauseStartTime = null;
+                                }
+                              });
+                            },
+                            icon: Icon(
+                              _isPaused ? Icons.play_arrow : Icons.pause,
+                              size: 18,
+                            ),
+                            label: Text(
+                              _isPaused ? "RESUME" : "PAUSE RIDE",
+                              style: GoogleFonts.bebasNeue(letterSpacing: 1.1),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _isPaused
+                                  ? Colors.green
+                                  : Colors.orange,
+                              side: BorderSide(
+                                color:
+                                    (_isPaused ? Colors.green : Colors.orange)
+                                        .withValues(alpha: 0.5),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -696,6 +1035,44 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _checkpointLabel(
+    int index,
+    int total,
+    AppThemeConfig theme,
+    bool allReached,
+  ) {
+    String label = "CHECKPOINT";
+    Color color = theme.primary;
+
+    if (allReached) {
+      label = "RIDE COMPLETED";
+      color = Colors.green;
+    } else if (index == 1) {
+      label = "START POINT";
+      color = Colors.blue;
+    } else if (index == total) {
+      label = "DESTINATION";
+      color = Colors.redAccent;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.bebasNeue(
+          color: color,
+          fontSize: 12,
+          letterSpacing: 1.1,
+        ),
+      ),
     );
   }
 }
