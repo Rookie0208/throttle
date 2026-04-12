@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class RideStatsScreen extends StatelessWidget {
   final String groupName;
@@ -13,22 +15,34 @@ class RideStatsScreen extends StatelessWidget {
     required this.duration,
   });
 
-  Widget statTile(String title, String value) {
+  Widget statTile(String title, String value, AppThemeConfig theme) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.1)),
       ),
       child: Column(
         children: [
-          Text(title, style: const TextStyle(color: AppColors.textSecondary)),
+          Text(
+            title,
+            style: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.65),
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(value,
-              style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold))
+          Text(
+            value,
+            style: GoogleFonts.bebasNeue(
+              color: theme.primary,
+              fontSize: 28,
+              letterSpacing: 1.2,
+            ),
+          ),
         ],
       ),
     );
@@ -36,30 +50,47 @@ class RideStatsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        title: const Text("Ride Stats"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Text(groupName,
-                style: const TextStyle(
-                    color: AppColors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold)),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
 
-            const SizedBox(height: 30),
+        return Scaffold(
+          backgroundColor: theme.background,
+          appBar: AppBar(
+            backgroundColor: theme.surface,
+            elevation: 0,
+            title: Text(
+              "RIDE STATS",
+              style: GoogleFonts.bebasNeue(
+                color: theme.textPrimary,
+                letterSpacing: 1.2,
+              ),
+            ),
+            iconTheme: IconThemeData(color: theme.textPrimary),
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text(
+                  groupName,
+                  style: GoogleFonts.bebasNeue(
+                    color: theme.textPrimary,
+                    fontSize: 24,
+                    letterSpacing: 1.1,
+                  ),
+                ),
 
-            statTile("Distance", distance),
-            const SizedBox(height: 10),
-            statTile("Duration", duration),
-          ],
-        ),
-      ),
+                const SizedBox(height: 30),
+
+                statTile("Distance", distance, theme),
+                statTile("Duration", duration, theme),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

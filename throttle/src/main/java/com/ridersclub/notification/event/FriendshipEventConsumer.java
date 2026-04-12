@@ -1,5 +1,6 @@
 package com.ridersclub.notification.event;
 
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
@@ -52,7 +53,7 @@ public class FriendshipEventConsumer {
             // Notify the receiver: they now have a new friend
             notificationService.createAndSend(
                     receiver.getId(),
-                    "NEW_FRIEND",
+                    NotificationType.NEW_FRIEND,
                     "New Friend Added! 🏍️",
                     "You and " + senderName.trim() + " are now friends.",
                     sender.getId(),
