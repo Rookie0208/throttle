@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 
 class LiveRideScreen extends StatefulWidget {
@@ -100,16 +102,25 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     );
   }
 
-  Future<void> _showSosConfirmationModal(String label) async {
+  Future<void> _showSosConfirmationModal(
+    String label,
+    AppThemeConfig theme,
+  ) async {
     final dialogFuture = showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text("SOS Sent"),
+        backgroundColor: theme.surface,
+        title: Text(
+          "SOS Sent",
+          style: GoogleFonts.bebasNeue(
+            color: theme.textPrimary,
+            letterSpacing: 1.1,
+          ),
+        ),
         content: Text(
           "Your alert \"$label\" has been registered and will be visible on the live ride screen.",
-          style: const TextStyle(color: AppColors.textSecondary),
+          style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
         ),
       ),
     );
@@ -120,18 +131,24 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     await dialogFuture;
   }
 
-  Future<void> _showEmergencySosPrompt() async {
+  Future<void> _showEmergencySosPrompt(AppThemeConfig theme) async {
     bool canceled = false;
     final dialogFuture = showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: AppColors.surface,
-          title: const Text("Emergency SOS"),
-          content: const Text(
+          backgroundColor: theme.surface,
+          title: Text(
+            "Emergency SOS",
+            style: GoogleFonts.bebasNeue(
+              color: theme.textPrimary,
+              letterSpacing: 1.1,
+            ),
+          ),
+          content: Text(
             "Sending SOS to all riders",
-            style: TextStyle(color: AppColors.textSecondary),
+            style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
           ),
           actions: [
             TextButton(
@@ -161,7 +178,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     }
   }
 
-  Widget _legacyView() {
+  Widget _legacyView(AppThemeConfig theme) {
     return Column(
       children: [
         const SizedBox(height: 20),
@@ -169,22 +186,25 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
           padding: const EdgeInsets.all(16),
           margin: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: theme.surface,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.primary.withValues(alpha: 0.1)),
           ),
-          child: const Column(
+          child: Column(
             children: [
               Text(
                 "Current Speed",
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.65),
+                ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
                 "45 mph",
-                style: TextStyle(
-                  fontSize: 32,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+                style: GoogleFonts.bebasNeue(
+                  fontSize: 48,
+                  color: theme.primary,
+                  letterSpacing: 1.5,
                 ),
               ),
             ],
@@ -206,25 +226,37 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: _hasRideSession
-            ? (_fetching && _session == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : _liveRideView())
-            : _legacyView(),
-      ),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          body: SafeArea(
+            child: _hasRideSession
+                ? (_fetching && _session == null
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: theme.primary,
+                          ),
+                        )
+                      : _liveRideView(theme))
+                : _legacyView(theme),
+          ),
+        );
+      },
     );
   }
 
-  Widget _liveRideView() {
+  Widget _liveRideView(AppThemeConfig theme) {
     final session = _session ?? const <String, dynamic>{};
     final checkpoints = List<Map<String, dynamic>>.from(
       session["checkpoints"] ?? const [],
     );
     final currentCheckpoint = checkpoints.firstWhere(
-      (c) => c["checkpointStatus"] == "CURRENT",
+      (c) =>
+          (c["checkpointStatus"] ?? "").toString().toUpperCase() == "CURRENT",
       orElse: () => const <String, dynamic>{},
     );
     final totalCheckpoints = checkpoints.length;
@@ -247,7 +279,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.only(bottom: 120),
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -256,28 +288,28 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                   children: [
                     Text(
                       (session["title"] ?? widget.groupName).toString(),
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.bebasNeue(
+                        color: theme.textPrimary,
+                        fontSize: 24,
+                        letterSpacing: 1.2,
                       ),
                     ),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text(
+                        Text(
                           "Duration",
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: theme.textPrimary.withValues(alpha: 0.65),
                             fontSize: 12,
                           ),
                         ),
                         Text(
                           durationStr,
-                          style: const TextStyle(
-                            color: AppColors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.bebasNeue(
+                            color: theme.textPrimary,
+                            fontSize: 18,
+                            letterSpacing: 1.1,
                           ),
                         ),
                       ],
@@ -289,14 +321,17 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                 height: 220,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: theme.surface,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.primary.withValues(alpha: 0.1),
+                  ),
                 ),
                 child: const Center(
                   child: Text(
                     "Map Preview\n(All riders locations)",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(color: Color(0xff8C95A8)),
                   ),
                 ),
               ),
@@ -308,7 +343,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: theme.surface,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.redAccent),
                     ),
@@ -316,14 +351,15 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: const [
-                            Icon(Icons.warning, color: Colors.redAccent),
-                            SizedBox(width: 8),
+                          children: [
+                            const Icon(Icons.warning, color: Colors.redAccent),
+                            const SizedBox(width: 8),
                             Text(
                               "Emergency Alert",
-                              style: TextStyle(
-                                color: AppColors.white,
-                                fontWeight: FontWeight.bold,
+                              style: GoogleFonts.bebasNeue(
+                                color: theme.textPrimary,
+                                fontSize: 18,
+                                letterSpacing: 1.1,
                               ),
                             ),
                           ],
@@ -331,8 +367,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         const SizedBox(height: 8),
                         Text(
                           emergencyMessage,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.65),
                             fontSize: 16,
                           ),
                         ),
@@ -343,7 +379,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                               Expanded(
                                 child: ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
+                                    backgroundColor: theme.primary,
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 12,
                                     ),
@@ -383,8 +419,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                           const SizedBox(height: 12),
                           Text(
                             "Status: $_activeEmergencyResolution",
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: theme.textPrimary.withValues(alpha: 0.65),
                               fontSize: 14,
                               fontStyle: FontStyle.italic,
                             ),
@@ -400,27 +436,24 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: theme.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
-                      Icons.campaign,
-                      color: AppColors.primary,
-                      size: 24,
-                    ),
+                    Icon(Icons.campaign, color: theme.primary, size: 24),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             "Captain's Broadcast",
-                            style: TextStyle(
-                              color: AppColors.white,
-                              fontWeight: FontWeight.bold,
+                            style: GoogleFonts.bebasNeue(
+                              color: theme.textPrimary,
+                              fontSize: 18,
+                              letterSpacing: 1.1,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -428,8 +461,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                             (session["latestBroadcastMessage"] ??
                                     "No broadcast sent yet.")
                                 .toString(),
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: theme.textPrimary.withValues(alpha: 0.65),
                               height: 1.4,
                             ),
                           ),
@@ -441,11 +474,10 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
               ),
               const SizedBox(height: 16),
               Container(
-                height: 140,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: theme.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -454,17 +486,18 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           "Checkpoints",
-                          style: TextStyle(
-                            color: AppColors.white,
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.bebasNeue(
+                            color: theme.textPrimary,
+                            fontSize: 18,
+                            letterSpacing: 1.1,
                           ),
                         ),
                         Text(
                           "#$currentIndex/$totalCheckpoints",
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
+                          style: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.65),
                           ),
                         ),
                       ],
@@ -473,9 +506,9 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                     if (currentCheckpoint.isNotEmpty) ...[
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.location_on,
-                            color: AppColors.primary,
+                            color: theme.primary,
                             size: 20,
                           ),
                           const SizedBox(width: 8),
@@ -483,10 +516,10 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                             child: Text(
                               (currentCheckpoint["title"] ?? "Next Checkpoint")
                                   .toString(),
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                              style: GoogleFonts.bebasNeue(
+                                color: theme.textPrimary,
+                                fontSize: 20,
+                                letterSpacing: 1.1,
                               ),
                             ),
                           ),
@@ -495,52 +528,66 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.directions,
-                            color: AppColors.textSecondary,
+                            color: theme.textPrimary.withValues(alpha: 0.65),
                             size: 16,
                           ),
                           const SizedBox(width: 8),
                           Text(
                             "Distance: ${currentCheckpoint["estimatedTime"] ?? "N/A"}",
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              color: theme.textPrimary.withValues(alpha: 0.65),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: GestureDetector(
-                          onLongPress: _loading ? null : _advanceCheckpoint,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: _loading
-                                  ? AppColors.surfaceMuted
-                                  : AppColors.primary,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Center(
-                              child: Text(
-                                _loading
-                                    ? "Marking..."
-                                    : "Hold to Mark Reached",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                      if (_canManageRide)
+                        SizedBox(
+                          width: double.infinity,
+                          child: GestureDetector(
+                            onLongPress: _loading ? null : _advanceCheckpoint,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              decoration: BoxDecoration(
+                                color: _loading
+                                    ? theme.textPrimary.withValues(alpha: 0.1)
+                                    : theme.primary,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  if (!_loading)
+                                    BoxShadow(
+                                      color: theme.primary.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _loading
+                                      ? "Marking..."
+                                      : "Hold to Mark Reached",
+                                  style: GoogleFonts.bebasNeue(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    letterSpacing: 1.2,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
-                      ),
                     ] else ...[
-                      const Center(
+                      Center(
                         child: Text(
                           "No active checkpoint",
-                          style: TextStyle(color: AppColors.textSecondary),
+                          style: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.65),
+                          ),
                         ),
                       ),
                     ],
@@ -580,7 +627,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         setState(() {
                           _showSosActions = false;
                         });
-                        await _showSosConfirmationModal(label);
+                        await _showSosConfirmationModal(label, theme);
                         if (!mounted) return;
                         setState(() {
                           _activeEmergencyAlert = label;
@@ -615,9 +662,9 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                           },
                     child: Text(
                       _showSosActions ? "Hide SOS Options" : "SOS",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                      style: GoogleFonts.bebasNeue(
+                        fontSize: 20,
+                        letterSpacing: 1.2,
                       ),
                     ),
                   ),
@@ -635,8 +682,14 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: _loading ? null : _showEmergencySosPrompt,
-                  child: const Icon(Icons.dangerous, size: 28),
+                  onPressed: _loading
+                      ? null
+                      : () => _showEmergencySosPrompt(theme),
+                  child: const Icon(
+                    Icons.dangerous,
+                    size: 28,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
