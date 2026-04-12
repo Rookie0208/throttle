@@ -207,7 +207,12 @@ CREATE TABLE ride_participants (
 
     rsvp_status VARCHAR(20),
 
+    ride_state VARCHAR(30),
+
     joined_at TIMESTAMP DEFAULT now(),
+    partial_started_at TIMESTAMP,
+    arrived_at_start_at TIMESTAMP,
+    state_updated_at TIMESTAMP,
     left_at TIMESTAMP,
 
     UNIQUE (ride_id, user_id),
@@ -246,6 +251,20 @@ CREATE TABLE ride_groups (
 
     members_can_add_members BOOLEAN NOT NULL DEFAULT FALSE,
 
+    admins_approve_members BOOLEAN NOT NULL DEFAULT TRUE,
+
+    pre_ride_meeting_point VARCHAR(255),
+
+    pre_ride_fuel_stops VARCHAR(255),
+
+    pre_ride_checkpoints TEXT,
+
+    pre_ride_rules TEXT,
+
+    pre_ride_notes TEXT,
+
+    pre_ride_updated_at TIMESTAMP,
+
     created_by BIGINT NOT NULL,
 
     created_at TIMESTAMP DEFAULT now(),
@@ -278,6 +297,35 @@ CREATE TABLE group_members (
     joined_at TIMESTAMP DEFAULT now(),
 
     UNIQUE(group_id, user_id),
+
+    FOREIGN KEY (group_id)
+        REFERENCES ride_groups(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+--------------------------------------------------
+-- GROUP JOIN REQUESTS
+--------------------------------------------------
+
+CREATE TABLE group_join_requests (
+    id BIGSERIAL PRIMARY KEY,
+
+    group_id BIGINT NOT NULL,
+
+    user_id BIGINT NOT NULL,
+
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
+        CHECK (status IN ('PENDING','APPROVED','REJECTED')),
+
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+
+    updated_at TIMESTAMP NOT NULL DEFAULT now(),
+
+    UNIQUE (group_id, user_id, status),
 
     FOREIGN KEY (group_id)
         REFERENCES ride_groups(id)

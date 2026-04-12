@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class SubscriptionPlan {
   final String id;
@@ -74,96 +76,112 @@ class SubscriptionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black54,
-      body: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.9,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _introText(),
-                      const SizedBox(height: 16),
-                      ...plans.map((plan) => _planCard(plan)).toList(),
-                      const SizedBox(height: 20),
-                      _footer(),
-                    ],
-                  ),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+        return Scaffold(
+          backgroundColor: Colors.black.withValues(alpha: 0.4),
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.9,
+              decoration: BoxDecoration(
+                color: theme.background,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(28),
                 ),
               ),
-            ],
+              child: Column(
+                children: [
+                  _buildHeader(theme),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        children: [
+                          _introText(theme),
+                          const SizedBox(height: 16),
+                          ...plans
+                              .map((plan) => _planCard(plan, theme))
+                              .toList(),
+                          const SizedBox(height: 20),
+                          _footer(theme),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppThemeConfig theme) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.black12)),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.textPrimary.withValues(alpha: 0.1)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             "Upgrade to Premium",
-            style: TextStyle(
+            style: GoogleFonts.lexend(
+              color: theme.textPrimary,
               fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
           ),
           InkWell(
             onTap: onClose,
-            child: const CircleAvatar(
+            child: CircleAvatar(
               radius: 16,
-              backgroundColor: Color(0xffeeeeee),
-              child: Icon(Icons.close, size: 18, color: Colors.black),
+              backgroundColor: theme.surface,
+              child: Icon(Icons.close, size: 18, color: theme.textPrimary),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _introText() {
-    return const Text(
+  Widget _introText(AppThemeConfig theme) {
+    return Text(
       "Get unlimited access to advanced features and take your riding to the next level.",
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 13,
-        color: Colors.grey,
+        color: theme.textPrimary.withValues(alpha: 0.6),
       ),
     );
   }
 
-  Widget _planCard(SubscriptionPlan plan) {
+  Widget _planCard(SubscriptionPlan plan, AppThemeConfig theme) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border.all(
-          color: plan.popular ? Colors.blue : Colors.grey.shade300,
+          color: plan.popular
+              ? theme.primary
+              : const Color(0x52B8C6DA).withValues(alpha: 0.5),
           width: 2,
         ),
         borderRadius: BorderRadius.circular(18),
-        color: plan.popular ? Colors.blue.withOpacity(.05) : Colors.white,
+        color: plan.popular
+            ? theme.primary.withValues(alpha: 0.05)
+            : theme.surface,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -172,26 +190,29 @@ class SubscriptionScreen extends StatelessWidget {
                 children: [
                   Text(
                     plan.name,
-                    style: const TextStyle(
+                    style: TextStyle(
+                      color: theme.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     plan.period,
-                    style: const TextStyle(
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.6),
                       fontSize: 12,
-                      color: Colors.grey,
                     ),
-                  )
+                  ),
                 ],
               ),
               if (plan.popular)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.blue,
+                    color: theme.primary,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Text(
@@ -202,7 +223,7 @@ class SubscriptionScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                )
+                ),
             ],
           ),
 
@@ -214,22 +235,22 @@ class SubscriptionScreen extends StatelessWidget {
             children: [
               Text(
                 plan.price,
-                style: const TextStyle(
+                style: TextStyle(
+                  color: theme.primary,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
                 ),
               ),
               const SizedBox(width: 8),
               if (plan.originalPrice != null)
                 Text(
                   plan.originalPrice!,
-                  style: const TextStyle(
+                  style: TextStyle(
+                    color: theme.textPrimary.withValues(alpha: 0.4),
                     decoration: TextDecoration.lineThrough,
-                    color: Colors.grey,
                     fontSize: 14,
                   ),
-                )
+                ),
             ],
           ),
 
@@ -243,15 +264,21 @@ class SubscriptionScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       children: [
-                        const Icon(Icons.check_circle,
-                            size: 16, color: Colors.blue),
+                        Icon(
+                          Icons.check_circle,
+                          size: 16,
+                          color: theme.primary,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             feature,
-                            style: const TextStyle(fontSize: 13),
+                            style: TextStyle(
+                              color: theme.textPrimary,
+                              fontSize: 13,
+                            ),
                           ),
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -261,40 +288,40 @@ class SubscriptionScreen extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          /// Subscribe button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    plan.popular ? Colors.blue : Colors.grey.shade200,
-                foregroundColor:
-                    plan.popular ? Colors.white : Colors.black,
+                backgroundColor: plan.popular
+                    ? theme.primary
+                    : theme.textPrimary.withValues(alpha: 0.05),
+                foregroundColor: plan.popular
+                    ? Colors.white
+                    : theme.textPrimary,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
               onPressed: () {},
-              child: const Text("Subscribe Now"),
+              child: Text("Subscribe Now", style: GoogleFonts.lexend()),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _footer() {
+  Widget _footer(AppThemeConfig theme) {
+    final style = TextStyle(
+      fontSize: 11,
+      color: theme.textPrimary.withValues(alpha: 0.6),
+    );
     return Column(
-      children: const [
-        Text(
-          "Cancel anytime. No questions asked.",
-          style: TextStyle(fontSize: 11, color: Colors.grey),
-        ),
-        SizedBox(height: 4),
-        Text(
-          "All plans include access to core riding features",
-          style: TextStyle(fontSize: 11, color: Colors.grey),
-        ),
+      children: [
+        Text("Cancel anytime. No questions asked.", style: style),
+        const SizedBox(height: 4),
+        Text("All plans include access to core riding features", style: style),
       ],
     );
   }

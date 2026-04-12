@@ -4,10 +4,10 @@ import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 
 class ChatService {
-  late StompClient stompClient;
+  StompClient? stompClient;
   bool isConnected = false;
 
-  late String _groupId;
+  String? _groupId;
 
   static Future<List<dynamic>> fetchMessages(String groupId) async {
     final token = await AuthService.getToken();
@@ -32,6 +32,7 @@ class ChatService {
     required String token,
     required Function(dynamic) onMessageReceived,
   }) {
+    disconnect();
     _groupId = groupId;
 
     stompClient = StompClient(
@@ -46,7 +47,7 @@ class ChatService {
           isConnected = true;
 
           /// subscribe
-          stompClient.subscribe(
+          stompClient?.subscribe(
             destination: '/topic/group.$groupId',
             callback: (frame) {
               print("📩 RAW FRAME: ${frame.body}");
@@ -73,12 +74,12 @@ class ChatService {
       ),
     );
 
-    stompClient.activate();
+    stompClient?.activate();
   }
 
   /// ✅ CORRECT SEND METHOD
   void sendMessage({required String groupId, required String text}) {
-    if (!isConnected) {
+    if (!isConnected || stompClient == null || _groupId == null) {
       print("⚠️ NOT CONNECTED YET");
       return;
     }
@@ -93,10 +94,12 @@ class ChatService {
 
     print("🚀 SENDING: $message");
 
-    stompClient.send(destination: '/app/chat.send', body: jsonEncode(message));
+    stompClient?.send(destination: '/app/chat.send', body: jsonEncode(message));
   }
 
   void disconnect() {
-    stompClient.deactivate();
+    isConnected = false;
+    stompClient?.deactivate();
+    stompClient = null;
   }
 }

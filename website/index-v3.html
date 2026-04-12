@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Throttle Community - V3</title>
+    <link rel="stylesheet" href="style-v3.css">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;800&family=Plus+Jakarta+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body class="lenis">
+    <header class="navbar">
+        <div class="logo">THROTTLE</div>
+        <div class="nav-links">
+            <a href="#offer">What We Offer</a>
+            <a href="#about">Who We Are</a>
+            <a href="#launch" class="btn-join">Get Early Access</a>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <div class="hero-title">
+                <div class="line">
+                    <span>T</span><span>H</span><span>R</span><span>O</span><span>T</span><span>T</span><span>L</span><span>E</span>
+                </div>
+                <div class="line">
+                    <span>C</span><span>O</span><span>M</span><span>M</span><span>U</span><span>N</span><span>I</span><span>T</span><span>Y</span>
+                </div>
+            </div>
+            <div class="hero-sub">
+                <p>Plan, track, and dominate every group ride with seamless controls.</p>
+            </div>
+            <!-- Scroll Indicator -->
+            <div class="scroll-ind">
+                <span>SCROLL DOWN</span>
+                <div class="line-down"></div>
+            </div>
+        </section>
+
+        <!-- Image Shrink & Text Reveal section -->
+        <section class="shrink-section" id="shrink">
+            <div class="pin-container">
+                <div class="image-wrapper">
+                    <img src="assets/community_bg.png" alt="Community Throttle">
+                </div>
+                <div class="text-wrapper">
+                    <div class="text-content">
+                        <h2>The Command Center</h2>
+                        <p>Throttle is built to tame the chaos of organized rides. Designed by riders, for riders, it synchronizes groups effortlessly—scaling from five friends to five hundred bikes with absolute precision. Say goodbye to getting lost, messy WhatsApp groups, and chaotic stops.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Horizontal Cards Section (What We Offer) -->
+        <section class="features-section" id="offer">
+            <div class="features-header">
+                <h2>What We Offer</h2>
+            </div>
+            <div class="horizontal-container">
+                <div class="cards-wrapper f">
+                    
+                    <div class="feature-card">
+                        <div class="card-inner">
+                            <div class="card-num">01</div>
+                            <div class="card-content">
+                                <h3>Pre-Ride Intel</h3>
+                                <p>Sync Meeting Points, rules, Checkpoints and Fuel Stops effortlessly. No one gets lost anymore.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="card-inner">
+                            <div class="card-num">02</div>
+                            <div class="card-content">
+                                <h3>Subgroups</h3>
+                                <p>Divide naturally. Track smaller groups inside large rides with private chats and tracking per group.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="card-inner">
+                            <div class="card-num">03</div>
+                            <div class="card-content">
+                                <h3>Command Base</h3>
+                                <p>Assign trusted managers, boot offenders, and invite easily. Lead with absolute authority.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- About Us section -->
+        <section class="about-section" id="about">
+            <div class="about-header">
+                <h2>Who We Are</h2>
+                <p>We are riders building for riders. A founding team dedicated to evolving modern motorcycle communities with tech.</p>
+            </div>
+            <div class="founders-grid">
+                <div class="founder-card">
+                    <div class="avatar">A</div>
+                    <h3>Amit Rawat</h3>
+                    <p>Founding Engineer</p>
+                </div>
+                <div class="founder-card">
+                    <div class="avatar">A</div>
+                    <h3>Abhay Gupta</h3>
+                    <p>Founding Engineer</p>
+                </div>
+                <div class="founder-card">
+                    <div class="avatar">R</div>
+                    <h3>Rohan Saini</h3>
+                    <p>Founding Engineer</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Parallax Launch + Footer Wrapper -->
+    <div class="parallax-footer-wrapper">
+        <!-- Launch Countdown Section -->
+        <section class="launch-section" id="launch">
+            <div class="launch-top">
+                <div class="launch-text">
+                    <h2>Launch Protocol</h2>
+                    <p class="subtitle">April 19, 2026. The wait is almost over.</p>
+                </div>
+                <div class="countdown-wrapper">
+                    <div class="cd-box"><span id="cd-days">00</span><small>Days</small></div>
+                    <div class="cd-box"><span id="cd-hours">00</span><small>Hrs</small></div>
+                    <div class="cd-box"><span id="cd-mins">00</span><small>Min</small></div>
+                    <div class="cd-box"><span id="cd-secs">00</span><small>Sec</small></div>
+                </div>
+            </div>
+            <div class="launch-bottom form-wrapper text-center">
+                <form class="waitlist-form">
+                    <input type="email" placeholder="Join the early access roster" required>
+                    <button type="submit" class="btn-join">Secure Spot</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Footer referenced exactly from madewithgsap layout style -->
+        <footer class="f f-space pr">
+            <div class="col1">
+                <h2 class="sm-title">Never miss what's next</h2>
+                <form class="f form-newsletter" method="" action=""> 
+                    <input type="email" name="email" placeholder="Your email" required=""> 
+                    <button type="submit" class="btn-join event-on">
+                        <span><span class="stag st2">Submit</span></span>
+                    </button> 
+                </form>
+                <p class="p-tiny">By submitting your email, you’ll be the first to know about Throttle's launch on April 19, 2026. You can unsubscribe at any time.</p>
+            </div>
+            <div class="col2 mono">
+                <h2>Social</h2>
+                <ul>
+                    <li><a href="#" target="_blank" rel="noreferrer"><span>X(Twitter)</span></a></li>
+                    <li><a href="#" target="_blank" rel="noreferrer"><span>Instagram</span></a></li>
+                    <li><a href="#" target="_blank" rel="noreferrer"><span>LinkedIn</span></a></li>
+                </ul>
+            </div>
+            <div class="col2 mono">
+                <h2>Legal</h2>
+                <ul>
+                    <li><a href="#"><span>Permissions &amp; Terms</span></a></li>
+                    <li><a href="#"><span>Privacy policy</span></a></li>
+                </ul>
+            </div>
+            <div class="col3 mono f">
+                <ul class="f">
+                    <li>2026© Throttle</li>
+                </ul>
+            </div>
+        </footer>
+    </div>
+
+    <!-- GSAP & Lenis dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://unpkg.com/@studio-freight/lenis@1.0.34/dist/lenis.min.js"></script>
+    <script src="script-v3.js"></script>
+</body>
+</html>

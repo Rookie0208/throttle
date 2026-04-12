@@ -81,6 +81,17 @@ public class Ride {
 
     private LocalDateTime endTime;
 
+    private LocalDateTime rideStartedAt;
+
+    private LocalDateTime rideCompletedAt;
+
+    private Integer currentCheckpointIndex;
+
+    @Column(columnDefinition = "TEXT")
+    private String latestBroadcastMessage;
+
+    private LocalDateTime latestBroadcastAt;
+
     // Ride Locations (START / CHECKPOINT / END)
     @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sequence ASC")

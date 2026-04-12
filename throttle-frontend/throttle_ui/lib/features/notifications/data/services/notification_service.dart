@@ -74,6 +74,28 @@ class NotificationService {
     }
   }
 
+  Future<bool> deleteNotification(int notificationId, String token) async {
+    if (notificationId < 0) {
+      _localNotifications.removeWhere((item) => item.id == notificationId);
+      return true;
+    }
+
+    try {
+      final response = await http.delete(
+        Uri.parse("$baseUrl/notifications/$notificationId"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      );
+
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (e) {
+      Logger.error("Error deleting notification: $e");
+      return false;
+    }
+  }
+
   Future<void> notifySubGroupCreated({
     String? token,
     required String subgroupName,
@@ -338,7 +360,6 @@ class NotificationService {
       ...pendingLocalNotifications,
       ...remoteNotifications,
     ];
-
     merged.sort((a, b) => b.time.compareTo(a.time));
     return merged;
   }
