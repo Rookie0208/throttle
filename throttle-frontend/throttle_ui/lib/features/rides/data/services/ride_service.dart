@@ -368,4 +368,27 @@ class RideService {
       return {};
     }
   }
+
+  static Future<void> addRideCheckpoint(
+    String token,
+    String rideUuid,
+    String title,
+  ) async {
+    final baseUrl = _apiBaseUrl;
+    final response = await http.post(
+      Uri.parse('$baseUrl/rides/$rideUuid/checkpoints/custom'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'title': title,
+        // You could also send current coordinates here if your API supports it
+      }),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception('Failed to add custom checkpoint: ${response.body}');
+    }
+  }
 }
