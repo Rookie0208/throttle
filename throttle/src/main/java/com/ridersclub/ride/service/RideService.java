@@ -180,7 +180,7 @@ public class RideService {
 
                 notificationService.createAndSend(
                                 currentUser.getId(),
-                                "RIDE_CREATED",
+                                NotificationType.RIDE_CREATED,
                                 "Ride Created",
                                 "Your ride \"" + ride.getTitle() + "\" has been created successfully.",
                                 saved.getId(),
@@ -272,7 +272,7 @@ public class RideService {
 
                 notificationService.createAndSend(
                                 user.getId(),
-                                "SUBGROUP_CREATED",
+                                NotificationType.SUBGROUP_CREATED,
                                 "Subgroup Created",
                                 "Your subgroup \"" + subGroup.getName() + "\" has been created successfully.",
                                 savedGroup.getId(),
@@ -334,7 +334,7 @@ public class RideService {
                 // Notify captain that someone joined
                 notificationService.createAndSend(
                                 ride.getCreatedBy().getId(),
-                                "RIDER_JOINED",
+                                NotificationType.RIDER_JOINED,
                                 "New Rider Joined",
                                 user.getFirstName() + " joined your ride \"" + ride.getTitle() + "\".",
                                 ride.getId(),
