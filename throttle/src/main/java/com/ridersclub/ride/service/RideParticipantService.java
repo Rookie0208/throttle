@@ -66,6 +66,8 @@ public class RideParticipantService {
     private NotificationService notificationService;
     @Autowired
     private GroupMessageRepository groupMessageRepository;
+    @Autowired
+    private RideSessionService rideSessionService;
 
     private boolean isRideManager(Role role) {
         return role == Role.CAPTAIN || role == Role.ADMIN || role == Role.CO_CAPTAIN;
@@ -121,6 +123,7 @@ public class RideParticipantService {
         participantRepository.save(target);
 
         syncTeamMembersSubgroup(ride, target.getUser(), newRole);
+        rideSessionService.publishSessionUpdate(rideUuid);
     }
 
     @Transactional
@@ -146,6 +149,7 @@ public class RideParticipantService {
 
         removeFromTeamMembersSubgroup(ride, target.getUser());
         participantRepository.delete(target);
+        rideSessionService.publishSessionUpdate(rideUuid);
     }
 
     private void syncTeamMembersSubgroup(Ride ride, User user, Role role) {
@@ -248,6 +252,7 @@ public class RideParticipantService {
                 .messageType(MessageType.SYSTEM)
                 .edited(false)
                 .build());
+        rideSessionService.publishSessionUpdate(rideUuid);
     }
 
     @Transactional(readOnly = true)
@@ -417,6 +422,7 @@ public class RideParticipantService {
                 formatUserName(invitee) + " accepted your invite to \"" + ride.getTitle() + "\".",
                 invitation.getId(),
                 "RIDE_INVITATION");
+        rideSessionService.publishSessionUpdate(ride.getUuid());
     }
 
     @Transactional
@@ -483,6 +489,7 @@ public class RideParticipantService {
         actor.setStateUpdatedAt(LocalDateTime.now());
         participantRepository.save(actor);
         createSystemGroupMessage(mainGroup, actor.getUser(), formatUserName(actor.getUser()) + " left the group.");
+        rideSessionService.publishSessionUpdate(rideUuid);
     }
 
     private RideInvitationResponse mapInvitationResponse(RideInvitation invitation) {

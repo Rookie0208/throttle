@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.LocationType;
@@ -19,9 +20,12 @@ import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.message.entity.GroupMessage;
 import com.ridersclub.message.repository.GroupMessageRepository;
 import com.ridersclub.ride.dto.request.RideLocationUpdateRequest;
+import com.ridersclub.ride.dto.request.RideSosRequest;
+import com.ridersclub.ride.dto.request.RideSosResolutionRequest;
 import com.ridersclub.ride.dto.response.RideParticipantDto;
 import com.ridersclub.ride.dto.response.RideSessionCheckpointResponse;
 import com.ridersclub.ride.dto.response.RideSessionResponse;
+import com.ridersclub.ride.dto.response.RideSessionUpdateEvent;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.entity.RideLiveLocation;
@@ -42,18 +46,21 @@ public class RideSessionService {
     private final RideGroupRepository rideGroupRepository;
     private final RideLiveLocationRepository rideLiveLocationRepository;
     private final GroupMessageRepository groupMessageRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public RideSessionService(
             RideRepository rideRepository,
             RideParticipantRepository participantRepository,
             RideGroupRepository rideGroupRepository,
             RideLiveLocationRepository rideLiveLocationRepository,
-            GroupMessageRepository groupMessageRepository) {
+            GroupMessageRepository groupMessageRepository,
+            SimpMessagingTemplate messagingTemplate) {
         this.rideRepository = rideRepository;
         this.participantRepository = participantRepository;
         this.rideGroupRepository = rideGroupRepository;
         this.rideLiveLocationRepository = rideLiveLocationRepository;
         this.groupMessageRepository = groupMessageRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +91,7 @@ public class RideSessionService {
                 .rideCompletedAt(ride.getRideCompletedAt())
                 .captainUuid(ride.getCaptain() != null ? ride.getCaptain().getUuid() : null)
                 .captainName(ride.getCaptain() != null ? formatUserName(ride.getCaptain()) : null)
+                .currentUserUuid(actor.getUser().getUuid())
                 .currentUserCaptain(isRideManager(actor.getRole()))
                 .currentUserRole(actor.getRole().name())
                 .currentUserState(resolveRideState(actor, ride).name())
@@ -92,6 +100,18 @@ public class RideSessionService {
                 .currentCheckpointIndex(ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0)
                 .latestBroadcastMessage(ride.getLatestBroadcastMessage())
                 .latestBroadcastAt(ride.getLatestBroadcastAt())
+                .activeSosMessage(ride.getActiveSosMessage())
+                .activeSosAt(ride.getActiveSosAt())
+                .activeSosRaisedByName(
+                        ride.getActiveSosRaisedBy() != null ? formatUserName(ride.getActiveSosRaisedBy()) : null)
+                .activeSosRaisedByUuid(
+                        ride.getActiveSosRaisedBy() != null ? ride.getActiveSosRaisedBy().getUuid() : null)
+                .activeSosResolution(ride.getActiveSosResolution())
+                .activeSosResolvedAt(ride.getActiveSosResolvedAt())
+                .activeSosResolvedByName(
+                        ride.getActiveSosResolvedBy() != null ? formatUserName(ride.getActiveSosResolvedBy()) : null)
+                .activeSosResolvedByUuid(
+                        ride.getActiveSosResolvedBy() != null ? ride.getActiveSosResolvedBy().getUuid() : null)
                 .participantsCount(participantDtos.size())
                 .enRouteCount((int) participants.stream()
                         .filter(participant -> resolveRideState(participant, ride) == RideParticipantState.EN_ROUTE)
@@ -123,7 +143,9 @@ public class RideSessionService {
         }
 
         createSystemGroupMessage(ride, participant.getUser(), formatUserName(participant.getUser()) + " is en route.");
-        return getRideSession(rideUuid, actorUserUuid);
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
     }
 
     public RideSessionResponse markArrivedAtStart(String rideUuid, String actorUserUuid) {
@@ -143,7 +165,9 @@ public class RideSessionService {
             rideRepository.save(ride);
         }
 
-        return getRideSession(rideUuid, actorUserUuid);
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
     }
 
     public RideSessionResponse startRide(String rideUuid, String actorUserUuid) {
@@ -171,7 +195,9 @@ public class RideSessionService {
         participantRepository.saveAll(participants);
 
         createSystemGroupMessage(ride, actor.getUser(), "Ride started by " + formatUserName(actor.getUser()) + ".");
-        return getRideSession(rideUuid, actorUserUuid);
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
     }
 
     public RideSessionResponse updateLocation(String rideUuid, String actorUserUuid, RideLocationUpdateRequest request) {
@@ -187,7 +213,9 @@ public class RideSessionService {
         location.setRecordedAt(LocalDateTime.now());
         rideLiveLocationRepository.save(location);
 
-        return getRideSession(rideUuid, actorUserUuid);
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
     }
 
     public RideSessionResponse advanceCheckpoint(String rideUuid, String actorUserUuid) {
@@ -210,7 +238,64 @@ public class RideSessionService {
             rideRepository.save(ride);
         }
 
-        return getRideSession(rideUuid, actorUserUuid);
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
+    }
+
+    public RideSessionResponse sendSos(String rideUuid, String actorUserUuid, RideSosRequest request) {
+        Ride ride = getRide(rideUuid);
+        RideParticipant participant = getActiveParticipant(rideUuid, actorUserUuid);
+        ensureRideMutable(ride);
+
+        LocalDateTime now = LocalDateTime.now();
+        String message = request.getMessage().trim();
+
+        ride.setActiveSosMessage(message);
+        ride.setActiveSosAt(now);
+        ride.setActiveSosRaisedBy(participant.getUser());
+        ride.setActiveSosResolution(null);
+        ride.setActiveSosResolvedAt(null);
+        ride.setActiveSosResolvedBy(null);
+        rideRepository.save(ride);
+
+        createSystemGroupMessage(
+                ride,
+                participant.getUser(),
+                "SOS: " + message + " from " + formatUserName(participant.getUser()) + ".");
+
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
+    }
+
+    public RideSessionResponse resolveSos(
+            String rideUuid,
+            String actorUserUuid,
+            RideSosResolutionRequest request) {
+        Ride ride = getRide(rideUuid);
+        RideParticipant actor = getActiveParticipant(rideUuid, actorUserUuid);
+        ensureActorCanManage(actor);
+
+        if (ride.getActiveSosMessage() == null || ride.getActiveSosMessage().isBlank()) {
+            throw new RuntimeException("No active SOS to resolve");
+        }
+
+        String resolution = request.getResolution().trim().toUpperCase();
+        LocalDateTime now = LocalDateTime.now();
+        ride.setActiveSosResolution(resolution);
+        ride.setActiveSosResolvedAt(now);
+        ride.setActiveSosResolvedBy(actor.getUser());
+        rideRepository.save(ride);
+
+        createSystemGroupMessage(
+                ride,
+                actor.getUser(),
+                "SOS " + resolution.toLowerCase() + " by " + formatUserName(actor.getUser()) + ".");
+
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
     }
 
     public void syncCompletionState(Ride ride) {
@@ -221,6 +306,20 @@ public class RideSessionService {
             participant.setStateUpdatedAt(completedAt);
         }
         participantRepository.saveAll(participants);
+    }
+
+    public void publishSessionUpdate(String rideUuid) {
+        try {
+            messagingTemplate.convertAndSend(
+                    "/topic/rides/" + rideUuid,
+                    RideSessionUpdateEvent.builder()
+                            .rideUuid(rideUuid)
+                            .eventType("SESSION_UPDATED")
+                            .occurredAt(LocalDateTime.now())
+                            .build());
+        } catch (Exception ignored) {
+            // Socket delivery is best-effort. The persisted session state remains the source of truth.
+        }
     }
 
     private Ride getRide(String rideUuid) {
