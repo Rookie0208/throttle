@@ -5,7 +5,6 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,6 +26,7 @@ import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.ClubMember;
 import com.ridersclub.ride.entity.RideGroup;
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.ride.entity.RideInvitation;
 import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
@@ -231,7 +231,7 @@ public class RideParticipantService {
         for (RideParticipant participant : participants) {
             notificationService.createAndSend(
                     participant.getUser().getId(),
-                    "ANNOUNCEMENT_PUBLISHED",
+                    NotificationType.ANNOUNCEMENT_PUBLISHED,
                     "New announcement in " + ride.getTitle(),
                     (actorName.isEmpty() ? "Captain" : actorName) + ": " + message,
                     ride.getId(),
@@ -354,7 +354,7 @@ public class RideParticipantService {
 
         notificationService.createAndSend(
                 invitee.getId(),
-                "RIDE_GROUP_INVITE",
+                NotificationType.RIDE_INVITE,
                 "Ride group invitation",
                 formatUserName(actor.getUser()) + " invited you to join \"" + ride.getTitle() + "\".",
                 savedInvitation.getId(),
@@ -417,7 +417,7 @@ public class RideParticipantService {
 
         notificationService.createAndSend(
                 invitation.getInviter().getId(),
-                "RIDE_INVITE_ACCEPTED",
+                NotificationType.RIDE_JOINED,
                 "Ride invitation accepted",
                 formatUserName(invitee) + " accepted your invite to \"" + ride.getTitle() + "\".",
                 invitation.getId(),
@@ -440,7 +440,7 @@ public class RideParticipantService {
 
         notificationService.createAndSend(
                 invitation.getInviter().getId(),
-                "RIDE_INVITE_REJECTED",
+                NotificationType.RIDE_REJECTED,
                 "Ride invitation rejected",
                 formatUserName(invitation.getInvitee()) + " declined your invite to \"" + invitation.getRide().getTitle() + "\".",
                 invitation.getId(),
