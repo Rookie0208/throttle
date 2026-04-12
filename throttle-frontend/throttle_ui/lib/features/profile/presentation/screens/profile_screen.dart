@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/settings_screen.dart';
 
 import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -44,7 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
-  Future<void> _editBio() async {
+  Future<void> _editBio(AppThemeConfig theme) async {
     final TextEditingController bioController = TextEditingController(
       text: widget.userData?['bio'] ?? "",
     );
@@ -52,21 +54,25 @@ class _ProfileScreenState extends State<ProfileScreen>
     bool? saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text("Edit Bio", style: TextStyle(color: AppColors.white)),
+        backgroundColor: theme.surface,
+        title: Text("Edit Bio", style: TextStyle(color: theme.textPrimary)),
         content: TextField(
           controller: bioController,
-          style: const TextStyle(color: AppColors.textPrimary),
+          style: TextStyle(color: theme.textPrimary),
           maxLength: 150,
           maxLines: 3,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: "Tell us about your riding style...",
-            hintStyle: TextStyle(color: AppColors.textHint),
+            hintStyle: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.4),
+            ),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.white24),
+              borderSide: BorderSide(
+                color: theme.textPrimary.withValues(alpha: 0.1),
+              ),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppColors.primary),
+              borderSide: BorderSide(color: theme.primary),
             ),
           ),
         ),
@@ -75,15 +81,13 @@ class _ProfileScreenState extends State<ProfileScreen>
             onPressed: () => Navigator.pop(ctx, false),
             child: const Text(
               "Cancel",
-              style: TextStyle(color: AppColors.textMuted),
+              style: TextStyle(color: Color(0xff697389)),
             ),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: theme.primary),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Save", style: TextStyle(color: AppColors.white)),
+            child: const Text("Save", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -118,30 +122,38 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Widget _buildStatCard(IconData icon, String value, String label) {
+  Widget _buildStatCard(
+    IconData icon,
+    String value,
+    String label,
+    AppThemeConfig theme,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: theme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.white24),
+          border: Border.all(color: const Color(0x52B8C6DA)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: AppColors.primary, size: 24),
+            Icon(icon, color: theme.primary, size: 24),
             const SizedBox(height: 6),
             Text(
               value,
-              style: const TextStyle(
-                color: AppColors.white,
-                fontWeight: FontWeight.bold,
+              style: GoogleFonts.lexend(
+                color: theme.textPrimary,
+                fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 10),
+              style: TextStyle(
+                color: theme.textPrimary.withValues(alpha: 0.65),
+                fontSize: 10,
+              ),
             ),
           ],
         ),
@@ -149,14 +161,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildRideCard(Map<String, dynamic> ride) {
+  Widget _buildRideCard(Map<String, dynamic> ride, AppThemeConfig theme) {
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.white24),
+        border: Border.all(color: const Color(0x52B8C6DA)),
       ),
       child: Row(
         children: [
@@ -164,10 +176,10 @@ class _ProfileScreenState extends State<ProfileScreen>
             height: 36,
             width: 36,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.2),
+              color: theme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.directions_bike, color: AppColors.primary),
+            child: Icon(Icons.directions_bike, color: theme.primary),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -176,14 +188,17 @@ class _ProfileScreenState extends State<ProfileScreen>
               children: [
                 Text(
                   ride["title"] ?? ride["name"] ?? "Ride",
-                  style: const TextStyle(
-                    color: AppColors.white,
+                  style: TextStyle(
+                    color: theme.textPrimary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   ride["date"]?.toString() ?? "",
-                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                  style: TextStyle(
+                    color: theme.textPrimary.withValues(alpha: 0.6),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -193,14 +208,17 @@ class _ProfileScreenState extends State<ProfileScreen>
             children: [
               Text(
                 "${ride["miles"] ?? 0} mi",
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: theme.textPrimary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 ride["duration"] ?? ride["time"] ?? "",
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.6),
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -209,7 +227,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildAchievementCard(dynamic achievement) {
+  Widget _buildAchievementCard(dynamic achievement, AppThemeConfig theme) {
     String name = achievement is String
         ? achievement
         : (achievement["title"] ?? "Badge");
@@ -217,19 +235,19 @@ class _ProfileScreenState extends State<ProfileScreen>
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(right: 8),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.05),
+        color: theme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.emoji_events, color: AppColors.primary, size: 24),
+          Icon(Icons.emoji_events, color: theme.primary, size: 24),
           const SizedBox(height: 6),
           Text(
             name,
-            style: const TextStyle(
-              color: AppColors.white,
+            style: TextStyle(
+              color: theme.textPrimary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -242,447 +260,492 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Profile",
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SettingsScreen(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Profile",
+                        style: TextStyle(
+                          color: theme.textPrimary,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                         ),
-                      );
-                    },
-                    child: Container(
-                      height: 36,
-                      width: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.settings, color: AppColors.white),
-                    ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          height: 36,
+                          width: 36,
+                          decoration: BoxDecoration(
+                            color: theme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0x52B8C6DA)),
+                          ),
+                          child: Icon(Icons.settings, color: theme.textPrimary),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Profile Card
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.white24),
-                      ),
-                      child: Row(
-                        children: [
-                          Stack(
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Profile Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: theme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0x52B8C6DA)),
+                          ),
+                          child: Row(
                             children: [
-                              Container(
-                                height: 64,
-                                width: 64,
-                                decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xfffe6603,
-                                  ).withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  widget.userData != null &&
-                                          widget.userData!['firstName'] !=
-                                              null &&
-                                          widget
-                                              .userData!['firstName']
-                                              .isNotEmpty
-                                      ? widget.userData!['firstName'][0]
-                                                .toUpperCase() +
-                                            (widget.userData!['lastName'] !=
-                                                        null &&
-                                                    widget
-                                                        .userData!['lastName']
-                                                        .isNotEmpty
-                                                ? widget
-                                                      .userData!['lastName'][0]
-                                                      .toUpperCase()
-                                                : '')
-                                      : "RU",
-                                  style: const TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
+                              Stack(
+                                children: [
+                                  Container(
+                                    height: 64,
+                                    width: 64,
+                                    decoration: BoxDecoration(
+                                      color: theme.primary.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      widget.userData != null &&
+                                              widget.userData!['firstName'] !=
+                                                  null &&
+                                              widget
+                                                  .userData!['firstName']
+                                                  .isNotEmpty
+                                          ? widget.userData!['firstName'][0]
+                                                    .toUpperCase() +
+                                                (widget.userData!['lastName'] !=
+                                                            null &&
+                                                        widget
+                                                            .userData!['lastName']
+                                                            .isNotEmpty
+                                                    ? widget
+                                                          .userData!['lastName'][0]
+                                                          .toUpperCase()
+                                                    : '')
+                                          : "RU",
+                                      style: TextStyle(
+                                        color: theme.primary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  Positioned(
+                                    bottom: 0,
+                                    right: 0,
+                                    child: Container(
+                                      height: 20,
+                                      width: 20,
+                                      decoration: BoxDecoration(
+                                        color: theme.primary,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.edit,
+                                        color: Colors.white,
+                                        size: 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  height: 20,
-                                  width: 20,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(
-                                    Icons.edit,
-                                    color: AppColors.white,
-                                    size: 12,
-                                  ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.userData != null
+                                          ? "${(widget.userData!['firstName'] ?? '').toString().toCapitalized()} ${(widget.userData!['lastName'] ?? '').toString().toCapitalized()}"
+                                                .trim()
+                                          : "Guest User",
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    if ((widget.userData?['riderId'] ?? '')
+                                        .toString()
+                                        .isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: Text(
+                                          "@${widget.userData!['riderId']}",
+                                          style: TextStyle(
+                                            color: theme.primary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    GestureDetector(
+                                      onTap: () => _editBio(theme),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              widget.userData?['bio'] != null &&
+                                                      widget.userData!['bio']
+                                                          .toString()
+                                                          .isNotEmpty
+                                                  ? widget.userData!['bio']
+                                                  : "Tell us about your riding style...",
+                                              style: TextStyle(
+                                                color: theme.textPrimary
+                                                    .withValues(alpha: 0.65),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.edit,
+                                            color: theme.textPrimary.withValues(
+                                              alpha: 0.4,
+                                            ),
+                                            size: 14,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.userData != null
-                                      ? "${(widget.userData!['firstName'] ?? '').toString().toCapitalized()} ${(widget.userData!['lastName'] ?? '').toString().toCapitalized()}"
-                                            .trim()
-                                      : "Guest User",
-                                  style: const TextStyle(
-                                    color: AppColors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
+                        ),
+
+                        // Bike Details
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: theme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0x52B8C6DA)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                height: 36,
+                                width: 36,
+                                decoration: BoxDecoration(
+                                  color: theme.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                                const SizedBox(height: 4),
-                                if ((widget.userData?['riderId'] ?? '')
-                                    .toString()
-                                    .isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: Text(
-                                      "@${widget.userData!['riderId']}",
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.w600,
+                                child: Icon(
+                                  Icons.directions_bike,
+                                  color: theme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      bikes.isNotEmpty
+                                          ? "${bikes.first['year']} ${bikes.first['make']} ${bikes.first['model']}"
+                                          : "No Bike Registered",
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                  ),
-                                GestureDetector(
-                                  onTap: _editBio,
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          widget.userData?['bio'] != null &&
-                                                  widget.userData!['bio']
-                                                      .toString()
-                                                      .isNotEmpty
-                                              ? widget.userData!['bio']
-                                              : "Tell us about your riding style...",
-                                          style: const TextStyle(
-                                            color: AppColors.textSecondary,
-                                          ),
+                                    Text(
+                                      bikes.isNotEmpty
+                                          ? "${bikes.first['type']} · ${bikes.first['engineCc']}cc"
+                                          : "Add your bike in settings",
+                                      style: TextStyle(
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.6,
                                         ),
+                                        fontSize: 12,
                                       ),
-                                      const SizedBox(width: 4),
-                                      const Icon(
-                                        Icons.edit,
-                                        color: AppColors.textHint,
-                                        size: 14,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.chevron_right,
+                                color: theme.textPrimary.withValues(alpha: 0.4),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Stats Summary
+                        Row(
+                          children: [
+                            _buildStatCard(
+                              Icons.directions,
+                              "${widget.userData != null ? (widget.userData!['totalMiles'] ?? 0) : 0}",
+                              "Total Miles",
+                              theme,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildStatCard(
+                              Icons.calendar_today,
+                              "${widget.userData != null ? (widget.userData!['totalRides'] ?? 0) : 0}",
+                              "Total Rides",
+                              theme,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildStatCard(
+                              Icons.emoji_events,
+                              "${achievements.length}",
+                              "Badges",
+                              theme,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Tab Bar
+                        TabBar(
+                          controller: _tabController,
+                          labelColor: theme.primary,
+                          unselectedLabelColor: theme.textPrimary.withValues(
+                            alpha: 0.6,
+                          ),
+                          indicatorColor: theme.primary,
+                          tabs: const [
+                            Tab(text: "Overview"),
+                            Tab(text: "Rides"),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.45,
+                          child: TabBarView(
+                            controller: _tabController,
+                            children: [
+                              // Overview Tab
+                              SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Achievements",
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Bike Details
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.white24),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            height: 36,
-                            width: 36,
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.directions_bike,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  bikes.isNotEmpty
-                                      ? "${bikes.first['year']} ${bikes.first['make']} ${bikes.first['model']}"
-                                      : "No Bike Registered",
-                                  style: const TextStyle(
-                                    color: AppColors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  bikes.isNotEmpty
-                                      ? "${bikes.first['type']} · ${bikes.first['engineCc']}cc"
-                                      : "Add your bike in settings",
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right,
-                            color: AppColors.textSecondary,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Stats Summary
-                    Row(
-                      children: [
-                        _buildStatCard(
-                          Icons.directions,
-                          "${widget.userData != null ? (widget.userData!['totalMiles'] ?? 0) : 0}",
-                          "Total Miles",
-                        ),
-                        const SizedBox(width: 8),
-                        _buildStatCard(
-                          Icons.calendar_today,
-                          "${widget.userData != null ? (widget.userData!['totalRides'] ?? 0) : 0}",
-                          "Total Rides",
-                        ),
-                        const SizedBox(width: 8),
-                        _buildStatCard(
-                          Icons.emoji_events,
-                          "${achievements.length}",
-                          "Badges",
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Tab Bar
-                    TabBar(
-                      controller: _tabController,
-                      indicatorColor: AppColors.primary,
-                      labelColor: AppColors.white,
-                      unselectedLabelColor: AppColors.textSecondary,
-                      tabs: const [
-                        Tab(text: "Overview"),
-                        Tab(text: "Rides"),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.45,
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          // Overview Tab
-                          SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Achievements",
-                                  style: TextStyle(
-                                    color: AppColors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  height: achievements.isEmpty ? null : 80,
-                                  child: achievements.isEmpty
-                                      ? Container(
-                                          width: double.infinity,
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 24,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.surface,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                            border: Border.all(
-                                              color: AppColors.white12,
-                                            ),
-                                          ),
-                                          child: Column(
-                                            children: const [
-                                              Icon(
-                                                Icons.workspace_premium,
-                                                color: AppColors.white24,
-                                                size: 32,
-                                              ),
-                                              SizedBox(height: 8),
-                                              Text(
-                                                "Complete rides to earn badges!",
-                                                style: TextStyle(
-                                                  color: AppColors.textMuted,
-                                                  fontSize: 13,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      height: achievements.isEmpty ? null : 80,
+                                      child: achievements.isEmpty
+                                          ? Container(
+                                              width: double.infinity,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 24,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: theme.surface,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0x52B8C6DA,
+                                                  ),
                                                 ),
                                               ),
-                                            ],
-                                          ),
-                                        )
-                                      : ListView(
-                                          scrollDirection: Axis.horizontal,
-                                          children: achievements
-                                              .map<Widget>(
-                                                (a) => _buildAchievementCard(a),
-                                              )
-                                              .toList(),
-                                        ),
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  "Recent Rides",
-                                  style: TextStyle(
-                                    color: AppColors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                rideHistory.isEmpty
-                                    ? Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 32,
-                                          horizontal: 16,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surface,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          border: Border.all(
-                                            color: AppColors.white12,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          children: const [
-                                            Icon(
-                                              Icons.route,
-                                              color: AppColors.white24,
-                                              size: 48,
-                                            ),
-                                            SizedBox(height: 12),
-                                            Text(
-                                              "Your journey begins here",
-                                              style: TextStyle(
-                                                color: AppColors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
+                                              child: Column(
+                                                children: [
+                                                  Icon(
+                                                    Icons.workspace_premium,
+                                                    color: theme.textPrimary
+                                                        .withValues(alpha: 0.1),
+                                                    size: 32,
+                                                  ),
+                                                  const SizedBox(height: 8),
+                                                  Text(
+                                                    "Complete rides to earn badges!",
+                                                    style: TextStyle(
+                                                      color: theme.textPrimary
+                                                          .withValues(
+                                                            alpha: 0.6,
+                                                          ),
+                                                      fontSize: 13,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
+                                            )
+                                          : ListView(
+                                              scrollDirection: Axis.horizontal,
+                                              children: achievements
+                                                  .map<Widget>(
+                                                    (a) =>
+                                                        _buildAchievementCard(
+                                                          a,
+                                                          theme,
+                                                        ),
+                                                  )
+                                                  .toList(),
                                             ),
-                                            SizedBox(height: 6),
-                                            Text(
-                                              "Start tracking your rides to see your history",
-                                              style: TextStyle(
-                                                color: AppColors.textMuted,
-                                                fontSize: 13,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ],
-                                        ),
-                                      )
-                                    : Column(
-                                        children: rideHistory
-                                            .map((r) => _buildRideCard(r))
-                                            .toList(),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      "Recent Rides",
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                        fontWeight: FontWeight.bold,
                                       ),
-                              ],
-                            ),
-                          ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    rideHistory.isEmpty
+                                        ? Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 32,
+                                              horizontal: 16,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: theme.surface,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: const Color(0x52B8C6DA),
+                                              ),
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                Icon(
+                                                  Icons.route,
+                                                  color: theme.textPrimary
+                                                      .withValues(alpha: 0.1),
+                                                  size: 48,
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  "Your journey begins here",
+                                                  style: TextStyle(
+                                                    color: theme.textPrimary,
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  "Start tracking your rides to see your history",
+                                                  style: TextStyle(
+                                                    color: theme.textPrimary
+                                                        .withValues(alpha: 0.6),
+                                                    fontSize: 13,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
+                                          )
+                                        : Column(
+                                            children: rideHistory
+                                                .map(
+                                                  (r) =>
+                                                      _buildRideCard(r, theme),
+                                                )
+                                                .toList(),
+                                          ),
+                                  ],
+                                ),
+                              ),
 
-                          // Rides Tab
-                          rideHistory.isEmpty
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(
-                                        Icons.history,
-                                        color: AppColors.white24,
-                                        size: 64,
+                              // Rides Tab
+                              rideHistory.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.history,
+                                            color: theme.textPrimary.withValues(
+                                              alpha: 0.1,
+                                            ),
+                                            size: 64,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            "Your journey begins here",
+                                            style: TextStyle(
+                                              color: theme.textPrimary,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            "Your completed rides will appear here.",
+                                            style: TextStyle(
+                                              color: theme.textPrimary
+                                                  .withValues(alpha: 0.6),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        "Your journey begins here",
-                                        style: TextStyle(
-                                          color: AppColors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      SizedBox(height: 8),
-                                      Text(
-                                        "Your completed rides will appear here.",
-                                        style: TextStyle(color: AppColors.textMuted),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : ListView(
-                                  children: rideHistory
-                                      .map<Widget>((r) => _buildRideCard(r))
-                                      .toList(),
-                                ),
-                        ],
-                      ),
+                                    )
+                                  : ListView(
+                                      children: rideHistory
+                                          .map<Widget>(
+                                            (r) => _buildRideCard(r, theme),
+                                          )
+                                          .toList(),
+                                    ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

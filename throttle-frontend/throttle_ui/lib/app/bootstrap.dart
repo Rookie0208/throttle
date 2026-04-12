@@ -24,6 +24,8 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.buildTheme(ThemeController.instance.theme),
+          themeAnimationDuration: const Duration(milliseconds: 280),
+          themeAnimationCurve: Curves.easeOutCubic,
           home: const OnboardingScreen(),
         );
       },
