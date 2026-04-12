@@ -706,7 +706,7 @@ public class RideService {
                         groupJoinRequestRepository.save(request);
                         notifyGroupManagers(
                                         group,
-                                        "SUBGROUP_JOIN_REQUEST",
+                                        NotificationType.SUBGROUP_JOIN_REQUEST,
                                         "Subgroup join request",
                                         actorUser.getFirstName() + " requested to join " + group.getName() + ".",
                                         request.getId(),
@@ -750,7 +750,7 @@ public class RideService {
                 createSystemGroupMessage(group, request.getUser(), formatUserName(request.getUser()) + " joined the subgroup.");
                 notificationService.createAndSend(
                                 request.getUser().getId(),
-                                "SUBGROUP_JOIN_APPROVED",
+                                NotificationType.SUBGROUP_JOIN_APPROVED,
                                 "Subgroup join approved",
                                 "Your request to join " + group.getName() + " was approved.",
                                 group.getId(),
@@ -781,7 +781,7 @@ public class RideService {
                 groupJoinRequestRepository.save(request);
                 notificationService.createAndSend(
                                 request.getUser().getId(),
-                                "SUBGROUP_JOIN_REJECTED",
+                                NotificationType.SUBGROUP_JOIN_REJECTED,
                                 "Subgroup join rejected",
                                 "Your request to join " + group.getName() + " was rejected.",
                                 group.getId(),
@@ -1109,7 +1109,7 @@ public class RideService {
 
         private void notifyGroupManagers(
                         RideGroup group,
-                        String type,
+                        NotificationType type,
                         String title,
                         String message,
                         Long referenceId,
