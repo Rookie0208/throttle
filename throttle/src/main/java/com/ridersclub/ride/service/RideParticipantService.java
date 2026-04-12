@@ -5,7 +5,6 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,6 +26,7 @@ import com.ridersclub.ride.entity.GroupMember;
 import com.ridersclub.ride.entity.Ride;
 import com.ridersclub.ride.entity.ClubMember;
 import com.ridersclub.ride.entity.RideGroup;
+import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.ride.entity.RideInvitation;
 import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
@@ -41,7 +41,6 @@ import com.ridersclub.ride.repository.GroupMemberRepository;
 import com.ridersclub.ride.repository.RideInvitationRepository;
 import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.user.entity.User;
-import com.ridersclub.user.repository.UserRepository;
 
 @Service
 public class RideParticipantService {
@@ -227,7 +226,7 @@ public class RideParticipantService {
         for (RideParticipant participant : participants) {
             notificationService.createAndSend(
                     participant.getUser().getId(),
-                    "ANNOUNCEMENT_PUBLISHED",
+                    NotificationType.ANNOUNCEMENT_PUBLISHED,
                     "New announcement in " + ride.getTitle(),
                     (actorName.isEmpty() ? "Captain" : actorName) + ": " + message,
                     ride.getId(),
