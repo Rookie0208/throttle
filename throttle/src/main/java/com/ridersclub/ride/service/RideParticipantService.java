@@ -41,6 +41,7 @@ import com.ridersclub.ride.repository.GroupMemberRepository;
 import com.ridersclub.ride.repository.RideInvitationRepository;
 import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.user.entity.User;
+import com.ridersclub.user.repository.UserRepository;
 
 @Service
 public class RideParticipantService {
@@ -348,7 +349,7 @@ public class RideParticipantService {
 
         notificationService.createAndSend(
                 invitee.getId(),
-                "RIDE_GROUP_INVITE",
+                NotificationType.RIDE_INVITE,
                 "Ride group invitation",
                 formatUserName(actor.getUser()) + " invited you to join \"" + ride.getTitle() + "\".",
                 savedInvitation.getId(),
@@ -411,7 +412,7 @@ public class RideParticipantService {
 
         notificationService.createAndSend(
                 invitation.getInviter().getId(),
-                "RIDE_INVITE_ACCEPTED",
+                NotificationType.RIDE_JOINED,
                 "Ride invitation accepted",
                 formatUserName(invitee) + " accepted your invite to \"" + ride.getTitle() + "\".",
                 invitation.getId(),
@@ -433,7 +434,7 @@ public class RideParticipantService {
 
         notificationService.createAndSend(
                 invitation.getInviter().getId(),
-                "RIDE_INVITE_REJECTED",
+                NotificationType.RIDE_REJECTED,
                 "Ride invitation rejected",
                 formatUserName(invitation.getInvitee()) + " declined your invite to \"" + invitation.getRide().getTitle() + "\".",
                 invitation.getId(),
