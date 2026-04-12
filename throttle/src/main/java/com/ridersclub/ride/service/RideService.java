@@ -479,6 +479,7 @@ public class RideService {
                 ride.setEndTime(LocalDateTime.now());
                 rideRepository.save(ride);
                 rideSessionService.syncCompletionState(ride);
+                rideSessionService.publishSessionUpdate(rideId);
         }
 
         public void addStats(String rideId, String userId, RideSummaryRequest req) {
