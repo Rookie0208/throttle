@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:throttle_ui/features/profile/presentation/screens/stats_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/settings_screen.dart';
 
 import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_stats_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -122,42 +124,33 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Widget _buildStatCard(
+  Widget _buildStatItem(
     IconData icon,
     String value,
     String label,
     AppThemeConfig theme,
   ) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: theme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x52B8C6DA)),
+    return Column(
+      children: [
+        Icon(icon, color: theme.primary, size: 24),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: GoogleFonts.bebasNeue(
+            color: theme.textPrimary,
+            fontSize: 18,
+            letterSpacing: 1.1,
+          ),
         ),
-        child: Column(
-          children: [
-            Icon(icon, color: theme.primary, size: 24),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: GoogleFonts.lexend(
-                color: theme.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                color: theme.textPrimary.withValues(alpha: 0.65),
-                fontSize: 10,
-              ),
-            ),
-          ],
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            color: theme.textPrimary.withValues(alpha: 0.65),
+            fontSize: 9,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -513,30 +506,87 @@ class _ProfileScreenState extends State<ProfileScreen>
                           ),
                         ),
 
-                        // Stats Summary
-                        Row(
-                          children: [
-                            _buildStatCard(
-                              Icons.directions,
-                              "${widget.userData != null ? (widget.userData!['totalMiles'] ?? 0) : 0}",
-                              "Total Miles",
-                              theme,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildStatCard(
-                              Icons.calendar_today,
-                              "${widget.userData != null ? (widget.userData!['totalRides'] ?? 0) : 0}",
-                              "Total Rides",
-                              theme,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildStatCard(
-                              Icons.emoji_events,
-                              "${achievements.length}",
-                              "Badges",
-                              theme,
-                            ),
-                          ],
+                        // Consolidated Ride Stats Card
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: theme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0x52B8C6DA)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "RIDE STATS",
+                                style: GoogleFonts.bebasNeue(
+                                  color: theme.textPrimary,
+                                  fontSize: 18,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                children: [
+                                  _buildStatItem(
+                                    Icons.directions,
+                                    "${widget.userData?['totalMiles'] ?? 0}",
+                                    "Miles",
+                                    theme,
+                                  ),
+                                  _buildStatItem(
+                                    Icons.calendar_today,
+                                    "${widget.userData?['totalRides'] ?? 0}",
+                                    "Rides",
+                                    theme,
+                                  ),
+                                  _buildStatItem(
+                                    Icons.emoji_events,
+                                    "${achievements.length}",
+                                    "Badges",
+                                    theme,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => StatsScreen(),
+                                      ),
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    side: BorderSide(
+                                      color: theme.primary.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    "SEE FULL RIDE STATS",
+                                    style: GoogleFonts.bebasNeue(
+                                      color: theme.primary,
+                                      fontSize: 14,
+                                      letterSpacing: 1.1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 16),
 

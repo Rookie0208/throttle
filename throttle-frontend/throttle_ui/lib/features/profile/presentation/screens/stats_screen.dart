@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 
 class StatsScreen extends StatefulWidget {
@@ -45,223 +47,342 @@ class _StatsScreenState extends State<StatsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: const Text("Stats & Progress", style: TextStyle(color: AppColors.textPrimary)),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Tab switcher
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => activeTab = "analytics"),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: activeTab == "analytics" ? AppColors.primary : AppColors.card,
-                          borderRadius: BorderRadius.circular(12),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          appBar: AppBar(
+            backgroundColor: theme.background,
+            elevation: 0,
+            title: Text(
+              "ANALYTICS & PROGRESS",
+              style: GoogleFonts.bebasNeue(
+                color: theme.textPrimary,
+                fontSize: 22,
+                letterSpacing: 1.2,
+              ),
+            ),
+            iconTheme: IconThemeData(color: theme.textPrimary),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Tab switcher
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      _buildTabButton("Analytics", "analytics", theme),
+                      const SizedBox(width: 8),
+                      _buildTabButton("Gamification", "gamification", theme),
+                    ],
+                  ),
+                ),
+
+                if (activeTab == "analytics") ...[
+                  // Grid summary (2x2)
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            _statCard("Total Distance", "248 mi", theme),
+                            const SizedBox(width: 12),
+                            _statCard("Avg Speed", "54 mph", theme),
+                          ],
                         ),
-                        child: Center(
-                          child: Text(
-                            "Analytics",
-                            style: TextStyle(
-                              color: activeTab == "analytics" ? AppColors.white : AppColors.textSecondary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            _statCard("Top Speed", "98 mph", theme),
+                            const SizedBox(width: 12),
+                            _statCard("Elevation Gain", "4,820 ft", theme),
+                          ],
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => activeTab = "gamification"),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: activeTab == "gamification" ? AppColors.primary : AppColors.card,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: Text(
-                            "Gamification",
-                            style: TextStyle(
-                              color: activeTab == "gamification" ? AppColors.white : AppColors.textSecondary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
+
+                  _sectionHeader("Speed Trend", theme),
+                  _chartPlaceholder("Speed Over Time (MPH)", theme),
+
+                  _sectionHeader("Distance Over Time", theme),
+                  _chartPlaceholder("Distance Covered (Miles)", theme),
+
+                  _sectionHeader("Ride Heatmap", theme),
+                  _buildHeatmap(theme),
+
+                  _sectionHeader("Ride History", theme),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: rideHistory
+                          .map((r) => _historyTile(r, theme))
+                          .toList(),
                     ),
                   ),
                 ],
+
+                if (activeTab == "gamification") ...[
+                  _sectionHeader("Badges & Challenges", theme),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _chartPlaceholder("Gamification Content", theme),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTabButton(String label, String tab, AppThemeConfig theme) {
+    final isSelected = activeTab == tab;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => activeTab = tab),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? theme.primary : theme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: isSelected
+                ? null
+                : Border.all(color: theme.textPrimary.withValues(alpha: 0.1)),
+          ),
+          child: Center(
+            child: Text(
+              label.toUpperCase(),
+              style: GoogleFonts.bebasNeue(
+                color: isSelected
+                    ? Colors.white
+                    : theme.textPrimary.withValues(alpha: 0.6),
+                fontSize: 16,
+                letterSpacing: 1.1,
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
 
-            // Analytics tab
-            if (activeTab == "analytics") ...[
-              // Time range
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: ["weekly", "monthly", "yearly"].map((range) {
-                    final selected = range == timeRange;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() => timeRange = range),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: selected ? AppColors.primary.withOpacity(0.2) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            range,
-                            style: TextStyle(
-                              color: selected ? AppColors.primary : AppColors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
+  Widget _sectionHeader(String title, AppThemeConfig theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+      child: Text(
+        title.toUpperCase(),
+        style: GoogleFonts.bebasNeue(
+          color: theme.textPrimary,
+          fontSize: 18,
+          letterSpacing: 1.1,
+        ),
+      ),
+    );
+  }
 
-              // Summary cards
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _statCard("Total Distance", "248 mi"),
-                    _statCard("Avg Speed", "54 mph"),
-                    _statCard("Top Speed", "98 mph"),
-                    _statCard("Elevation Gain", "4,820 ft"),
-                  ],
-                ),
+  Widget _statCard(String title, String value, AppThemeConfig theme) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.primary.withValues(alpha: 0.1)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: theme.textPrimary.withValues(alpha: 0.6),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
               ),
-
-              // Speed trend chart placeholder
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Container(
-                  height: 160,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Center(
-                    child: Text("Speed Trends Chart Here", style: TextStyle(color: AppColors.textSecondary)),
-                  ),
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: GoogleFonts.bebasNeue(
+                color: theme.primary,
+                fontSize: 24,
+                letterSpacing: 1.1,
               ),
-
-              // Ride history
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Ride History", style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Column(
-                      children: rideHistory.map((ride) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: AppColors.primary.withOpacity(0.2),
-                                child: const Icon(Icons.calendar_today, color: AppColors.primary, size: 16),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(ride['name'] as String, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                                    Text(ride['date'] as String, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text("${ride['miles']} mi", style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-                                  Text(ride['time'] as String, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
-            // Gamification tab
-            if (activeTab == "gamification") ...[
-              // Streak placeholder
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Center(child: Text("Streak / Challenges / Badges here", style: TextStyle(color: AppColors.textSecondary))),
-                ),
-              ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _statCard(String title, String value) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+  Widget _chartPlaceholder(String label, AppThemeConfig theme) {
+    return Container(
+      height: 180,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.textPrimary.withValues(alpha: 0.05)),
+      ),
+      child: Center(
+        child: Text(
+          label,
+          style: TextStyle(
+            color: theme.textPrimary.withValues(alpha: 0.3),
+            fontSize: 13,
+          ),
         ),
-        child: Column(
-          children: [
-            Text(value, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-          ],
-        ),
+      ),
+    );
+  }
+
+  Widget _buildHeatmap(AppThemeConfig theme) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.textPrimary.withValues(alpha: 0.05)),
+      ),
+      child: Column(
+        children: [
+          Column(
+            children: List.generate(5, (weekIndex) {
+              // 5 rows (weeks) for a wider monthly view
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(7, (dayIndex) {
+                  // 7 columns (days)
+                  // Mock opacity based on activity
+                  final double opacity = (weekIndex + dayIndex) % 5 == 0
+                      ? 0.8
+                      : (weekIndex + dayIndex) % 3 == 0
+                      ? 0.35
+                      : 0.1;
+                  return Container(
+                    width: 32, // Increased size for better visibility
+                    height: 32,
+                    margin: const EdgeInsets.all(3),
+                    decoration: BoxDecoration(
+                      color: theme.primary.withValues(alpha: opacity),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  );
+                }),
+              );
+            }),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                "Less ",
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.4),
+                  fontSize: 11,
+                ),
+              ),
+              ...List.generate(
+                4,
+                (i) => Container(
+                  width: 12,
+                  height: 12,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: theme.primary.withValues(alpha: 0.1 + (i * 0.25)),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              Text(
+                " More",
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.4),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _historyTile(Map<String, dynamic> ride, AppThemeConfig theme) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.textPrimary.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: theme.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.directions_bike, color: theme.primary, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ride['name'] as String,
+                  style: TextStyle(
+                    color: theme.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  ride['date'] as String,
+                  style: TextStyle(
+                    color: theme.textPrimary.withValues(alpha: 0.5),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                "${ride['miles']} mi",
+                style: GoogleFonts.bebasNeue(
+                  color: theme.textPrimary,
+                  fontSize: 18,
+                ),
+              ),
+              Text(
+                ride['time'] as String,
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.5),
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
