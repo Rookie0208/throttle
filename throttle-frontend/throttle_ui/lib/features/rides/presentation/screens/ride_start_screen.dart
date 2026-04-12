@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'live_ride_screen.dart';
 
 class RideStartScreen extends StatefulWidget {
@@ -32,6 +34,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
   bool _markedArrived = false;
   bool isCaptain = true; // TODO: fetch from API
   bool _fullRideStarted = false;
+  bool _isDragging = false;
 
   int enRoute = 1;
   int atStart = 0;
@@ -42,15 +45,15 @@ class _RideStartScreenState extends State<RideStartScreen> {
   String get title =>
       widget.groupName[0].toUpperCase() + widget.groupName.substring(1);
 
-  void _endRide() {
+  void _endRide(AppThemeConfig theme) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text("End Ride", style: TextStyle(color: Colors.white)),
-        content: const Text(
+        backgroundColor: theme.surface,
+        title: Text("End Ride", style: TextStyle(color: theme.textPrimary)),
+        content: Text(
           "Are you sure you want to end this ride?",
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
         ),
         actions: [
           TextButton(
@@ -72,51 +75,58 @@ class _RideStartScreenState extends State<RideStartScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.refresh, color: Colors.white),
-          ),
-          IconButton(
-            onPressed: _endRide,
-            icon: const Icon(Icons.stop_circle, color: Colors.red),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _rideCard(),
-            const SizedBox(height: 20),
-            _liveProgress(),
-            const SizedBox(height: 20),
-            if (!_markedArrived || isCaptain) _slider(),
-            if (_markedArrived) ...[
-              const SizedBox(height: 20),
-              _arrivalMessage(),
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final theme = ThemeController.instance.theme;
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          appBar: AppBar(
+            backgroundColor: theme.background,
+            elevation: 0,
+            actions: [
+              IconButton(
+                onPressed: () {},
+                icon: Icon(Icons.refresh, color: theme.textPrimary),
+              ),
+              IconButton(
+                onPressed: () => _endRide(theme),
+                icon: const Icon(Icons.stop_circle, color: Colors.red),
+              ),
             ],
-            const SizedBox(height: 20),
-            _accordion(),
-          ],
-        ),
-      ),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _rideCard(theme),
+                const SizedBox(height: 20),
+                _liveProgress(theme),
+                const SizedBox(height: 20),
+                if (!_markedArrived || isCaptain) _slider(theme),
+                if (_markedArrived) ...[
+                  const SizedBox(height: 20),
+                  _arrivalMessage(theme),
+                ],
+                const SizedBox(height: 20),
+                _accordion(theme),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   // 🔷 HEADER CARD
-  Widget _rideCard() {
+  Widget _rideCard(AppThemeConfig theme) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        color: AppColors.surface,
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+        color: theme.surface,
+        border: Border.all(color: theme.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -125,11 +135,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
               Expanded(
                 child: Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.white,
-                    fontFamily: 'Manrope',
+                  style: GoogleFonts.bebasNeue(
+                    fontSize: 28,
+                    letterSpacing: 1.2,
+                    color: theme.textPrimary,
                   ),
                 ),
               ),
@@ -139,13 +148,13 @@ class _RideStartScreenState extends State<RideStartScreen> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xffC28000).withOpacity(0.2),
+                  color: Colors.amber.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
                   "SCHEDULED",
                   style: TextStyle(
-                    color: Color(0xffC28000),
+                    color: Colors.amber,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
@@ -156,15 +165,20 @@ class _RideStartScreenState extends State<RideStartScreen> {
           const SizedBox(height: 20),
           Row(
             children: [
-              _info(Icons.calendar_today, "Date", widget.rideDate),
-              _info(Icons.access_time, "Time", widget.rideTime),
+              _info(Icons.calendar_today, "Date", widget.rideDate, theme),
+              _info(Icons.access_time, "Time", widget.rideTime, theme),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              _info(Icons.location_on, "Meetup", widget.location),
-              _info(Icons.people, "Riders", "${widget.memberCount} joined"),
+              _info(Icons.location_on, "Meetup", widget.location, theme),
+              _info(
+                Icons.people,
+                "Riders",
+                "${widget.memberCount} joined",
+                theme,
+              ),
             ],
           ),
         ],
@@ -172,17 +186,22 @@ class _RideStartScreenState extends State<RideStartScreen> {
     );
   }
 
-  Widget _info(IconData icon, String label, String value) {
+  Widget _info(
+    IconData icon,
+    String label,
+    String value,
+    AppThemeConfig theme,
+  ) {
     return Expanded(
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: theme.primary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 20),
+            child: Icon(icon, color: theme.primary, size: 20),
           ),
           const SizedBox(width: 10),
           Column(
@@ -190,16 +209,16 @@ class _RideStartScreenState extends State<RideStartScreen> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.65),
                   fontSize: 11,
                   fontFamily: 'Inter',
                 ),
               ),
               Text(
                 value,
-                style: const TextStyle(
-                  color: AppColors.white,
+                style: TextStyle(
+                  color: theme.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                   fontFamily: 'Inter',
@@ -213,28 +232,27 @@ class _RideStartScreenState extends State<RideStartScreen> {
   }
 
   // 🔷 LIVE PROGRESS (COMPACT)
-  Widget _liveProgress() {
+  Widget _liveProgress(AppThemeConfig theme) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: theme.surface,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         children: [
           Row(
-            children: const [
+            children: [
               Text(
                 "Live Progress",
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.white,
-                  fontFamily: 'Manrope',
+                style: GoogleFonts.bebasNeue(
+                  fontSize: 18,
+                  letterSpacing: 1.1,
+                  color: theme.textPrimary,
                 ),
               ),
-              Spacer(),
-              CircleAvatar(radius: 4, backgroundColor: AppColors.primary),
+              const Spacer(),
+              CircleAvatar(radius: 4, backgroundColor: theme.primary),
             ],
           ),
           const SizedBox(height: 16),
@@ -244,19 +262,22 @@ class _RideStartScreenState extends State<RideStartScreen> {
                 Icons.navigation,
                 "En Route",
                 enRoute,
-                const Color(0xff62789A),
+                theme.secondary,
+                theme,
               ),
               _progressTile(
                 Icons.location_on,
                 "At Start",
                 atStart,
-                const Color(0xffC28000),
+                Colors.amber,
+                theme,
               ),
               _progressTile(
                 Icons.navigation,
                 "In Ride",
                 inRide,
-                AppColors.primary,
+                theme.primary,
+                theme,
               ),
             ],
           ),
@@ -265,13 +286,19 @@ class _RideStartScreenState extends State<RideStartScreen> {
     );
   }
 
-  Widget _progressTile(IconData icon, String label, int count, Color color) {
+  Widget _progressTile(
+    IconData icon,
+    String label,
+    int count,
+    Color color,
+    AppThemeConfig theme,
+  ) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.background,
+          color: theme.background,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -280,18 +307,18 @@ class _RideStartScreenState extends State<RideStartScreen> {
             const SizedBox(height: 6),
             Text(
               "$count",
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.white,
+                color: theme.textPrimary,
                 fontFamily: 'Inter',
               ),
             ),
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textSecondary,
+                color: theme.textPrimary.withValues(alpha: 0.65),
               ),
             ),
           ],
@@ -301,37 +328,45 @@ class _RideStartScreenState extends State<RideStartScreen> {
   }
 
   // 🔷 ARRIVAL MESSAGE
-  Widget _arrivalMessage() {
+  Widget _arrivalMessage(AppThemeConfig theme) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.1),
+        color: Colors.green.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.withOpacity(0.5), width: 2),
+        border: Border.all(
+          color: Colors.green.withValues(alpha: 0.5),
+          width: 2,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.check_circle, color: Colors.green, size: 24),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "You are at the meeting point",
-                style: TextStyle(
-                  color: Colors.green[800],
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "You are at the meeting point",
+                  style: TextStyle(
+                    color: theme.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Waiting for others to join",
-                style: TextStyle(color: Colors.green[600], fontSize: 14),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  "Waiting for others to join",
+                  style: TextStyle(
+                    color: theme.textPrimary.withValues(alpha: 0.65),
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -339,55 +374,77 @@ class _RideStartScreenState extends State<RideStartScreen> {
   }
 
   // 🔷 WORKING SLIDER
-  Widget _slider() {
+  Widget _slider(AppThemeConfig theme) {
     final double maxWidth = MediaQuery.of(context).size.width - 32;
     const double thumbSize = 60;
-    final double progress = _dragPosition / (maxWidth - thumbSize);
+    final double maxDrag = maxWidth - thumbSize - 10;
+    final double progress = (_dragPosition / maxDrag).clamp(0.0, 1.0);
 
     return Container(
       width: maxWidth,
       height: 70,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.red.withOpacity(0.7),
-            Colors.yellow.withOpacity(0.7),
-            Colors.green.withOpacity(0.7),
-          ],
-          stops: [0.0, progress.clamp(0.0, 1.0), 1.0],
-        ),
+        color: theme.surface,
         borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: theme.primary.withOpacity(0.2)),
       ),
       child: Stack(
         children: [
-          Center(
-            child: Text(
-              _markedArrived
-                  ? "START RIDE"
-                  : (_isStarted ? "MARK ARRIVED" : "START RIDE"),
-              style: const TextStyle(
-                color: AppColors.white,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
+          // Active Track Fill
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: _dragPosition + (thumbSize / 2) + 5,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    theme.primary.withValues(alpha: 0.05),
+                    theme.primary.withValues(alpha: 0.3),
+                  ],
+                ),
               ),
             ),
           ),
-          Positioned(
+          // Instruction Text
+          Center(
+            child: Opacity(
+              opacity: (1.0 - progress * 1.8).clamp(0.0, 1.0),
+              child: Text(
+                _markedArrived
+                    ? "START RIDE"
+                    : (_isStarted ? "MARK ARRIVED" : "START RIDE"),
+                style: GoogleFonts.bebasNeue(
+                  fontSize: 22,
+                  color: theme.textPrimary,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+          ),
+          // Animated Draggable Thumb
+          AnimatedPositioned(
+            duration: _isDragging
+                ? Duration.zero
+                : const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
             left: _dragPosition,
             child: GestureDetector(
+              onHorizontalDragStart: (_) => setState(() => _isDragging = true),
               onHorizontalDragUpdate: (details) {
                 setState(() {
                   _dragPosition += details.delta.dx;
-                  _dragPosition = _dragPosition.clamp(
-                    0,
-                    maxWidth - thumbSize - 10,
-                  );
+                  _dragPosition = _dragPosition.clamp(0, maxDrag);
                 });
               },
               onHorizontalDragEnd: (_) {
-                if (_markedArrived && isCaptain) {
+                setState(() => _isDragging = false);
+
+                if (_markedArrived && isCaptain && _dragPosition >= maxDrag) {
                   setState(() {
-                    _dragPosition = maxWidth - thumbSize - 10;
+                    _dragPosition = maxDrag;
                     _fullRideStarted = true;
 
                     // Start the full ride
@@ -412,9 +469,11 @@ class _RideStartScreenState extends State<RideStartScreen> {
                       );
                     }
                   });
-                } else if (_isStarted && !_markedArrived) {
+                } else if (_isStarted &&
+                    !_markedArrived &&
+                    _dragPosition >= maxDrag) {
                   setState(() {
-                    _dragPosition = maxWidth - thumbSize - 10;
+                    _dragPosition = maxDrag;
                     _markedArrived = true;
 
                     // Update progress
@@ -426,9 +485,9 @@ class _RideStartScreenState extends State<RideStartScreen> {
                   Future.delayed(const Duration(milliseconds: 500), () {
                     setState(() => _dragPosition = 0);
                   });
-                } else if (_dragPosition >= maxWidth - thumbSize - 10) {
+                } else if (_dragPosition >= maxDrag) {
                   setState(() {
-                    _dragPosition = maxWidth - thumbSize - 10;
+                    _dragPosition = maxDrag;
                     _isStarted = true;
 
                     // UX update
@@ -443,15 +502,30 @@ class _RideStartScreenState extends State<RideStartScreen> {
                   setState(() => _dragPosition = 0);
                 }
               },
-              child: Container(
-                width: thumbSize,
-                height: thumbSize,
-                margin: const EdgeInsets.all(5),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+              child: AnimatedScale(
+                scale: _isDragging ? 1.05 : 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: Container(
+                  width: thumbSize,
+                  height: thumbSize,
+                  margin: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: theme.primary,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.primary.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
-                child: const Icon(Icons.arrow_forward, color: AppColors.white),
               ),
             ),
           ),
@@ -461,30 +535,34 @@ class _RideStartScreenState extends State<RideStartScreen> {
   }
 
   // 🔷 ACCORDION
-  Widget _accordion() {
+  Widget _accordion(AppThemeConfig theme) {
     return Column(
       children: [
         ListTile(
-          tileColor: AppColors.surface,
+          tileColor: theme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           onTap: () => setState(() => _expanded = !_expanded),
-          leading: const Icon(Icons.info, color: AppColors.primary),
-          title: const Text(
+          leading: Icon(Icons.info, color: theme.primary),
+          title: Text(
             "How this works",
-            style: TextStyle(color: AppColors.white, fontFamily: 'Manrope'),
+            style: GoogleFonts.bebasNeue(
+              fontSize: 18,
+              letterSpacing: 1.1,
+              color: theme.textPrimary,
+            ),
           ),
           subtitle: Text(
             _expanded ? "Tap to hide" : "Tap to learn more",
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.65),
               fontFamily: 'Inter',
             ),
           ),
           trailing: Icon(
             _expanded ? Icons.expand_less : Icons.expand_more,
-            color: AppColors.white,
+            color: theme.textPrimary,
           ),
         ),
         if (_expanded)
@@ -492,28 +570,31 @@ class _RideStartScreenState extends State<RideStartScreen> {
             margin: const EdgeInsets.only(top: 10),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: theme.surface,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
-              children: const [
+              children: [
                 _HelpItem(
                   number: 1,
                   title: "Start Ride",
+                  theme: theme,
                   desc:
                       "Slide \"Start Ride\" when you're leaving home. This lets other riders know you're on your way.",
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _HelpItem(
                   number: 2,
                   title: "Mark Arrived",
+                  theme: theme,
                   desc:
                       "Once you reach the meetup point, slide \"Mark Arrived\" so everyone knows you're ready.",
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 _HelpItem(
                   number: 3,
                   title: "Begin Journey",
+                  theme: theme,
                   desc:
                       "When the group is ready, the ride captain will start the full ride for everyone.",
                 ),
@@ -529,11 +610,13 @@ class _HelpItem extends StatelessWidget {
   final int number;
   final String title;
   final String desc;
+  final AppThemeConfig theme;
 
   const _HelpItem({
     required this.number,
     required this.title,
     required this.desc,
+    required this.theme,
   });
 
   @override
@@ -543,11 +626,7 @@ class _HelpItem extends StatelessWidget {
       children: [
         Text(
           '$number',
-          style: const TextStyle(
-            color: Colors.blue,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.bebasNeue(color: theme.primary, fontSize: 24),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -556,17 +635,17 @@ class _HelpItem extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                style: GoogleFonts.bebasNeue(
+                  color: theme.textPrimary,
+                  fontSize: 18,
+                  letterSpacing: 1.1,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 desc,
-                style: const TextStyle(
-                  color: Colors.grey,
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.65),
                   fontSize: 14,
                   height: 1.4,
                 ),
