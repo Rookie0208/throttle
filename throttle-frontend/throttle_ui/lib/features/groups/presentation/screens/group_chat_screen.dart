@@ -15,11 +15,7 @@ class GroupChatScreen extends StatefulWidget {
   final Map<String, dynamic> group;
   final String token;
 
-  const GroupChatScreen({
-    super.key,
-    required this.group,
-    required this.token,
-  });
+  const GroupChatScreen({super.key, required this.group, required this.token});
 
   @override
   State<GroupChatScreen> createState() => _GroupChatScreenState();
@@ -208,9 +204,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   /// ================= SEND =================
   void sendMessage() {
     if (_isGroupLocked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("This group is locked")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("This group is locked")));
       return;
     }
     final text = messageController.text.trim();
@@ -269,7 +265,9 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final isSystem =
         (msg["messageType"] ?? "").toString().toUpperCase() == "SYSTEM";
     final isMe = _isCurrentUserMessage(msg);
-    final body = isSystem ? _systemMessageText(msg) : (msg["message"] ?? "").toString();
+    final body = isSystem
+        ? _systemMessageText(msg)
+        : (msg["message"] ?? "").toString();
 
     if (isSystem) {
       return Center(
@@ -472,7 +470,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           IconButton(
             icon: Icon(Icons.send, color: theme.primary),
             onPressed: sendMessage,
-          )
+          ),
         ],
       ),
     );
@@ -500,6 +498,14 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             ),
             iconTheme: IconThemeData(color: theme.textPrimary),
             actions: [
+              if (activeSubGroup == null)
+                IconButton(
+                  icon: Icon(
+                    Icons.dashboard_outlined,
+                    color: theme.textPrimary,
+                  ),
+                  onPressed: _openRideConsole,
+                ),
               PopupMenuButton<String>(
                 icon: Icon(Icons.more_vert, color: theme.textPrimary),
                 color: theme.surface,
@@ -514,17 +520,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                       ),
                     ),
                   ];
-                  if (activeSubGroup == null) {
-                    items.add(
-                      PopupMenuItem(
-                        value: 'ride_console',
-                        child: Text(
-                          "Ride Console",
-                          style: TextStyle(color: theme.textPrimary),
-                        ),
-                      ),
-                    );
-                  }
                   if (_canManageRide &&
                       activeSubGroup == null &&
                       !_isRideStarted) {
@@ -630,10 +625,6 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         );
         break;
 
-      case 'ride_console':
-        _openRideConsole();
-        break;
-
       case 'subgroup':
         if (_isGroupLocked || _isRideStarted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -710,25 +701,32 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             rideUuid: _rideUuid,
           );
 
-  Navigator.push(
-    context,
-    MaterialPageRoute(builder: (_) => target),
-  );
-}
+    Navigator.push(context, MaterialPageRoute(builder: (_) => target));
+  }
 
-String _month(int m) {
-  const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-  ];
-  return months[m - 1];
-}
+  String _month(int m) {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return months[m - 1];
+  }
 
-String _formatHour(int hour) {
-  if (hour == 0) return "12";
-  if (hour > 12) return (hour - 12).toString();
-  return hour.toString();
-}
+  String _formatHour(int hour) {
+    if (hour == 0) return "12";
+    if (hour > 12) return (hour - 12).toString();
+    return hour.toString();
+  }
 
   void _openSubGroupCreation() async {
     final result = await Navigator.push(
