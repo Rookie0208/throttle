@@ -92,6 +92,24 @@ public class Ride {
 
     private LocalDateTime latestBroadcastAt;
 
+    @Column(columnDefinition = "TEXT")
+    private String activeSosMessage;
+
+    private LocalDateTime activeSosAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_sos_user_id")
+    private User activeSosRaisedBy;
+
+    private LocalDateTime activeSosResolvedAt;
+
+    @Column(length = 32)
+    private String activeSosResolution;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "active_sos_resolved_by_user_id")
+    private User activeSosResolvedBy;
+
     // Ride Locations (START / CHECKPOINT / END)
     @OneToMany(mappedBy = "ride", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sequence ASC")

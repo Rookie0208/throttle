@@ -3,6 +3,7 @@ package com.ridersclub.notification.entity;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
+import com.ridersclub.common.enums.NotificationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -25,8 +26,9 @@ public class Notifications {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String type;
+    private NotificationType type;
 
     @Column(length = 200)
     private String title;

@@ -304,6 +304,44 @@ class RideService {
     }
   }
 
+  static Future<Map<String, dynamic>> sendSos(
+    String token,
+    String rideUuid,
+    String message,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/sos"),
+      headers: _headers(token),
+      body: jsonEncode({"message": message.trim()}),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to send SOS");
+  }
+
+  static Future<Map<String, dynamic>> resolveSos(
+    String token,
+    String rideUuid,
+    String resolution,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/sos/resolve"),
+      headers: _headers(token),
+      body: jsonEncode({"resolution": resolution.trim().toUpperCase()}),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to resolve SOS");
+  }
+
   static Future<void> completeRide(String token, String rideUuid) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/complete"),

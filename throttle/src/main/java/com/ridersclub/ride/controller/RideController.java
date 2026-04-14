@@ -28,6 +28,8 @@ import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideAnnouncementRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
 import com.ridersclub.ride.dto.request.RideLocationUpdateRequest;
+import com.ridersclub.ride.dto.request.RideSosRequest;
+import com.ridersclub.ride.dto.request.RideSosResolutionRequest;
 import com.ridersclub.ride.dto.request.RideSummaryRequest;
 import com.ridersclub.ride.dto.request.UpdateGroupRequest;
 import com.ridersclub.ride.dto.request.UpdatePreRideInfoRequest;
@@ -207,6 +209,28 @@ public class RideController {
         return ApiResponse.success(
                 rideSessionService.advanceCheckpoint(id, userUuid),
                 "Checkpoint advanced");
+    }
+
+    @PostMapping("/{id}/sos")
+    public ApiResponse<RideSessionResponse> sendSos(
+            @PathVariable String id,
+            @Valid @RequestBody RideSosRequest request,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.sendSos(id, userUuid, request),
+                "SOS sent");
+    }
+
+    @PostMapping("/{id}/sos/resolve")
+    public ApiResponse<RideSessionResponse> resolveSos(
+            @PathVariable String id,
+            @Valid @RequestBody RideSosResolutionRequest request,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.resolveSos(id, userUuid, request),
+                "SOS resolved");
     }
 
     @PostMapping(ApiConstants.Rides.STATS)
