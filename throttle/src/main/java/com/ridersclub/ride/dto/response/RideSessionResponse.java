@@ -19,6 +19,7 @@ public class RideSessionResponse {
     private LocalDateTime rideCompletedAt;
     private String captainUuid;
     private String captainName;
+    private String currentUserUuid;
     private boolean currentUserCaptain;
     private String currentUserRole;
     private String currentUserState;
@@ -27,6 +28,14 @@ public class RideSessionResponse {
     private Integer currentCheckpointIndex;
     private String latestBroadcastMessage;
     private LocalDateTime latestBroadcastAt;
+    private String activeSosMessage;
+    private LocalDateTime activeSosAt;
+    private String activeSosRaisedByName;
+    private String activeSosRaisedByUuid;
+    private String activeSosResolution;
+    private LocalDateTime activeSosResolvedAt;
+    private String activeSosResolvedByName;
+    private String activeSosResolvedByUuid;
     private Integer participantsCount;
     private Integer enRouteCount;
     private Integer atStartCount;

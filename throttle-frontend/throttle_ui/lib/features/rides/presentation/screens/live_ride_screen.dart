@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/services/location_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_realtime_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 
 class LiveRideScreen extends StatefulWidget {
@@ -24,13 +25,16 @@ class LiveRideScreen extends StatefulWidget {
 }
 
 class _LiveRideScreenState extends State<LiveRideScreen> {
+  final RideRealtimeService _rideRealtimeService = RideRealtimeService();
+
   bool _loading = false;
   bool _fetching = false;
+  bool _sendingLocation = false;
+  bool _rideClosedHandled = false;
   Map<String, dynamic>? _session;
   bool _isPaused = false;
   bool _showSosActions = false;
-  String? _activeEmergencyAlert;
-  String? _activeEmergencyResolution;
+  Timer? _locationSyncTimer;
   Timer? _refreshTimer;
   Duration _totalPausedTime = Duration.zero;
   DateTime? _pauseStartTime;
@@ -49,6 +53,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
   void initState() {
     super.initState();
     if (_hasRideSession) {
+      _connectRealtime();
       _loadSession();
     }
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -59,7 +64,20 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _locationSyncTimer?.cancel();
+    _rideRealtimeService.disconnect();
     super.dispose();
+  }
+
+  void _connectRealtime() {
+    _rideRealtimeService.connect(
+      token: widget.token!,
+      rideUuid: widget.rideUuid!,
+      onRideUpdated: () {
+        if (!mounted) return;
+        _loadSession();
+      },
+    );
   }
 
   Future<void> _loadSession() async {
@@ -73,6 +91,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       setState(() {
         _session = session;
       });
+      _ensureLocationSync();
+      _handleCompletedRide(session);
     } catch (e) {
       if (!mounted) return;
       _showSnack(e.toString());
@@ -110,57 +130,79 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     });
   }
 
-  Future<void> _addCustomCheckpoint1(AppThemeConfig theme) async {
-    final controller = TextEditingController();
-    final title = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: theme.surface,
-        title: Text(
-          "Custom Checkpoint",
-          style: GoogleFonts.bebasNeue(color: theme.textPrimary),
-        ),
-        content: TextField(
-          controller: controller,
-          style: TextStyle(color: theme.textPrimary),
-          decoration: InputDecoration(
-            hintText: "e.g., View Point, Tea Break",
-            hintStyle: TextStyle(
-              color: theme.textPrimary.withValues(alpha: 0.4),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text("Mark Location"),
-          ),
-        ],
-      ),
-    );
+  void _ensureLocationSync() {
+    final rideStatus = (_session?["rideStatus"] ?? "").toString().toUpperCase();
+    final currentUserState = (_session?["currentUserState"] ?? "")
+        .toString()
+        .toUpperCase();
 
-    if (title != null && title.isNotEmpty) {
-      await _withLoading(() async {
-        // Logic: Captain adds to ride stats, Normal Rider adds to personal stats
-        if (_canManageRide) {
-          await RideService.addRideCheckpoint(
-            widget.token!,
-            widget.rideUuid!,
-            title,
-          );
-          _showSnack("Checkpoint '$title' added to group ride");
-          await _loadSession(); // Refresh to show new point
-        } else {
-          // Mock personal stat update for regular riders
-          await Future.delayed(const Duration(seconds: 1));
-          _showSnack("Point '$title' saved to your personal stats");
-        }
-      });
+    final shouldSync =
+        rideStatus == "ACTIVE" &&
+        currentUserState != "DROPPED" &&
+        currentUserState != "COMPLETED";
+
+    if (!shouldSync) {
+      _locationSyncTimer?.cancel();
+      _locationSyncTimer = null;
+      return;
     }
+
+    if (_locationSyncTimer != null) {
+      return;
+    }
+
+    unawaited(_syncCurrentLocation());
+    _locationSyncTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => unawaited(_syncCurrentLocation()),
+    );
+  }
+
+  Future<void> _syncCurrentLocation() async {
+    if (!_hasRideSession || _sendingLocation) {
+      return;
+    }
+
+    _sendingLocation = true;
+    try {
+      final position = await LocationService.getCurrentLocation();
+      if (position == null) {
+        return;
+      }
+
+      final session = await RideService.updateRideLocation(
+        widget.token!,
+        widget.rideUuid!,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+      });
+    } catch (_) {
+      // Best-effort location syncing. Session websocket updates remain the fallback.
+    } finally {
+      _sendingLocation = false;
+    }
+  }
+
+  void _handleCompletedRide(Map<String, dynamic> session) {
+    final rideStatus = (session["rideStatus"] ?? "").toString().toUpperCase();
+    if (_rideClosedHandled || rideStatus != "COMPLETED") {
+      return;
+    }
+
+    _rideClosedHandled = true;
+    _locationSyncTimer?.cancel();
+    _locationSyncTimer = null;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showSnack("Ride ended by captain");
+      Navigator.pop(context);
+    });
   }
 
   Future<void> _addCustomCheckpoint(AppThemeConfig theme) async {
@@ -291,11 +333,80 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
 
     final result = await dialogFuture;
     if (result == true) {
-      setState(() {
-        _activeEmergencyAlert = "Emergency SOS sent to all riders";
-        _activeEmergencyResolution = null;
-      });
+      await _sendSos("Emergency SOS sent to all riders");
     }
+  }
+
+  Future<void> _sendSos(String message) async {
+    await _withLoading(() async {
+      final session = await RideService.sendSos(
+        widget.token!,
+        widget.rideUuid!,
+        message,
+      );
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+      });
+    });
+  }
+
+  Future<void> _resolveSos(String resolution) async {
+    await _withLoading(() async {
+      final session = await RideService.resolveSos(
+        widget.token!,
+        widget.rideUuid!,
+        resolution,
+      );
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+      });
+      _showSnack(
+        resolution == "ACCEPTED" ? "SOS accepted" : "SOS rejected",
+      );
+    });
+  }
+
+  Future<void> _completeRide() async {
+    if (!_canManageRide) {
+      _showSnack("Only captain/admin can end this ride");
+      return;
+    }
+
+    await _withLoading(() async {
+      await RideService.completeRide(widget.token!, widget.rideUuid!);
+      if (!mounted) return;
+      Navigator.pop(context);
+    });
+  }
+
+  void _endRide(AppThemeConfig theme) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: theme.surface,
+        title: Text("End Ride", style: TextStyle(color: theme.textPrimary)),
+        content: Text(
+          "Are you sure you want to end this ride?",
+          style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(context);
+              _completeRide();
+            },
+            child: const Text("End Ride"),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _legacyView(AppThemeConfig theme) {
@@ -353,6 +464,22 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
 
         return Scaffold(
           backgroundColor: theme.background,
+          appBar: _hasRideSession
+              ? AppBar(
+                  backgroundColor: theme.background,
+                  elevation: 0,
+                  actions: [
+                    IconButton(
+                      onPressed: _fetching ? null : _loadSession,
+                      icon: Icon(Icons.refresh, color: theme.textPrimary),
+                    ),
+                    IconButton(
+                      onPressed: _loading ? null : () => _endRide(theme),
+                      icon: const Icon(Icons.stop_circle, color: Colors.red),
+                    ),
+                  ],
+                )
+              : null,
           body: SafeArea(
             child: _hasRideSession
                 ? (_fetching && _session == null
@@ -388,10 +515,35 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
         );
     final totalCheckpoints = checkpoints.length;
     final currentIndex = currentCheckpoint["sequence"] ?? 0;
-    final emergencyMessage = _activeEmergencyAlert;
+    final emergencyMessage = (session["activeSosMessage"] ?? "").toString().trim();
+    final activeSosAt = (session["activeSosAt"] ?? "").toString();
+    final activeSosRaisedByName =
+        (session["activeSosRaisedByName"] ?? "A rider").toString();
+    final currentUserUuid = (session["currentUserUuid"] ?? "").toString();
+    final activeSosRaisedByUuid =
+        (session["activeSosRaisedByUuid"] ?? "").toString();
+    final activeSosRaisedByLabel =
+        currentUserUuid.isNotEmpty && currentUserUuid == activeSosRaisedByUuid
+        ? "you"
+        : activeSosRaisedByName;
+    final activeSosResolution = (session["activeSosResolution"] ?? "")
+        .toString()
+        .trim();
+    final activeSosResolvedByName =
+        (session["activeSosResolvedByName"] ?? "").toString().trim();
+    final participants = List<Map<String, dynamic>>.from(
+      session["participants"] ?? const [],
+    );
+    final ridersWithLocation = participants
+        .where(
+          (participant) =>
+              participant["lastLatitude"] != null &&
+              participant["lastLongitude"] != null,
+        )
+        .length;
 
     // Calculate duration
-    final startTimeStr = session["startTime"];
+    final startTimeStr = session["rideStartedAt"] ?? session["scheduledStartTime"];
     DateTime? startTime;
     if (startTimeStr != null) {
       try {
@@ -523,16 +675,16 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                     color: theme.primary.withValues(alpha: 0.1),
                   ),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    "Map Preview\n(All riders locations)",
+                    "Map Preview\n$ridersWithLocation rider locations synced",
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Color(0xff8C95A8)),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              if (emergencyMessage != null) ...[
+              if (emergencyMessage.isNotEmpty) ...[
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Container(
@@ -568,7 +720,18 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        if (_canManageRide) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          "Raised by $activeSosRaisedByLabel${activeSosAt.isNotEmpty ? " at $activeSosAt" : ""}",
+                          style: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.5),
+                            fontSize: 13,
+                          ),
+                        ),
+                        if (_canManageRide &&
+                            activeSosResolution.isEmpty &&
+                            currentUserUuid.isNotEmpty &&
+                            currentUserUuid != activeSosRaisedByUuid) ...[
                           const SizedBox(height: 16),
                           Row(
                             children: [
@@ -581,10 +744,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                                     ),
                                   ),
                                   onPressed: () {
-                                    setState(() {
-                                      _activeEmergencyResolution = "Accepted";
-                                    });
-                                    _showSnack("SOS accepted");
+                                    _resolveSos("ACCEPTED");
                                   },
                                   child: const Text("Accept"),
                                 ),
@@ -600,10 +760,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                                     ),
                                   ),
                                   onPressed: () {
-                                    setState(() {
-                                      _activeEmergencyResolution = "Rejected";
-                                    });
-                                    _showSnack("SOS rejected");
+                                    _resolveSos("REJECTED");
                                   },
                                   child: const Text("Reject"),
                                 ),
@@ -611,10 +768,12 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                             ],
                           ),
                         ],
-                        if (_activeEmergencyResolution != null) ...[
+                        if (activeSosResolution.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Text(
-                            "Status: $_activeEmergencyResolution",
+                            activeSosResolvedByName.isNotEmpty
+                                ? "Status: $activeSosResolution by $activeSosResolvedByName"
+                                : "Status: $activeSosResolution",
                             style: TextStyle(
                               color: theme.textPrimary.withValues(alpha: 0.65),
                               fontSize: 14,
@@ -822,7 +981,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: widget.onEndRide,
+                            onPressed: () => _endRide(theme),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.red,
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -968,9 +1127,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         });
                         await _showSosConfirmationModal(label, theme);
                         if (!mounted) return;
-                        setState(() {
-                          _activeEmergencyAlert = label;
-                        });
+                        await _sendSos(label);
                       },
                       child: Text(label),
                     ),
