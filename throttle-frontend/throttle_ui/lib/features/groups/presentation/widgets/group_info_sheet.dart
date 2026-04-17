@@ -147,10 +147,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   String? get _googlePlacesApiKey {
     final directKey = dotenv.env["GOOGLE_PLACES_API_KEY"]?.trim();
     if (directKey != null && directKey.isNotEmpty) return directKey;
-
+    print(directKey);
     final fallbackKey = dotenv.env["GOOGLE_MAPS_API_KEY"]?.trim();
     if (fallbackKey != null && fallbackKey.isNotEmpty) return fallbackKey;
-
+print(directKey);
     return null;
   }
 
