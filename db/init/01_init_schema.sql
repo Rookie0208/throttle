@@ -21,6 +21,7 @@ CREATE TABLE users (
     bike_type VARCHAR(100),
     role VARCHAR(20) DEFAULT 'RIDER',
     active BOOLEAN DEFAULT TRUE,
+    subscription_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT now(),
     experience_years INT DEFAULT 0
 );
@@ -525,23 +526,59 @@ CREATE TABLE notifications (
 CREATE INDEX idx_notifications_user ON notifications(user_id);
 
 --------------------------------------------------
+-- BIKE MASTER
+--------------------------------------------------
+
+CREATE TABLE bike_master (
+    id BIGSERIAL PRIMARY KEY,
+    brand VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    variant VARCHAR(150) NOT NULL,
+    engine_cc INT,
+    category VARCHAR(30),
+    bike_type VARCHAR(100),
+    tank_capacity NUMERIC(6,2),
+    range_km INT,
+    comfort_score INT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_verified BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT uk_bike_master_brand_model_variant UNIQUE (brand, model, variant)
+);
+
+CREATE INDEX idx_bike_master_brand ON bike_master(brand);
+CREATE INDEX idx_bike_master_brand_model ON bike_master(brand, model);
+CREATE INDEX idx_bike_master_active_verified ON bike_master(is_active, is_verified);
+
+--------------------------------------------------
 -- USER BIKES
 --------------------------------------------------
 
 CREATE TABLE user_bikes (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
+    bike_master_id BIGINT,
     make VARCHAR(100) NOT NULL,
     model VARCHAR(100) NOT NULL,
+    variant VARCHAR(150),
     year INT,
     type VARCHAR(100),
+    category VARCHAR(30),
     engine_cc INT,
+    tank_capacity NUMERIC(6,2),
+    range_km INT,
+    comfort_score INT,
     is_primary BOOLEAN DEFAULT FALSE,
+    is_verified BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT now(),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (bike_master_id) REFERENCES bike_master(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_ub_user ON user_bikes(user_id);
+CREATE INDEX idx_user_bikes_bike_master ON user_bikes(bike_master_id);
 
 --------------------------------------------------
 -- USER ACHIEVEMENTS (Badges)

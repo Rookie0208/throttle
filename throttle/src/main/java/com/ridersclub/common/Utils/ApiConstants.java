@@ -96,6 +96,20 @@ public class ApiConstants {
         public static final String BASE = API_VERSION + "/users";
         public static final String ME = "/me";
         public static final String DETAILS = "/{userId}";
+        public static final String MY_BIKES = "/me/bikes";
+        public static final String MY_BIKE = "/me/bikes/{bikeId}";
+    }
+
+    public static final class Bikes {
+        public static final String BASE = API_VERSION + "/bikes";
+        public static final String BRANDS = "/brands";
+        public static final String MODELS = "/models";
+        public static final String VARIANTS = "/variants";
+        public static final String SEARCH = "/search";
+        public static final String ADMIN = "/admin";
+        public static final String ADMIN_BY_ID = "/admin/{bikeId}";
+        public static final String VERIFY = "/admin/{bikeId}/verify";
+        public static final String DEACTIVATE = "/admin/{bikeId}/deactivate";
     }
 
     public static final class Friends {

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
+import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/stats_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/settings_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
 
 import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
-import 'package:throttle_ui/features/rides/presentation/screens/ride_stats_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -20,26 +21,46 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  Map<String, dynamic>? _userData;
+  bool _bikeActionLoading = false;
+
+  static const _bikeTypes = [
+    "Motorcycle",
+    "Electric Scooter",
+    "Scooter",
+    "Tourer",
+    "Custom Build",
+  ];
+  static const _bikeCategories = ["Cruiser", "Sport", "Commuter", "ADV"];
 
   List<Map<String, dynamic>> get rideHistory =>
-      widget.userData != null && widget.userData!['recentRides'] != null
-      ? List<Map<String, dynamic>>.from(widget.userData!['recentRides'])
+      _userData != null && _userData!['recentRides'] != null
+      ? List<Map<String, dynamic>>.from(_userData!['recentRides'])
       : [];
 
   List<Map<String, dynamic>> get achievements =>
-      widget.userData != null && widget.userData!['achievements'] != null
-      ? List<Map<String, dynamic>>.from(widget.userData!['achievements'])
+      _userData != null && _userData!['achievements'] != null
+      ? List<Map<String, dynamic>>.from(_userData!['achievements'])
       : [];
 
   List<Map<String, dynamic>> get bikes =>
-      widget.userData != null && widget.userData!['bikes'] != null
-      ? List<Map<String, dynamic>>.from(widget.userData!['bikes'])
+      _userData != null && _userData!['bikes'] != null
+      ? List<Map<String, dynamic>>.from(_userData!['bikes'])
       : [];
+
+  bool get _subscriptionActive =>
+      (_userData?['subscriptionActive'] ?? false) == true;
+
+  int get _bikeLimit =>
+      int.tryParse((_userData?['bikeLimit'] ?? 3).toString()) ?? 3;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _userData = widget.userData != null
+        ? Map<String, dynamic>.from(widget.userData!)
+        : {};
   }
 
   @override
@@ -48,9 +69,925 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
+  Future<void> _refreshProfile() async {
+    final freshUser = await UserService.getMe();
+    if (!mounted || freshUser == null) return;
+    setState(() {
+      _userData = freshUser;
+    });
+  }
+
+  void _openSubscriptionScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SubscriptionScreen(
+          onClose: () => Navigator.pop(context),
+          title: "Need More Bike Slots?",
+          description:
+              "Free riders can keep up to 3 bikes. Upgrade to Premium for more bike slots, or remove an existing bike to add another one.",
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showBikeLimitDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ThemeController.instance.theme.surface,
+        title: Text(
+          "Bike limit reached",
+          style: TextStyle(color: ThemeController.instance.theme.textPrimary),
+        ),
+        content: Text(
+          "You can keep up to $_bikeLimit bikes on the free plan. Remove an existing bike or upgrade your subscription to add more.",
+          style: TextStyle(
+            color: ThemeController.instance.theme.textPrimary.withValues(
+              alpha: 0.7,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Manage Bikes"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _openSubscriptionScreen();
+            },
+            child: const Text("View Plans"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _bikeTitle(Map<String, dynamic> bike) {
+    final year = bike['year']?.toString() ?? "";
+    final brand = (bike['brand'] ?? bike['make'] ?? bike['title'] ?? '')
+        .toString();
+    final model = (bike['model'] ?? '').toString();
+    final variant = (bike['variant'] ?? '').toString();
+    return [
+      year,
+      brand,
+      model,
+      variant,
+    ].where((part) => part.trim().isNotEmpty).join(" ");
+  }
+
+  String _bikeSubtitle(Map<String, dynamic> bike) {
+    final category = (bike['category'] ?? '').toString();
+    final type = (bike['bikeType'] ?? bike['type'] ?? '').toString();
+    final engineCc = bike['engineCc']?.toString();
+    return [
+      if (category.isNotEmpty) category,
+      if (type.isNotEmpty) type,
+      if (engineCc != null && engineCc.isNotEmpty) "${engineCc}cc",
+    ].join(" • ");
+  }
+
+  Future<String?> _pickStringOption({
+    required String title,
+    required Future<List<String>> Function(String query) loader,
+  }) async {
+    final searchController = TextEditingController();
+    Future<List<String>> future = loader("");
+
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThemeController.instance.theme.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.62,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.lexend(
+                        color: ThemeController.instance.theme.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchController,
+                      onChanged: (value) {
+                        setSheetState(() {
+                          future = loader(value);
+                        });
+                      },
+                      decoration: const InputDecoration(hintText: "Search"),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: FutureBuilder<List<String>>(
+                        future: future,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final options = snapshot.data ?? const [];
+                          if (options.isEmpty) {
+                            return const Center(
+                              child: Text("No matches found"),
+                            );
+                          }
+                          return ListView.builder(
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final option = options[index];
+                              return ListTile(
+                                title: Text(option),
+                                onTap: () => Navigator.pop(context, option),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchController.dispose();
+    return result;
+  }
+
+  Future<BikeCatalogItem?> _pickVariantOption(
+    String brand,
+    String model,
+  ) async {
+    final searchController = TextEditingController();
+    Future<List<BikeCatalogItem>> future = BikeRegistryService.fetchVariants(
+      brand,
+      model,
+    );
+
+    final result = await showModalBottomSheet<BikeCatalogItem>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThemeController.instance.theme.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.68,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Select Variant",
+                      style: GoogleFonts.lexend(
+                        color: ThemeController.instance.theme.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchController,
+                      onChanged: (value) {
+                        setSheetState(() {
+                          future = BikeRegistryService.fetchVariants(
+                            brand,
+                            model,
+                            value,
+                          );
+                        });
+                      },
+                      decoration: const InputDecoration(hintText: "Search"),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: FutureBuilder<List<BikeCatalogItem>>(
+                        future: future,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final options = snapshot.data ?? const [];
+                          if (options.isEmpty) {
+                            return const Center(
+                              child: Text("No variants found"),
+                            );
+                          }
+                          return ListView.builder(
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final option = options[index];
+                              return ListTile(
+                                title: Text(option.variant),
+                                subtitle: Text(
+                                  "${option.category} • ${option.bikeType}${option.engineCc != null ? " • ${option.engineCc}cc" : ""}",
+                                ),
+                                trailing: option.verified
+                                    ? null
+                                    : const Chip(label: Text("Unverified")),
+                                onTap: () => Navigator.pop(context, option),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchController.dispose();
+    return result;
+  }
+
+  Widget _selectorTile(String label, String value, VoidCallback onTap) {
+    final theme = ThemeController.instance.theme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: theme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0x52B8C6DA)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.55),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value.isEmpty ? "Select $label" : value,
+                    style: TextStyle(
+                      color: value.isEmpty
+                          ? theme.textPrimary.withValues(alpha: 0.45)
+                          : theme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.expand_more, color: theme.textPrimary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddBikeSheet() async {
+    if (!_subscriptionActive && bikes.length >= _bikeLimit) {
+      await _showBikeLimitDialog();
+      return;
+    }
+
+    final brandController = TextEditingController();
+    final modelController = TextEditingController();
+    final variantController = TextEditingController();
+    final yearController = TextEditingController();
+    final engineController = TextEditingController();
+    String selectedBrand = "";
+    String selectedModel = "";
+    BikeCatalogItem? selectedVariant;
+    bool useCustomBike = false;
+    String customBikeCategory = "";
+    String customBikeType = "";
+    bool setAsPrimary = bikes.isEmpty;
+
+    final added = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThemeController.instance.theme.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        final theme = ThemeController.instance.theme;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> saveBike() async {
+              final brand = brandController.text.trim();
+              final model = modelController.text.trim();
+              final variant = variantController.text.trim();
+              final year = int.tryParse(yearController.text.trim());
+              final engineCc = int.tryParse(engineController.text.trim());
+
+              final invalidCatalog =
+                  !useCustomBike &&
+                  (selectedVariant == null ||
+                      year == null ||
+                      year < 1950 ||
+                      year > 2100);
+              final invalidCustom =
+                  useCustomBike &&
+                  (customBikeCategory.isEmpty ||
+                      customBikeType.isEmpty ||
+                      brand.isEmpty ||
+                      model.isEmpty ||
+                      variant.isEmpty ||
+                      year == null ||
+                      year < 1950 ||
+                      year > 2100 ||
+                      engineCc == null ||
+                      engineCc < 50 ||
+                      engineCc > 5000);
+
+              if (invalidCatalog || invalidCustom) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Fill all bike details with valid values"),
+                  ),
+                );
+                return;
+              }
+
+              setState(() => _bikeActionLoading = true);
+              final result = await UserService.addBike({
+                "bikeMasterId": useCustomBike ? null : selectedVariant?.id,
+                "brand": useCustomBike ? brand : selectedVariant?.brand,
+                "model": useCustomBike ? model : selectedVariant?.model,
+                "variant": useCustomBike ? variant : selectedVariant?.variant,
+                "year": year,
+                "category": useCustomBike
+                    ? customBikeCategory.toLowerCase()
+                    : selectedVariant?.category,
+                "bikeType": useCustomBike
+                    ? customBikeType
+                    : selectedVariant?.bikeType,
+                "engineCc": useCustomBike
+                    ? engineCc
+                    : selectedVariant?.engineCc,
+                "primary": setAsPrimary,
+              });
+              if (!mounted) return;
+              setState(() => _bikeActionLoading = false);
+
+              if (result["success"] == true) {
+                Navigator.of(this.context).pop(true);
+                await _refreshProfile();
+                if (!mounted) return;
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(content: Text(result["message"] ?? "Bike added")),
+                );
+              } else {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      result["message"]?.toString() ?? "Failed to add bike",
+                    ),
+                  ),
+                );
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Add Bike",
+                      style: GoogleFonts.lexend(
+                        color: theme.textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Bike ${bikes.length + 1}${_subscriptionActive ? "" : " of $_bikeLimit on free plan"}",
+                      style: TextStyle(
+                        color: theme.textPrimary.withValues(alpha: 0.65),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    if (!useCustomBike) ...[
+                      _selectorTile("Brand", selectedBrand, () async {
+                        final brand = await _pickStringOption(
+                          title: "Select Brand",
+                          loader: BikeRegistryService.fetchBrands,
+                        );
+                        if (brand == null) return;
+                        setModalState(() {
+                          selectedBrand = brand;
+                          selectedModel = "";
+                          selectedVariant = null;
+                        });
+                      }),
+                      const SizedBox(height: 14),
+                      _selectorTile("Model", selectedModel, () async {
+                        if (selectedBrand.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Select brand first")),
+                          );
+                          return;
+                        }
+                        final model = await _pickStringOption(
+                          title: "Select Model",
+                          loader: (query) => BikeRegistryService.fetchModels(
+                            selectedBrand,
+                            query,
+                          ),
+                        );
+                        if (model == null) return;
+                        setModalState(() {
+                          selectedModel = model;
+                          selectedVariant = null;
+                        });
+                      }),
+                      const SizedBox(height: 14),
+                      _selectorTile(
+                        "Variant",
+                        selectedVariant?.variant ?? "",
+                        () async {
+                          if (selectedBrand.isEmpty || selectedModel.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Select brand and model first"),
+                              ),
+                            );
+                            return;
+                          }
+                          final variantItem = await _pickVariantOption(
+                            selectedBrand,
+                            selectedModel,
+                          );
+                          if (variantItem == null) return;
+                          setModalState(() {
+                            selectedVariant = variantItem;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            useCustomBike = true;
+                            selectedVariant = null;
+                            selectedBrand = "";
+                            selectedModel = "";
+                          });
+                        },
+                        child: const Text(
+                          "Can't find your bike? Add Custom Bike",
+                        ),
+                      ),
+                    ] else ...[
+                      TextField(
+                        controller: brandController,
+                        decoration: const InputDecoration(
+                          labelText: "Bike Brand",
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: modelController,
+                        decoration: const InputDecoration(
+                          labelText: "Bike Model",
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: variantController,
+                        decoration: const InputDecoration(
+                          labelText: "Bike Variant",
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        "Category",
+                        style: TextStyle(
+                          color: theme.textPrimary.withValues(alpha: 0.75),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _bikeCategories.map((category) {
+                          final isSelected = customBikeCategory == category;
+                          return ChoiceChip(
+                            label: Text(category),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              setModalState(
+                                () => customBikeCategory = category,
+                              );
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        "Bike Type",
+                        style: TextStyle(
+                          color: theme.textPrimary.withValues(alpha: 0.75),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _bikeTypes.map((type) {
+                          final isSelected = customBikeType == type;
+                          return ChoiceChip(
+                            label: Text(type),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              setModalState(() => customBikeType = type);
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          "Custom bikes are saved as unverified",
+                          style: TextStyle(color: Colors.orange),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            useCustomBike = false;
+                            brandController.clear();
+                            modelController.clear();
+                            variantController.clear();
+                            engineController.clear();
+                            customBikeCategory = "";
+                            customBikeType = "";
+                          });
+                        },
+                        child: const Text("Use Bike Registry Instead"),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: yearController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: "Year"),
+                    ),
+                    if (useCustomBike) ...[
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: engineController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: "Engine CC",
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    SwitchListTile(
+                      value: setAsPrimary,
+                      onChanged: (value) {
+                        setModalState(() => setAsPrimary = value);
+                      },
+                      title: const Text("Set as primary bike"),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _bikeActionLoading ? null : saveBike,
+                        child: Text(
+                          _bikeActionLoading ? "Saving..." : "Add Bike",
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (added == true && mounted) {
+      await _openBikeManager();
+    }
+  }
+
+  Future<void> _removeBike(Map<String, dynamic> bike) async {
+    final bikeId = int.tryParse((bike['id'] ?? "").toString());
+    if (bikeId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Unable to remove this bike")),
+      );
+      return;
+    }
+
+    setState(() => _bikeActionLoading = true);
+    final result = await UserService.deleteBike(bikeId);
+    if (!mounted) return;
+    setState(() => _bikeActionLoading = false);
+
+    if (result["success"] == true) {
+      await _refreshProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result["message"] ?? "Bike removed")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result["message"]?.toString() ?? "Failed to remove bike",
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openBikeManager() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThemeController.instance.theme.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        final theme = ThemeController.instance.theme;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final bikeList = bikes;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "My Bikes",
+                    style: GoogleFonts.lexend(
+                      color: theme.textPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _subscriptionActive
+                        ? "${bikeList.length} bikes registered"
+                        : "${bikeList.length}/$_bikeLimit bikes on free plan",
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.65),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  if (!_subscriptionActive && bikeList.length >= _bikeLimit)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      margin: const EdgeInsets.only(bottom: 14),
+                      decoration: BoxDecoration(
+                        color: theme.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.workspace_premium, color: theme.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              "Remove a bike or upgrade to add more than $_bikeLimit bikes.",
+                              style: TextStyle(color: theme.textPrimary),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _openSubscriptionScreen,
+                            child: const Text("Upgrade"),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (bikeList.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Text(
+                        "No bikes registered yet.",
+                        style: TextStyle(
+                          color: theme.textPrimary.withValues(alpha: 0.65),
+                        ),
+                      ),
+                    )
+                  else
+                    ...bikeList.map((bike) {
+                      final title = _bikeTitle(bike);
+                      final subtitle = _bikeSubtitle(bike);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: theme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0x52B8C6DA)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.two_wheeler, color: theme.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          title.isEmpty ? "Bike" : title,
+                                          style: TextStyle(
+                                            color: theme.textPrimary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      if ((bike['primary'] ?? false) == true)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: theme.primary.withValues(
+                                              alpha: 0.12,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            "Primary",
+                                            style: TextStyle(
+                                              color: theme.primary,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      if ((bike['verified'] ?? false) != true)
+                                        Container(
+                                          margin: const EdgeInsets.only(
+                                            left: 6,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withValues(
+                                              alpha: 0.12,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            "Unverified",
+                                            style: TextStyle(
+                                              color: Colors.orange,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    subtitle.isEmpty
+                                        ? "Bike details"
+                                        : subtitle,
+                                    style: TextStyle(
+                                      color: theme.textPrimary.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _bikeActionLoading
+                                  ? null
+                                  : () async {
+                                      await _removeBike(bike);
+                                      if (!mounted) return;
+                                      Navigator.of(this.context).pop();
+                                      await _openBikeManager();
+                                    },
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _bikeActionLoading
+                          ? null
+                          : () async {
+                              Navigator.pop(context);
+                              await _showAddBikeSheet();
+                            },
+                      child: const Text("Add Bike"),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _editBio(AppThemeConfig theme) async {
     final TextEditingController bioController = TextEditingController(
-      text: widget.userData?['bio'] ?? "",
+      text: _userData?['bio'] ?? "",
     );
 
     bool? saved = await showDialog<bool>(
@@ -95,27 +1032,27 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
 
-    if (saved == true && widget.userData != null && mounted) {
+    if (saved == true && _userData != null && mounted) {
       final newBio = bioController.text.trim();
-      final oldBio = widget.userData!['bio'];
+      final oldBio = _userData!['bio'];
 
       // Optimistic UI update
       setState(() {
-        widget.userData!['bio'] = newBio;
+        _userData!['bio'] = newBio;
       });
 
       // API Call
       bool success = await UserService.updateProfile({
         "bio": newBio,
-        "firstName": widget.userData!['firstName'] ?? "",
-        "lastName": widget.userData!['lastName'] ?? "",
-        "profileImage": widget.userData!['profileImage'] ?? "",
+        "firstName": _userData!['firstName'] ?? "",
+        "lastName": _userData!['lastName'] ?? "",
+        "profileImage": _userData!['profileImage'] ?? "",
       });
 
       if (!success && mounted) {
         // Rollback
         setState(() {
-          widget.userData!['bio'] = oldBio;
+          _userData!['bio'] = oldBio;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Failed to save bio on the server.")),
@@ -333,21 +1270,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     ),
                                     alignment: Alignment.center,
                                     child: Text(
-                                      widget.userData != null &&
-                                              widget.userData!['firstName'] !=
-                                                  null &&
-                                              widget
-                                                  .userData!['firstName']
-                                                  .isNotEmpty
-                                          ? widget.userData!['firstName'][0]
+                                      _userData != null &&
+                                              _userData!['firstName'] != null &&
+                                              _userData!['firstName'].isNotEmpty
+                                          ? _userData!['firstName'][0]
                                                     .toUpperCase() +
-                                                (widget.userData!['lastName'] !=
+                                                (_userData!['lastName'] !=
                                                             null &&
-                                                        widget
-                                                            .userData!['lastName']
+                                                        _userData!['lastName']
                                                             .isNotEmpty
-                                                    ? widget
-                                                          .userData!['lastName'][0]
+                                                    ? _userData!['lastName'][0]
                                                           .toUpperCase()
                                                     : '')
                                           : "RU",
@@ -383,8 +1315,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      widget.userData != null
-                                          ? "${(widget.userData!['firstName'] ?? '').toString().toCapitalized()} ${(widget.userData!['lastName'] ?? '').toString().toCapitalized()}"
+                                      _userData != null
+                                          ? "${(_userData!['firstName'] ?? '').toString().toCapitalized()} ${(_userData!['lastName'] ?? '').toString().toCapitalized()}"
                                                 .trim()
                                           : "Guest User",
                                       style: TextStyle(
@@ -394,7 +1326,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    if ((widget.userData?['riderId'] ?? '')
+                                    if ((_userData?['riderId'] ?? '')
                                         .toString()
                                         .isNotEmpty)
                                       Padding(
@@ -402,7 +1334,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                           bottom: 8,
                                         ),
                                         child: Text(
-                                          "@${widget.userData!['riderId']}",
+                                          "@${_userData!['riderId']}",
                                           style: TextStyle(
                                             color: theme.primary,
                                             fontWeight: FontWeight.w600,
@@ -417,11 +1349,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              widget.userData?['bio'] != null &&
-                                                      widget.userData!['bio']
+                                              _userData?['bio'] != null &&
+                                                      _userData!['bio']
                                                           .toString()
                                                           .isNotEmpty
-                                                  ? widget.userData!['bio']
+                                                  ? _userData!['bio']
                                                   : "Tell us about your riding style...",
                                               style: TextStyle(
                                                 color: theme.textPrimary
@@ -448,61 +1380,98 @@ class _ProfileScreenState extends State<ProfileScreen>
                         ),
 
                         // Bike Details
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: theme.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                height: 36,
-                                width: 36,
-                                decoration: BoxDecoration(
-                                  color: theme.primary.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.directions_bike,
-                                  color: theme.primary,
-                                ),
+                        GestureDetector(
+                          onTap: _openBikeManager,
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: theme.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0x52B8C6DA),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      bikes.isNotEmpty
-                                          ? "${bikes.first['year']} ${bikes.first['make']} ${bikes.first['model']}"
-                                          : "No Bike Registered",
-                                      style: TextStyle(
-                                        color: theme.textPrimary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Text(
-                                      bikes.isNotEmpty
-                                          ? "${bikes.first['type']} · ${bikes.first['engineCc']}cc"
-                                          : "Add your bike in settings",
-                                      style: TextStyle(
-                                        color: theme.textPrimary.withValues(
-                                          alpha: 0.6,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  height: 36,
+                                  width: 36,
+                                  decoration: BoxDecoration(
+                                    color: theme.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    Icons.directions_bike,
+                                    color: theme.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        bikes.isNotEmpty
+                                            ? _bikeTitle(bikes.first)
+                                            : "Add Your First Bike",
+                                        style: TextStyle(
+                                          color: theme.textPrimary,
+                                          fontWeight: FontWeight.bold,
                                         ),
-                                        fontSize: 12,
                                       ),
-                                    ),
-                                  ],
+                                      Text(
+                                        bikes.isNotEmpty
+                                            ? "${_bikeSubtitle(bikes.first)} • ${bikes.length} registered"
+                                            : "Tap to register your bike",
+                                        style: TextStyle(
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                      if (bikes.isNotEmpty &&
+                                          (bikes.first['verified'] ?? false) !=
+                                              true)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 6,
+                                          ),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                            child: const Text(
+                                              "Unverified bike",
+                                              style: TextStyle(
+                                                color: Colors.orange,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              Icon(
-                                Icons.chevron_right,
-                                color: theme.textPrimary.withValues(alpha: 0.4),
-                              ),
-                            ],
+                                Icon(
+                                  Icons.chevron_right,
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.4,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
 
@@ -532,13 +1501,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 children: [
                                   _buildStatItem(
                                     Icons.directions,
-                                    "${widget.userData?['totalMiles'] ?? 0}",
+                                    "${_userData?['totalMiles'] ?? 0}",
                                     "Miles",
                                     theme,
                                   ),
                                   _buildStatItem(
                                     Icons.calendar_today,
-                                    "${widget.userData?['totalRides'] ?? 0}",
+                                    "${_userData?['totalRides'] ?? 0}",
                                     "Rides",
                                     theme,
                                   ),

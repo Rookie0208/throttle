@@ -24,8 +24,16 @@ class SubscriptionPlan {
 
 class SubscriptionScreen extends StatelessWidget {
   final VoidCallback onClose;
+  final String title;
+  final String description;
 
-  SubscriptionScreen({super.key, required this.onClose});
+  SubscriptionScreen({
+    super.key,
+    required this.onClose,
+    this.title = "Upgrade to Premium",
+    this.description =
+        "Get unlimited access to advanced features and take your riding to the next level.",
+  });
 
   final List<SubscriptionPlan> plans = [
     SubscriptionPlan(
@@ -102,9 +110,7 @@ class SubscriptionScreen extends StatelessWidget {
                         children: [
                           _introText(theme),
                           const SizedBox(height: 16),
-                          ...plans
-                              .map((plan) => _planCard(plan, theme))
-                              .toList(),
+                          ...plans.map((plan) => _planCard(plan, theme)),
                           const SizedBox(height: 20),
                           _footer(theme),
                         ],
@@ -132,7 +138,7 @@ class SubscriptionScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            "Upgrade to Premium",
+            title,
             style: GoogleFonts.lexend(
               color: theme.textPrimary,
               fontSize: 22,
@@ -154,7 +160,7 @@ class SubscriptionScreen extends StatelessWidget {
 
   Widget _introText(AppThemeConfig theme) {
     return Text(
-      "Get unlimited access to advanced features and take your riding to the next level.",
+      description,
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 13,

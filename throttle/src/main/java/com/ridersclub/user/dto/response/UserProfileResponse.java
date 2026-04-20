@@ -37,6 +37,8 @@ public class UserProfileResponse {
     private List<RideSummaryDto> recentRides;
     private UpcomingRideDto todayRide;
     private UpcomingRideDto upcomingRide;
+    private boolean subscriptionActive;
+    private int bikeLimit;
 
     public UserProfileResponse(User user) {
         this.id = user.getUuid().toString();
@@ -46,17 +48,30 @@ public class UserProfileResponse {
         this.email = user.getEmail();
         this.bio = user.getBio();
         this.profileImage = user.getProfileImage();
+        this.subscriptionActive = user.isSubscriptionActive();
+        this.bikeLimit = user.isSubscriptionActive() ? 999 : 3;
     }
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UserBikeDto {
+        private Long id;
+        private Long bikeMasterId;
         private String make;
+        private String brand;
         private String model;
+        private String variant;
         private Integer year;
         private String type;
+        private String category;
+        private String bikeType;
         private Integer engineCc;
+        private java.math.BigDecimal tankCapacity;
+        private Integer range;
+        private Integer comfortScore;
+        private boolean primary;
+        private boolean verified;
     }
 
     @Data

@@ -29,8 +29,10 @@ import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.auth.security.JwtService;
 import com.ridersclub.user.entity.User;
+import com.ridersclub.user.dto.request.UserBikeRequest;
 import com.ridersclub.user.service.RiderIdService;
 import com.ridersclub.user.service.UserService;
+import com.ridersclub.bike.service.BikeRegistryService;
 
 @Slf4j
 @Service
@@ -43,6 +45,7 @@ public class AuthService {
     private final RefreshTokenService refreshTokenService;
     private final org.springframework.data.neo4j.core.Neo4jClient neo4jClient;
     private final RiderIdService riderIdService;
+    private final BikeRegistryService bikeRegistryService;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -56,7 +59,8 @@ public class AuthService {
             OtpService otpService,
             RefreshTokenService refreshTokenService,
             org.springframework.data.neo4j.core.Neo4jClient neo4jClient,
-            RiderIdService riderIdService) {
+            RiderIdService riderIdService,
+            BikeRegistryService bikeRegistryService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -64,6 +68,7 @@ public class AuthService {
         this.refreshTokenService = refreshTokenService;
         this.neo4jClient = neo4jClient;
         this.riderIdService = riderIdService;
+        this.bikeRegistryService = bikeRegistryService;
     }
 
     /** Async Neo4j dual-write — MERGE so it's safe to call multiple times */
@@ -130,6 +135,15 @@ public class AuthService {
         user.setActive(true);
 
         User saved = userService.save(user);
+        bikeRegistryService.registerInitialBike(saved, buildBikeRequest(
+                request.getBikeMasterId(),
+                request.getBikeBrand(),
+                request.getBikeModel(),
+                request.getBikeVariant(),
+                request.getBikeYear(),
+                request.getBikeCategory(),
+                request.getBikeType(),
+                request.getBikeEngineCc()));
         syncUserToNeo4j(saved.getUuid(), saved.getFirstName(), saved.getLastName());
 
         boolean verificationRequired = true;
@@ -215,6 +229,15 @@ public class AuthService {
         user.setActive(true);
 
         User saved = userService.save(user);
+        bikeRegistryService.registerInitialBike(saved, buildBikeRequest(
+                request.getBikeMasterId(),
+                request.getBikeBrand(),
+                request.getBikeModel(),
+                request.getBikeVariant(),
+                request.getBikeYear(),
+                request.getBikeCategory(),
+                request.getBikeType(),
+                request.getBikeEngineCc()));
         syncUserToNeo4j(saved.getUuid(), saved.getFirstName(), saved.getLastName());
         log.info("Completed Google registration for new user: {}", request.getEmail());
 
@@ -227,5 +250,26 @@ public class AuthService {
 
     public boolean verifyOtp(String email, String otp) {
         return otpService.verifyOtp(email, otp);
+    }
+
+    private UserBikeRequest buildBikeRequest(
+            Long bikeMasterId,
+            String brand,
+            String model,
+            String variant,
+            Integer year,
+            String category,
+            String bikeType,
+            Integer engineCc) {
+        UserBikeRequest request = new UserBikeRequest();
+        request.setBikeMasterId(bikeMasterId);
+        request.setBrand(brand);
+        request.setModel(model);
+        request.setVariant(variant);
+        request.setYear(year);
+        request.setCategory(category);
+        request.setBikeType(bikeType);
+        request.setEngineCc(engineCc);
+        return request;
     }
 }
