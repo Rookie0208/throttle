@@ -1,54 +1,48 @@
-package com.ridersclub.user.entity;
+package com.ridersclub.bike.entity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import com.ridersclub.bike.entity.BikeMaster;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "user_bikes")
+@Table(name = "bike_master", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_bike_master_brand_model_variant", columnNames = { "brand", "model", "variant" })
+})
 @Getter
 @Setter
-public class UserBike {
+public class BikeMaster {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(nullable = false, length = 100)
+    private String brand;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "bike_master_id")
-    private BikeMaster bikeMaster;
-
-    private String make;
+    @Column(nullable = false, length = 100)
     private String model;
+
+    @Column(nullable = false, length = 150)
     private String variant;
-    private Integer year;
+
+    @Column(name = "engine_cc")
+    private Integer engineCc;
 
     @Column(length = 30)
     private String category;
 
-    @Column(name = "type")
-    private String type;
-
-    @Column(name = "engine_cc")
-    private Integer engineCc;
+    @Column(name = "bike_type", length = 100)
+    private String bikeType;
 
     @Column(name = "tank_capacity", precision = 6, scale = 2)
     private BigDecimal tankCapacity;
@@ -59,16 +53,16 @@ public class UserBike {
     @Column(name = "comfort_score")
     private Integer comfortScore;
 
-    @Column(name = "is_verified")
+    @Column(name = "is_active", nullable = false)
+    private boolean active = true;
+
+    @Column(name = "is_verified", nullable = false)
     private boolean verified = true;
 
-    @Column(name = "is_primary")
-    private boolean isPrimary = false;
-
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     @PrePersist

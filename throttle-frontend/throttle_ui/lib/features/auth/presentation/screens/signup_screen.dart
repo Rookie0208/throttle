@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/main_screen.dart';
-import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
+import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
+import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
 
 class SignupScreen extends StatefulWidget {
   final bool isGoogleRegistration;
@@ -22,6 +24,45 @@ class _SignupScreenState extends State<SignupScreen> {
   final PageController controller = PageController();
 
   int step = 0;
+  bool obscurePassword = true;
+
+  String pronoun = "";
+  String preference = "";
+  String selectedBrand = "";
+  String selectedModel = "";
+  BikeCatalogItem? selectedVariant;
+  bool useCustomBike = false;
+  String customBikeCategory = "";
+  String customBikeType = "";
+
+  final firstNameController = TextEditingController();
+  final surNameController = TextEditingController();
+  final riderIdController = TextEditingController();
+  final bikeBrandController = TextEditingController();
+  final bikeModelController = TextEditingController();
+  final bikeVariantController = TextEditingController();
+  final bikeYearController = TextEditingController();
+  final bikeEngineCcController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  final pronouns = ["He/Him", "She/Her", "They/Them", "Other"];
+  final bikeTypes = [
+    "Motorcycle",
+    "Electric Scooter",
+    "Scooter",
+    "Tourer",
+    "Custom Build",
+  ];
+  final bikeCategories = ["Cruiser", "Sport", "Commuter", "ADV"];
+  final preferences = [
+    "Weekend Rides",
+    "Long Tours",
+    "City Riding",
+    "Track Days",
+    "Group Rides",
+    "Casual Riding",
+  ];
 
   @override
   void initState() {
@@ -33,54 +74,32 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  String pronoun = "";
-  String bikeType = "";
-  String preference = "";
+  @override
+  void dispose() {
+    controller.dispose();
+    firstNameController.dispose();
+    surNameController.dispose();
+    riderIdController.dispose();
+    bikeBrandController.dispose();
+    bikeModelController.dispose();
+    bikeVariantController.dispose();
+    bikeYearController.dispose();
+    bikeEngineCcController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
-  bool obscurePassword = true;
-
-  final firstNameController = TextEditingController();
-  final surNameController = TextEditingController();
-  final riderIdController = TextEditingController();
-  final bikeModelController = TextEditingController();
-  final bikeYearController = TextEditingController();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-
-  final pronouns = ["He/Him", "She/Her", "They/Them", "Other"];
-
-  final bikeTypes = [
-    "Sport",
-    "Naked",
-    "Cruiser",
-    "Adventure",
-    "Touring",
-    "Electric",
-  ];
-
-  final preferences = [
-    "Weekend Rides",
-    "Long Tours",
-    "City Riding",
-    "Track Days",
-    "Group Rides",
-    "Casual Riding",
-  ];
-
-  // ================= NEXT BUTTON =================
   Future<void> next() async {
-    // STEP 1 VALIDATION
     if (step == 0) {
       if (firstNameController.text.trim().isEmpty) {
         showError("First name is required");
         return;
       }
-
       if (emailController.text.trim().isEmpty) {
         showError("Email is required");
         return;
       }
-
       if (pronoun.isEmpty) {
         showError("Please select your pronoun");
         return;
@@ -111,31 +130,119 @@ class _SignupScreenState extends State<SignupScreen> {
       }
     }
 
-    // STEP 3 → REGISTER
     if (step == 2) {
-      Map<String, dynamic> result;
+      final hasCatalogBike =
+          selectedBrand.isNotEmpty ||
+          selectedModel.isNotEmpty ||
+          selectedVariant != null ||
+          bikeYearController.text.trim().isNotEmpty;
+      final hasCustomBike =
+          useCustomBike ||
+          bikeBrandController.text.trim().isNotEmpty ||
+          bikeModelController.text.trim().isNotEmpty ||
+          bikeVariantController.text.trim().isNotEmpty ||
+          bikeYearController.text.trim().isNotEmpty ||
+          bikeEngineCcController.text.trim().isNotEmpty;
 
-      if (widget.isGoogleRegistration) {
-        result = await AuthService.completeGoogleRegistration(
-          email: emailController.text.trim(),
-          firstName: firstNameController.text.trim(),
-          lastName: surNameController.text.trim(),
-          riderId: riderIdController.text.trim(),
-          pronoun: pronoun,
-          bikeType: bikeType,
-        );
-      } else {
-        result = await AuthService.register(
-          firstName: firstNameController.text.trim(),
-          lastName: surNameController.text.trim(),
-          riderId: riderIdController.text.trim(),
-          pronoun: pronoun,
-          email: emailController.text.trim(),
-          password: passwordController.text.trim(),
-          bikeType: bikeType,
-          experienceYears: 0,
-        );
+      if (hasCatalogBike && !useCustomBike) {
+        if (selectedVariant == null || bikeYearController.text.trim().isEmpty) {
+          showError("Select brand, model, variant, and year");
+          return;
+        }
       }
+
+      if (hasCustomBike && useCustomBike) {
+        if (customBikeCategory.isEmpty ||
+            customBikeType.isEmpty ||
+            bikeBrandController.text.trim().isEmpty ||
+            bikeModelController.text.trim().isEmpty ||
+            bikeVariantController.text.trim().isEmpty ||
+            bikeYearController.text.trim().isEmpty ||
+            bikeEngineCcController.text.trim().isEmpty) {
+          showError(
+            "Complete all custom bike fields or switch to bike registry",
+          );
+          return;
+        }
+      }
+
+      final bikeYear = bikeYearController.text.trim().isEmpty
+          ? null
+          : int.tryParse(bikeYearController.text.trim());
+      final bikeEngineCc = bikeEngineCcController.text.trim().isEmpty
+          ? null
+          : int.tryParse(bikeEngineCcController.text.trim());
+
+      if (bikeYearController.text.trim().isNotEmpty &&
+          (bikeYear == null || bikeYear < 1950 || bikeYear > 2100)) {
+        showError("Enter a valid bike year");
+        return;
+      }
+
+      if (useCustomBike &&
+          bikeEngineCcController.text.trim().isNotEmpty &&
+          (bikeEngineCc == null || bikeEngineCc < 50 || bikeEngineCc > 5000)) {
+        showError("Enter a valid engine CC");
+        return;
+      }
+
+      final result = widget.isGoogleRegistration
+          ? await AuthService.completeGoogleRegistration(
+              email: emailController.text.trim(),
+              firstName: firstNameController.text.trim(),
+              lastName: surNameController.text.trim(),
+              riderId: riderIdController.text.trim(),
+              pronoun: pronoun,
+              bikeMasterId: useCustomBike ? null : selectedVariant?.id,
+              bikeBrand: useCustomBike
+                  ? _nullableText(bikeBrandController)
+                  : selectedVariant?.brand,
+              bikeModel: useCustomBike
+                  ? _nullableText(bikeModelController)
+                  : selectedVariant?.model,
+              bikeVariant: useCustomBike
+                  ? _nullableText(bikeVariantController)
+                  : selectedVariant?.variant,
+              bikeCategory: useCustomBike
+                  ? customBikeCategory.toLowerCase()
+                  : selectedVariant?.category,
+              bikeType: useCustomBike
+                  ? customBikeType
+                  : selectedVariant?.bikeType,
+              bikeYear: bikeYear,
+              bikeEngineCc: useCustomBike
+                  ? bikeEngineCc
+                  : selectedVariant?.engineCc,
+            )
+          : await AuthService.register(
+              firstName: firstNameController.text.trim(),
+              lastName: surNameController.text.trim(),
+              riderId: riderIdController.text.trim(),
+              pronoun: pronoun,
+              email: emailController.text.trim(),
+              password: passwordController.text.trim(),
+              bikeMasterId: useCustomBike ? null : selectedVariant?.id,
+              bikeBrand: useCustomBike
+                  ? _nullableText(bikeBrandController)
+                  : selectedVariant?.brand,
+              bikeModel: useCustomBike
+                  ? _nullableText(bikeModelController)
+                  : selectedVariant?.model,
+              bikeVariant: useCustomBike
+                  ? _nullableText(bikeVariantController)
+                  : selectedVariant?.variant,
+              bikeCategory: useCustomBike
+                  ? customBikeCategory.toLowerCase()
+                  : selectedVariant?.category,
+              bikeType: useCustomBike
+                  ? customBikeType
+                  : selectedVariant?.bikeType,
+              bikeYear: bikeYear,
+              bikeEngineCc: useCustomBike
+                  ? bikeEngineCc
+                  : selectedVariant?.engineCc,
+              experienceYears: 0,
+            );
 
       if (result["success"]) {
         if (!mounted) return;
@@ -159,17 +266,19 @@ class _SignupScreenState extends State<SignupScreen> {
       } else {
         showError(result["message"]);
       }
-
-      return; // 🔥 VERY IMPORTANT — stop execution here
+      return;
     }
 
-    // GO TO NEXT STEP
     controller.nextPage(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
     );
-
     setState(() => step++);
+  }
+
+  String? _nullableText(TextEditingController controller) {
+    final value = controller.text.trim();
+    return value.isEmpty ? null : value;
   }
 
   void back() {
@@ -188,7 +297,211 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // ================= OPTION GRID =================
+  Future<String?> _pickStringOption({
+    required String title,
+    required Future<List<String>> Function(String query) loader,
+  }) async {
+    final searchController = TextEditingController();
+    Future<List<String>> future = loader("");
+
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.62,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.lexend(
+                        color: AppColors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchController,
+                      onChanged: (value) {
+                        setSheetState(() {
+                          future = loader(value);
+                        });
+                      },
+                      decoration: const InputDecoration(hintText: "Search"),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: FutureBuilder<List<String>>(
+                        future: future,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final options = snapshot.data ?? const [];
+                          if (options.isEmpty) {
+                            return const Center(
+                              child: Text("No matches found"),
+                            );
+                          }
+                          return ListView.builder(
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final option = options[index];
+                              return ListTile(
+                                title: Text(option),
+                                onTap: () => Navigator.pop(context, option),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchController.dispose();
+    return result;
+  }
+
+  Future<BikeCatalogItem?> _pickVariantOption() async {
+    if (selectedBrand.isEmpty || selectedModel.isEmpty) {
+      showError("Select brand and model first");
+      return null;
+    }
+
+    final searchController = TextEditingController();
+    Future<List<BikeCatalogItem>> future = BikeRegistryService.fetchVariants(
+      selectedBrand,
+      selectedModel,
+    );
+
+    final result = await showModalBottomSheet<BikeCatalogItem>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.68,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Select Variant",
+                      style: GoogleFonts.lexend(
+                        color: AppColors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchController,
+                      onChanged: (value) {
+                        setSheetState(() {
+                          future = BikeRegistryService.fetchVariants(
+                            selectedBrand,
+                            selectedModel,
+                            value,
+                          );
+                        });
+                      },
+                      decoration: const InputDecoration(hintText: "Search"),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: FutureBuilder<List<BikeCatalogItem>>(
+                        future: future,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final options = snapshot.data ?? const [];
+                          if (options.isEmpty) {
+                            return const Center(
+                              child: Text("No variants found"),
+                            );
+                          }
+                          return ListView.builder(
+                            itemCount: options.length,
+                            itemBuilder: (context, index) {
+                              final option = options[index];
+                              return ListTile(
+                                title: Text(option.variant),
+                                subtitle: Text(
+                                  "${option.category} • ${option.bikeType}${option.engineCc != null ? " • ${option.engineCc}cc" : ""}",
+                                ),
+                                trailing: option.verified
+                                    ? null
+                                    : const Chip(label: Text("Unverified")),
+                                onTap: () => Navigator.pop(context, option),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          useCustomBike = true;
+                          selectedVariant = null;
+                        });
+                      },
+                      child: const Text("Add Custom Bike"),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchController.dispose();
+    return result;
+  }
+
   Widget optionGrid(
     List<String> options,
     String selected,
@@ -224,7 +537,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // ================= INPUT FIELD =================
   Widget thinInput(
     String hint,
     TextEditingController controller, {
@@ -257,7 +569,204 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // ================= BUILD =================
+  Widget _selectorTile(String label, String value, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: AppColors.textMuted,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value.isEmpty ? "Select $label" : value,
+                    style: GoogleFonts.plusJakartaSans(
+                      color: value.isEmpty
+                          ? AppColors.textMuted
+                          : AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.expand_more),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _bikeStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Register your first bike now, or leave it blank and add it later from your profile.",
+          style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
+        const SizedBox(height: 24),
+        if (!useCustomBike) ...[
+          _selectorTile("Brand", selectedBrand, () async {
+            final brand = await _pickStringOption(
+              title: "Select Brand",
+              loader: BikeRegistryService.fetchBrands,
+            );
+            if (brand == null) return;
+            setState(() {
+              selectedBrand = brand;
+              selectedModel = "";
+              selectedVariant = null;
+            });
+          }),
+          const SizedBox(height: 16),
+          _selectorTile("Model", selectedModel, () async {
+            if (selectedBrand.isEmpty) {
+              showError("Select a brand first");
+              return;
+            }
+            final model = await _pickStringOption(
+              title: "Select Model",
+              loader: (query) =>
+                  BikeRegistryService.fetchModels(selectedBrand, query),
+            );
+            if (model == null) return;
+            setState(() {
+              selectedModel = model;
+              selectedVariant = null;
+            });
+          }),
+          const SizedBox(height: 16),
+          _selectorTile("Variant", selectedVariant?.variant ?? "", () async {
+            final variant = await _pickVariantOption();
+            if (variant == null) return;
+            setState(() {
+              selectedVariant = variant;
+              useCustomBike = false;
+            });
+          }),
+          if (selectedVariant != null) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text(selectedVariant!.category.toUpperCase())),
+                Chip(label: Text(selectedVariant!.bikeType)),
+                if (selectedVariant!.engineCc != null)
+                  Chip(label: Text("${selectedVariant!.engineCc}cc")),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                useCustomBike = true;
+                selectedBrand = "";
+                selectedModel = "";
+                selectedVariant = null;
+              });
+            },
+            child: const Text("Can't find your bike? Add Custom Bike"),
+          ),
+        ] else ...[
+          thinInput("Bike Brand", bikeBrandController),
+          const SizedBox(height: 20),
+          thinInput("Bike Model", bikeModelController),
+          const SizedBox(height: 20),
+          thinInput("Bike Variant", bikeVariantController),
+          const SizedBox(height: 20),
+          const Text(
+            "Category",
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 15),
+          optionGrid(
+            bikeCategories,
+            customBikeCategory,
+            (v) => setState(() => customBikeCategory = v),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            "Bike Type",
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 15),
+          optionGrid(
+            bikeTypes,
+            customBikeType,
+            (v) => setState(() => customBikeType = v),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Text(
+              "Custom bikes are saved as unverified",
+              style: TextStyle(color: Colors.orange),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                useCustomBike = false;
+                bikeBrandController.clear();
+                bikeModelController.clear();
+                bikeVariantController.clear();
+                bikeEngineCcController.clear();
+                customBikeCategory = "";
+                customBikeType = "";
+              });
+            },
+            child: const Text("Use Bike Registry Instead"),
+          ),
+        ],
+        const SizedBox(height: 12),
+        thinInput(
+          "Year of Purchase",
+          bikeYearController,
+          type: TextInputType.number,
+        ),
+        if (useCustomBike) ...[
+          const SizedBox(height: 20),
+          thinInput(
+            "Engine CC",
+            bikeEngineCcController,
+            type: TextInputType.number,
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -276,7 +785,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 controller: controller,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  // ================= STEP 1 =================
                   buildStep(
                     "Tell us about you",
                     Column(
@@ -318,8 +826,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       ],
                     ),
                   ),
-
-                  // ================= STEP 2 =================
                   buildStep(
                     "Your Riding Style",
                     optionGrid(
@@ -328,42 +834,10 @@ class _SignupScreenState extends State<SignupScreen> {
                       (v) => setState(() => preference = v),
                     ),
                   ),
-
-                  // ================= STEP 3 =================
-                  buildStep(
-                    "Your Bike",
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Bike Type",
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        optionGrid(
-                          bikeTypes,
-                          bikeType,
-                          (v) => setState(() => bikeType = v),
-                        ),
-                        const SizedBox(height: 30),
-                        thinInput("Bike Model", bikeModelController),
-                        const SizedBox(height: 20),
-                        thinInput(
-                          "Year of Purchase",
-                          bikeYearController,
-                          type: TextInputType.number,
-                        ),
-                      ],
-                    ),
-                  ),
+                  buildStep("Your Bike", _bikeStep()),
                 ],
               ),
             ),
-
-            // ================= BUTTONS =================
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -403,7 +877,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  // ================= STEP WRAPPER =================
   Widget buildStep(String title, Widget content) {
     return Padding(
       padding: const EdgeInsets.all(24),

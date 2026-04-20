@@ -64,6 +64,8 @@ public class User {
 
     private String bikeType;
 
+    private boolean subscriptionActive = false;
+
     @Enumerated(EnumType.STRING)
     private Role role = Role.RIDER;
 
