@@ -3,8 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
+import 'package:throttle_ui/features/groups/data/services/place_service.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
@@ -13,7 +12,6 @@ import 'package:throttle_ui/features/notifications/data/services/notification_se
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
-import 'package:uuid/uuid.dart';
 
 class RideInfoScreen extends StatefulWidget {
   final Map<String, dynamic> rideGroup;
@@ -142,91 +140,6 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         backgroundColor: isError ? Colors.red : null,
       ),
     );
-  }
-
-  String? get _googlePlacesApiKey {
-    final directKey = dotenv.env["GOOGLE_PLACES_API_KEY"]?.trim();
-    if (directKey != null && directKey.isNotEmpty) return directKey;
-    print(directKey);
-    final fallbackKey = dotenv.env["GOOGLE_MAPS_API_KEY"]?.trim();
-    if (fallbackKey != null && fallbackKey.isNotEmpty) return fallbackKey;
-print(directKey);
-    return null;
-  }
-
-  Future<List<Map<String, String>>> _searchGooglePlaceSuggestions(
-    String query, {
-    required String sessionToken,
-  }) async {
-    final apiKey = _googlePlacesApiKey;
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception(
-        "Google Places API key is missing. Add GOOGLE_PLACES_API_KEY to your .env file.",
-      );
-    }
-
-    final response = await http.post(
-      Uri.parse("https://places.googleapis.com/v1/places:autocomplete"),
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask":
-            "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text,suggestions.placePrediction.structuredFormat.mainText.text,suggestions.placePrediction.structuredFormat.secondaryText.text",
-      },
-      body: jsonEncode({
-        "input": query,
-        "sessionToken": sessionToken,
-        "languageCode": "en",
-      }),
-    );
-
-    final Map<String, dynamic> decoded = response.body.isEmpty
-        ? const {}
-        : Map<String, dynamic>.from(jsonDecode(response.body));
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final error = decoded["error"];
-      final message = error is Map
-          ? error["message"]?.toString()
-          : decoded["message"]?.toString();
-      throw Exception(message ?? "Failed to load place suggestions");
-    }
-
-    final suggestions = decoded["suggestions"];
-    if (suggestions is! List) return const [];
-
-    return suggestions
-        .map((entry) => Map<String, dynamic>.from(entry as Map))
-        .map(
-          (entry) => Map<String, dynamic>.from(
-            entry["placePrediction"] as Map? ?? const {},
-          ),
-        )
-        .map((prediction) {
-          final structured = Map<String, dynamic>.from(
-            prediction["structuredFormat"] as Map? ?? const {},
-          );
-          final title = Map<String, dynamic>.from(
-            structured["mainText"] as Map? ?? const {},
-          )["text"]?.toString();
-          final subtitle = Map<String, dynamic>.from(
-            structured["secondaryText"] as Map? ?? const {},
-          )["text"]?.toString();
-          final fullText =
-              Map<String, dynamic>.from(
-                prediction["text"] as Map? ?? const {},
-              )["text"]?.toString() ??
-              "";
-
-          return <String, String>{
-            "placeId": prediction["placeId"]?.toString() ?? "",
-            "title": (title ?? fullText).trim(),
-            "subtitle": (subtitle ?? "").trim(),
-            "fullText": fullText.trim(),
-          };
-        })
-        .where((item) => item["fullText"]?.isNotEmpty == true)
-        .toList();
   }
 
   @override
@@ -1851,7 +1764,6 @@ print(directKey);
       text: existingPreRide["notes"]?.toString() ?? "",
     );
     final meetingFocusNode = FocusNode();
-    final placesSessionToken = const Uuid().v4();
     Timer? meetingSearchDebounce;
     int meetingSearchRequestId = 0;
     bool isMeetingSearchLoading = false;
@@ -1919,7 +1831,7 @@ print(directKey);
       }
 
       meetingSearchDebounce = Timer(
-        const Duration(milliseconds: 350),
+        const Duration(milliseconds: 900),
         () async {
           final requestId = ++meetingSearchRequestId;
           setModalState(() {
@@ -1928,10 +1840,7 @@ print(directKey);
           });
 
           try {
-            final suggestions = await _searchGooglePlaceSuggestions(
-              query,
-              sessionToken: placesSessionToken,
-            );
+            final suggestions = await PlaceService.searchPlaces(query);
 
             if (!mounted || requestId != meetingSearchRequestId) return;
 
@@ -2024,14 +1933,13 @@ print(directKey);
                         scheduleMeetingSearch(setModalState, value),
                   ),
                   const SizedBox(height: 10),
-                  if (_googlePlacesApiKey == null)
-                    Text(
-                      "Autocomplete will start working after you add GOOGLE_PLACES_API_KEY to .env. Manual entry still works for now.",
-                      style: TextStyle(
-                        color: theme.textPrimary.withValues(alpha: 0.6),
-                        fontSize: 12,
-                      ),
+                  Text(
+                    "Suggestions are powered by OpenStreetMap search and may take a moment to appear.",
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.6),
+                      fontSize: 12,
                     ),
+                  ),
                   if (meetingSearchError != null &&
                       meetingController.text.trim().length >= 3) ...[
                     const SizedBox(height: 10),
