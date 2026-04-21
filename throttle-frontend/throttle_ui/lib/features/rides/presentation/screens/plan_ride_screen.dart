@@ -34,6 +34,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   final rulesController = TextEditingController();
 
   List<String> selectedFriends = [];
+  Map<String, String> selectedFriendLabels = {};
   List<Map<String, dynamic>> inviteOptions = [];
   bool isLoadingInviteOptions = false;
   bool isLoading = false;
@@ -93,6 +94,19 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         ],
       ],
     );
+  }
+
+  String _friendUuid(Map<String, dynamic> friend) {
+    return (friend["userUuid"] ?? friend["uuid"] ?? "").toString().trim();
+  }
+
+  String _friendLabel(Map<String, dynamic> friend) {
+    final displayName =
+        "${friend["firstName"] ?? ""} ${friend["lastName"] ?? ""}".trim();
+    final riderId = (friend["riderId"] ?? "").toString().trim();
+    if (displayName.isNotEmpty) return displayName;
+    if (riderId.isNotEmpty) return "@$riderId";
+    return "Unknown Rider";
   }
 
   Widget cardWrapper({required Widget child, required AppThemeConfig theme}) {
@@ -276,16 +290,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                               itemCount: inviteOptions.length,
                               itemBuilder: (_, index) {
                                 final member = inviteOptions[index];
-                                final displayName =
-                                    "${member["firstName"] ?? ""} ${member["lastName"] ?? ""}"
-                                        .trim();
-                                final riderId = (member["riderId"] ?? "")
-                                    .toString();
-                                final selectionKey = displayName.isEmpty
-                                    ? riderId
-                                    : displayName;
+                                final displayName = _friendLabel(member);
+                                final riderId =
+                                    (member["riderId"] ?? "").toString();
+                                final friendUuid = _friendUuid(member);
                                 final isSelected = selectedFriends.contains(
-                                  selectionKey,
+                                  friendUuid,
                                 );
 
                                 return Container(
@@ -315,13 +325,18 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                                             ),
                                           ),
                                     trailing: TextButton(
-                                      onPressed: () {
+                                      onPressed: friendUuid.isEmpty
+                                          ? null
+                                          : () {
                                         setModalState(() {
                                           if (!isSelected) {
-                                            selectedFriends.add(selectionKey);
+                                            selectedFriends.add(friendUuid);
+                                            selectedFriendLabels[friendUuid] =
+                                                displayName;
                                           } else {
-                                            selectedFriends.remove(
-                                              selectionKey,
+                                            selectedFriends.remove(friendUuid);
+                                            selectedFriendLabels.remove(
+                                              friendUuid,
                                             );
                                           }
                                         });
@@ -1010,7 +1025,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
             : rulesController.text.trim();
         final invited = selectedFriends.isEmpty
             ? "No riders"
-            : selectedFriends.join(", ");
+            : selectedFriends
+                .map(
+                  (uuid) => selectedFriendLabels[uuid] ?? uuid,
+                )
+                .join(", ");
 
         return cardWrapper(
           theme: theme,

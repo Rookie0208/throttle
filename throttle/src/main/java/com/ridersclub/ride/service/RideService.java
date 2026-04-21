@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -82,6 +83,8 @@ public class RideService {
         private GroupMessageRepository groupMessageRepository;
         @Autowired
         private RideSessionService rideSessionService;
+        @Autowired
+        private RideParticipantService rideParticipantService;
 
         public Ride createRide(CreateRideRequest request, String currentUserUUId) throws AccessDeniedException {
                 User currentUser = userRepository.findByUuid(currentUserUUId)
@@ -162,6 +165,8 @@ public class RideService {
 
                         groupMemberRepository.save(captainMember);
                         createTeamMembersSubGroup(saved, savedGroup, currentUser);
+
+                        inviteSelectedFriends(saved.getUuid(), currentUserUUId, request.getInvitedFriends());
                 } else {
                         RideGroup mainGroup = new RideGroup();
                         mainGroup.setUuid(UserUtility.generateUUID(UuidPrefix.GROUP.name()));
@@ -189,6 +194,21 @@ public class RideService {
                 System.out.println("notification published");
 
                 return saved;
+        }
+
+        private void inviteSelectedFriends(String rideUuid, String currentUserUuid, List<String> invitedFriends) {
+                if (invitedFriends == null || invitedFriends.isEmpty()) {
+                        return;
+                }
+
+                for (String inviteeUuid : invitedFriends.stream()
+                                .filter(Objects::nonNull)
+                                .map(String::trim)
+                                .filter(uuid -> !uuid.isEmpty())
+                                .distinct()
+                                .toList()) {
+                        rideParticipantService.inviteMember(rideUuid, inviteeUuid, currentUserUuid);
+                }
         }
 
         private RideGroup createTeamMembersSubGroup(Ride ride, RideGroup mainGroup, User creator) {
