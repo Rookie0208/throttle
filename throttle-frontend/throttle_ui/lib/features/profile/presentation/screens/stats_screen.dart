@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({super.key});
+  final Map<String, dynamic>? userData;
+
+  const StatsScreen({super.key, this.userData});
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -12,31 +13,6 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   String activeTab = "analytics";
-  String timeRange = "weekly";
-
-  // Dummy data
-  final weeklyData = [
-    {'day': 'Mon', 'miles': 32, 'speed': 48},
-    {'day': 'Tue', 'miles': 0, 'speed': 0},
-    {'day': 'Wed', 'miles': 45, 'speed': 52},
-    {'day': 'Thu', 'miles': 18, 'speed': 38},
-    {'day': 'Fri', 'miles': 65, 'speed': 56},
-    {'day': 'Sat', 'miles': 88, 'speed': 62},
-    {'day': 'Sun', 'miles': 0, 'speed': 0},
-  ];
-
-  final monthlyData = [
-    {'week': 'W1', 'miles': 120},
-    {'week': 'W2', 'miles': 185},
-    {'week': 'W3', 'miles': 248},
-    {'week': 'W4', 'miles': 310},
-  ];
-
-  final rideHistory = [
-    {'date': 'Feb 13', 'name': 'Canyon Loop', 'miles': 68, 'time': '2h 15m'},
-    {'date': 'Feb 11', 'name': 'Coastal Run', 'miles': 45, 'time': '1h 30m'},
-    {'date': 'Feb 9', 'name': 'Mountain Pass', 'miles': 92, 'time': '3h 10m'},
-  ];
 
   final badges = [
     {'name': 'Century Rider', 'desc': '100 miles in a day', 'earned': true},
@@ -44,6 +20,74 @@ class _StatsScreenState extends State<StatsScreen> {
     {'name': 'Early Bird', 'desc': '5 rides before 7 AM', 'earned': true},
     {'name': 'Iron Streak', 'desc': '30-day streak', 'earned': false},
   ];
+
+  List<Map<String, dynamic>> get rideHistory =>
+      widget.userData != null && widget.userData!['recentRides'] is List
+      ? List<Map<String, dynamic>>.from(widget.userData!['recentRides'])
+      : const [];
+
+  int get totalRides {
+    final total = int.tryParse(
+      (widget.userData?['totalRides'] ?? '').toString(),
+    );
+    return total != null && total > 0 ? total : rideHistory.length;
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    final raw = value?.toString().trim() ?? "";
+    if (raw.isEmpty) return 0;
+    return double.tryParse(raw) ?? 0;
+  }
+
+  double _rideDistanceKm(Map<String, dynamic> ride) {
+    final distanceKm = _toDouble(
+      ride['distanceKm'] ?? ride['km'] ?? ride['kilometers'],
+    );
+    if (distanceKm > 0) return distanceKm;
+
+    final distanceMiles = _toDouble(
+      ride['miles'] ?? ride['distanceMiles'] ?? ride['distance'],
+    );
+    if (distanceMiles > 0) return distanceMiles * 1.60934;
+
+    return 0;
+  }
+
+  double get totalDistanceKm {
+    final fromHistory = rideHistory.fold<double>(
+      0,
+      (sum, ride) => sum + _rideDistanceKm(ride),
+    );
+    if (fromHistory > 0) return fromHistory;
+
+    final fromUserKm = _toDouble(
+      widget.userData?['totalKm'] ??
+          widget.userData?['totalDistanceKm'] ??
+          widget.userData?['distanceKm'],
+    );
+    if (fromUserKm > 0) return fromUserKm;
+
+    final fromMiles = _toDouble(widget.userData?['totalMiles']);
+    if (fromMiles > 0) return fromMiles * 1.60934;
+
+    return 0;
+  }
+
+  String _formatKm(double value) {
+    if (value == 0) return "0 km";
+    if (value >= 100) return "${value.round()} km";
+    return "${value.toStringAsFixed(1)} km";
+  }
+
+  String _rideTitle(Map<String, dynamic> ride) =>
+      (ride['name'] ?? ride['title'] ?? 'Ride').toString();
+
+  String _rideDate(Map<String, dynamic> ride) =>
+      (ride['date'] ?? '').toString();
+
+  String _rideTime(Map<String, dynamic> ride) =>
+      (ride['time'] ?? ride['duration'] ?? '').toString();
 
   @override
   Widget build(BuildContext context) {
@@ -95,17 +139,29 @@ class _StatsScreenState extends State<StatsScreen> {
                       children: [
                         Row(
                           children: [
-                            _statCard("Total Distance", "248 mi", theme),
+                            _statCard(
+                              "Total Distance",
+                              _formatKm(totalDistanceKm),
+                              theme,
+                            ),
                             const SizedBox(width: 12),
-                            _statCard("Avg Speed", "54 mph", theme),
+                            _statCard("Total Rides", "$totalRides", theme),
                           ],
                         ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            _statCard("Top Speed", "98 mph", theme),
+                            _statCard(
+                              "Badges Earned",
+                              "${badges.where((badge) => badge['earned'] == true).length}",
+                              theme,
+                            ),
                             const SizedBox(width: 12),
-                            _statCard("Elevation Gain", "4,820 ft", theme),
+                            _statCard(
+                              "Recent Rides",
+                              "${rideHistory.length}",
+                              theme,
+                            ),
                           ],
                         ),
                       ],
@@ -113,10 +169,10 @@ class _StatsScreenState extends State<StatsScreen> {
                   ),
 
                   _sectionHeader("Speed Trend", theme),
-                  _chartPlaceholder("Speed Over Time (MPH)", theme),
+                  _chartPlaceholder("Speed analytics coming soon", theme),
 
                   _sectionHeader("Distance Over Time", theme),
-                  _chartPlaceholder("Distance Covered (Miles)", theme),
+                  _chartPlaceholder("Distance covered (KM)", theme),
 
                   _sectionHeader("Ride Heatmap", theme),
                   _buildHeatmap(theme),
@@ -347,14 +403,14 @@ class _StatsScreenState extends State<StatsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  ride['name'] as String,
+                  _rideTitle(ride),
                   style: TextStyle(
                     color: theme.textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  ride['date'] as String,
+                  _rideDate(ride),
                   style: TextStyle(
                     color: theme.textPrimary.withValues(alpha: 0.5),
                     fontSize: 12,
@@ -367,14 +423,14 @@ class _StatsScreenState extends State<StatsScreen> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                "${ride['miles']} mi",
+                _formatKm(_rideDistanceKm(ride)),
                 style: GoogleFonts.bebasNeue(
                   color: theme.textPrimary,
                   fontSize: 18,
                 ),
               ),
               Text(
-                ride['time'] as String,
+                _rideTime(ride),
                 style: TextStyle(
                   color: theme.textPrimary.withValues(alpha: 0.5),
                   fontSize: 11,

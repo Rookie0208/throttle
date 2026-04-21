@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
+import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/stats_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/settings_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_summary_screen.dart';
 
 import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
@@ -53,6 +56,102 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   int get _bikeLimit =>
       int.tryParse((_userData?['bikeLimit'] ?? 3).toString()) ?? 3;
+
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    final raw = value?.toString().trim() ?? "";
+    if (raw.isEmpty) return 0;
+    return double.tryParse(raw) ?? 0;
+  }
+
+  int _toInt(dynamic value, [int fallback = 0]) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? "") ?? fallback;
+  }
+
+  double _rideDistanceKm(Map<String, dynamic> ride) {
+    final distanceKm = _toDouble(
+      ride['distanceKm'] ?? ride['km'] ?? ride['kilometers'],
+    );
+    if (distanceKm > 0) return distanceKm;
+
+    final miles = _toDouble(
+      ride['miles'] ?? ride['distanceMiles'] ?? ride['distance'],
+    );
+    if (miles > 0) return miles * 1.60934;
+
+    return 0;
+  }
+
+  double get _totalDistanceKm {
+    final fromHistory = rideHistory.fold<double>(
+      0,
+      (sum, ride) => sum + _rideDistanceKm(ride),
+    );
+    if (fromHistory > 0) return fromHistory;
+
+    final fromUserKm = _toDouble(
+      _userData?['totalKm'] ??
+          _userData?['totalDistanceKm'] ??
+          _userData?['distanceKm'],
+    );
+    if (fromUserKm > 0) return fromUserKm;
+
+    final totalMiles = _toDouble(_userData?['totalMiles']);
+    if (totalMiles > 0) return totalMiles * 1.60934;
+
+    return 0;
+  }
+
+  int get _totalRidesTaken {
+    final totalRides = _toInt(_userData?['totalRides']);
+    if (totalRides > 0) return totalRides;
+    return rideHistory.length;
+  }
+
+  String _formatKm(double value) {
+    if (value == 0) return "0";
+    if (value >= 100) return value.round().toString();
+    return value.toStringAsFixed(1);
+  }
+
+  String _rideDateLabel(Map<String, dynamic> ride) =>
+      (ride["date"] ?? ride["scheduledDate"] ?? "").toString();
+
+  String _rideDurationLabel(Map<String, dynamic> ride) =>
+      (ride["duration"] ?? ride["time"] ?? "").toString();
+
+  Future<void> _openRideSummary(Map<String, dynamic> ride) async {
+    final rideUuid = (ride["uuid"] ?? ride["id"])?.toString();
+    final groupName = (ride["title"] ?? ride["name"] ?? "Ride").toString();
+    final token = await AuthService.getToken();
+
+    Map<String, dynamic>? session;
+    if (rideUuid != null && rideUuid.isNotEmpty) {
+      try {
+        if (token != null && token.isNotEmpty) {
+          session = await RideService.fetchRideSession(token, rideUuid);
+        }
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RideSummaryScreen(
+          groupName: groupName,
+          ride: ride,
+          session: session,
+          token: token,
+          rideUuid: rideUuid,
+        ),
+      ),
+    );
+    await _refreshProfile();
+  }
 
   @override
   void initState() {
@@ -448,8 +547,12 @@ class _ProfileScreenState extends State<ProfileScreen>
 
               if (invalidCatalog || invalidCustom) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Fill all bike details with valid values"),
+                  SnackBar(
+                    content: Text(
+                      invalidCatalog
+                          ? "Select brand, model, variant, and a valid year"
+                          : "Fill all custom bike details with valid values",
+                    ),
                   ),
                 );
                 return;
@@ -1092,39 +1195,62 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildRideCard(Map<String, dynamic> ride, AppThemeConfig theme) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 36,
-            width: 36,
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
+    return InkWell(
+      onTap: () => _openRideSummary(ride),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: theme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x52B8C6DA)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 36,
+              width: 36,
+              decoration: BoxDecoration(
+                color: theme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.directions_bike, color: theme.primary),
             ),
-            child: Icon(Icons.directions_bike, color: theme.primary),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ride["title"] ?? ride["name"] ?? "Ride",
+                    style: TextStyle(
+                      color: theme.textPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    _rideDateLabel(ride),
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  ride["title"] ?? ride["name"] ?? "Ride",
+                  "${_formatKm(_rideDistanceKm(ride))} km",
                   style: TextStyle(
                     color: theme.textPrimary,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  ride["date"]?.toString() ?? "",
+                  _rideDurationLabel(ride),
                   style: TextStyle(
                     color: theme.textPrimary.withValues(alpha: 0.6),
                     fontSize: 12,
@@ -1132,27 +1258,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                "${ride["miles"] ?? 0} mi",
-                style: TextStyle(
-                  color: theme.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                ride["duration"] ?? ride["time"] ?? "",
-                style: TextStyle(
-                  color: theme.textPrimary.withValues(alpha: 0.6),
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1501,13 +1608,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                                 children: [
                                   _buildStatItem(
                                     Icons.directions,
-                                    "${_userData?['totalMiles'] ?? 0}",
-                                    "Miles",
+                                    _formatKm(_totalDistanceKm),
+                                    "Km",
                                     theme,
                                   ),
                                   _buildStatItem(
                                     Icons.calendar_today,
-                                    "${_userData?['totalRides'] ?? 0}",
+                                    "$_totalRidesTaken",
                                     "Rides",
                                     theme,
                                   ),
@@ -1527,7 +1634,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => StatsScreen(),
+                                        builder: (_) =>
+                                            StatsScreen(userData: _userData),
                                       ),
                                     );
                                   },

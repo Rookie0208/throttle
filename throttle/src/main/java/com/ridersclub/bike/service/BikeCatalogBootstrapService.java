@@ -34,20 +34,35 @@ public class BikeCatalogBootstrapService implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        int imported = 0;
-        if (externalImportEnabled) {
-            imported += tryImport("BikeDekho", "https://www.bikedekho.com/new-bikes");
-            imported += tryImport("ZigWheels", "https://www.zigwheels.com/newbikes");
-            imported += tryImport("91Wheels", "https://www.91wheels.com/bikes");
+        try {
+            int seeded = bikeRegistryService.seedIfEmpty(fallbackSeedData());
+            if (seeded > 0) {
+                log.info("Bootstrapped bike catalog with curated seed data: {} records", seeded);
+                return;
+            }
+
+            log.info("Bike catalog already contains data. Skipping external import to preserve existing records.");
+            return;
+        } catch (Exception error) {
+            log.warn("Curated bike seed failed. Trying external import fallback. reason={}", error.getMessage());
         }
 
-        if (imported > 0) {
-            log.info("Bootstrapped bike catalog from external sources: {} records", imported);
+        if (!externalImportEnabled) {
+            log.warn("External bike import is disabled and seed bootstrap failed. Catalog was not bootstrapped.");
             return;
         }
 
-        int seeded = bikeRegistryService.seedIfEmpty(fallbackSeedData());
-        log.info("Bootstrapped bike catalog with fallback seed data: {} records", seeded);
+        int imported = 0;
+        imported += tryImport("BikeDekho", "https://www.bikedekho.com/new-bikes");
+        imported += tryImport("ZigWheels", "https://www.zigwheels.com/newbikes");
+        imported += tryImport("91Wheels", "https://www.91wheels.com/bikes");
+
+        if (imported > 0) {
+            log.info("Bootstrapped bike catalog from external fallback sources: {} records", imported);
+            return;
+        }
+
+        log.warn("Bike catalog bootstrap failed. No seed data or external fallback data was imported.");
     }
 
     private int tryImport(String source, String url) {
@@ -63,7 +78,7 @@ public class BikeCatalogBootstrapService implements ApplicationRunner {
             log.info("{} import attempt finished. candidates={}, imported={}", source, extracted.size(), imported);
             return imported;
         } catch (Exception error) {
-            log.warn("{} import failed. Falling back to curated seed data. reason={}", source, error.getMessage());
+            log.warn("{} fallback import failed. reason={}", source, error.getMessage());
             return 0;
         }
     }

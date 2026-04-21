@@ -6,7 +6,6 @@ import 'package:throttle_ui/features/rides/presentation/screens/plan_ride_screen
 import 'package:throttle_ui/features/profile/presentation/screens/profile_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/dashboard/presentation/screens/dashboard_screen.dart';
 
@@ -119,27 +118,7 @@ class _MainScreenState extends State<MainScreen> {
 
         return Scaffold(
           backgroundColor: theme.background,
-          body: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 280),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInOutCubic,
-            transitionBuilder: (child, animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0.03, 0),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
-                ),
-              );
-            },
-            child: KeyedSubtree(
-              key: ValueKey(_currentIndex),
-              child: _screens[_currentIndex],
-            ),
-          ),
+          body: IndexedStack(index: _currentIndex, children: _screens),
           bottomNavigationBar: Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
             child: ClipRRect(
