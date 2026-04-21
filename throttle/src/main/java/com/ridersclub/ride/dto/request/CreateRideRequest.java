@@ -1,7 +1,6 @@
 package com.ridersclub.ride.dto.request;
 
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import java.util.List;
 
 import com.ridersclub.common.enums.Difficulty;
@@ -50,6 +49,8 @@ public class CreateRideRequest {
 
     @NotEmpty
     private List<@NotBlank String> rules;
+
+    private List<@NotBlank String> invitedFriends;
 
     @NotNull
     private Difficulty difficulty;
