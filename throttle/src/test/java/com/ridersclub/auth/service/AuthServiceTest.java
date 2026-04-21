@@ -1,6 +1,9 @@
 package com.ridersclub.auth.service;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import java.util.Optional;
@@ -23,6 +26,7 @@ import com.ridersclub.common.enums.UuidPrefix;
 import com.ridersclub.common.exception.EmailAlreadyExistsException;
 import com.ridersclub.common.exception.InvalidCredentialsException;
 import com.ridersclub.auth.security.JwtService;
+import com.ridersclub.bike.service.BikeRegistryService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.service.RiderIdService;
 import com.ridersclub.user.service.UserService;
@@ -50,6 +54,9 @@ class AuthServiceTest {
     @Mock
     private RiderIdService riderIdService;
 
+    @Mock
+    private BikeRegistryService bikeRegistryService;
+
     private AuthService authService;
 
     @BeforeEach
@@ -62,7 +69,8 @@ class AuthServiceTest {
                 otpService,
                 refreshTokenService,
                 neo4jClient,
-                riderIdService);
+                riderIdService,
+                bikeRegistryService);
     }
 
     @Test
