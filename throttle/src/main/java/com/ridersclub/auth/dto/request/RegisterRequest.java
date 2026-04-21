@@ -52,5 +52,23 @@ public class RegisterRequest {
     @Size(max = 100)
     private String bikeType;
 
+    private Long bikeMasterId;
+
+    @Size(max = 80)
+    private String bikeBrand;
+
+    @Size(max = 80)
+    private String bikeModel;
+
+    @Size(max = 150)
+    private String bikeVariant;
+
+    @Size(max = 50)
+    private String bikeCategory;
+
+    private Integer bikeYear;
+
+    private Integer bikeEngineCc;
+
     private Role role;
 }

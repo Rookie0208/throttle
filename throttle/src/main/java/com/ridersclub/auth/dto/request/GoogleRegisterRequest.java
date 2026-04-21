@@ -27,6 +27,13 @@ public class GoogleRegisterRequest {
 
     private String city;
     private String bikeType;
+    private Long bikeMasterId;
+    private String bikeBrand;
+    private String bikeModel;
+    private String bikeVariant;
+    private String bikeCategory;
+    private Integer bikeYear;
+    private Integer bikeEngineCc;
     private int experienceYears;
     private Role role;
 

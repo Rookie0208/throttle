@@ -9,7 +9,7 @@ import 'package:throttle_ui/core/services/logger_service.dart';
 class AuthService {
   static String get baseUrl =>
       "${dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1'}/auth";
-      
+
   static const _storage = FlutterSecureStorage();
   static const String _tokenKey = "jwt_token";
   static const String _refreshTokenKey = "refresh_token";
@@ -22,7 +22,14 @@ class AuthService {
     required String pronoun,
     required String email,
     required String password,
+    int? bikeMasterId,
+    String? bikeBrand,
+    String? bikeModel,
+    String? bikeVariant,
+    String? bikeCategory,
     String? bikeType,
+    int? bikeYear,
+    int? bikeEngineCc,
     int? experienceYears,
   }) async {
     try {
@@ -39,7 +46,14 @@ class AuthService {
         "city": null,
         "experienceYears": experienceYears ?? 0,
         "emergencyContacts": [],
+        "bikeMasterId": bikeMasterId,
+        "bikeBrand": bikeBrand,
+        "bikeModel": bikeModel,
+        "bikeVariant": bikeVariant,
+        "bikeCategory": bikeCategory,
         "bikeType": bikeType ?? "",
+        "bikeYear": bikeYear,
+        "bikeEngineCc": bikeEngineCc,
         "role": "RIDER",
       };
 
@@ -132,18 +146,16 @@ class AuthService {
     String? webIdToken,
   }) async {
     try {
-      String? idToken = webIdToken;
+      String idToken = webIdToken ?? "";
 
-      if (idToken == null) {
+      if (idToken.isEmpty) {
         // use authenticate to match original implementation version
-        final GoogleSignInAccount? account = await googleSignIn.authenticate();
-        if (account == null) return {"success": false, "message": "Google sign in aborted"};
-        
+        final GoogleSignInAccount account = await googleSignIn.authenticate();
         final GoogleSignInAuthentication auth = account.authentication;
-        idToken = auth.idToken;
+        idToken = auth.idToken ?? "";
       }
 
-      if (idToken == null) {
+      if (idToken.isEmpty) {
         return {
           "success": false,
           "message": "Failed to retrieve Google ID Token",
@@ -216,7 +228,14 @@ class AuthService {
     required String lastName,
     required String riderId,
     required String pronoun,
-    required String bikeType,
+    int? bikeMasterId,
+    String? bikeBrand,
+    String? bikeModel,
+    String? bikeVariant,
+    String? bikeCategory,
+    String? bikeType,
+    int? bikeYear,
+    int? bikeEngineCc,
   }) async {
     try {
       final url = Uri.parse("$baseUrl/google/complete-registration");
@@ -228,7 +247,14 @@ class AuthService {
         "riderId": riderId.trim().toLowerCase(),
         "gender": _getGenderFromPronoun(pronoun),
         "pronoun": pronoun,
+        "bikeMasterId": bikeMasterId,
+        "bikeBrand": bikeBrand,
+        "bikeModel": bikeModel,
+        "bikeVariant": bikeVariant,
+        "bikeCategory": bikeCategory,
         "bikeType": bikeType,
+        "bikeYear": bikeYear,
+        "bikeEngineCc": bikeEngineCc,
         "role": "RIDER",
         "city": null,
         "experienceYears": 0,
@@ -299,13 +325,17 @@ class AuthService {
         final newRefreshToken = decoded["data"]?["refreshToken"];
 
         if (newToken != null && newRefreshToken != null) {
-          Logger.info("Successfully received new tokens. Storing to secure storage.");
+          Logger.info(
+            "Successfully received new tokens. Storing to secure storage.",
+          );
           await saveTokens(newToken, newRefreshToken);
           return true;
         }
       }
       // If refresh failed (e.g., token expired or revoked in DB)
-      Logger.warn("Refresh request rejected by server. Status: ${response.statusCode}");
+      Logger.warn(
+        "Refresh request rejected by server. Status: ${response.statusCode}",
+      );
       return false;
     } catch (e) {
       Logger.error("Network fail during refresh token call", e);
@@ -326,7 +356,8 @@ class AuthService {
           url,
           headers: {
             "Content-Type": "application/json",
-            "Authorization": "Bearer $accessToken", // Needs access token for intercept filter 
+            "Authorization":
+                "Bearer $accessToken", // Needs access token for intercept filter
           },
           body: jsonEncode({"refreshToken": refreshToken}),
         );
@@ -342,10 +373,10 @@ class AuthService {
     // Disconnect google sign-in safely
     try {
       await googleSignIn.signOut();
-    } catch(e) {}
+    } catch (e) {
+      Logger.warn("Google sign out skipped: $e");
+    }
   }
-
-
 
   // ================= GENDER FROM PRONOUN =================
   static String _getGenderFromPronoun(String? pronoun) {
