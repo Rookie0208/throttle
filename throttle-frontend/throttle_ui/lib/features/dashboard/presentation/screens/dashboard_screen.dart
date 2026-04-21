@@ -12,8 +12,10 @@ import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/core/services/weather_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_summary_screen.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -319,11 +321,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return int.tryParse((maxRiders ?? riders ?? 0).toString()) ?? 0;
   }
 
+  DateTime? _parseRideDate(dynamic value) {
+    final raw = value?.toString().trim() ?? "";
+    if (raw.isEmpty) return null;
+    return DateTime.tryParse(raw)?.toLocal();
+  }
+
+  bool _isCompletedRide(Map<String, dynamic>? ride) {
+    final status = _normalizedRideStatus(ride);
+    return status == "COMPLETED" || status == "ENDED";
+  }
+
+  DateTime? _rideCompletionTime(Map<String, dynamic>? ride) {
+    return _parseRideDate(ride?["completedAt"]) ??
+        _parseRideDate(ride?["rideCompletedAt"]) ??
+        _parseRideDate(ride?["endTime"]) ??
+        _parseRideDate(ride?["updatedAt"]) ??
+        _parseRideDate(ride?["startTime"]) ??
+        _parseRideDate(ride?["createdAt"]);
+  }
+
+  Map<String, dynamic>? _latestCompletedRide(List<Map<String, dynamic>> rides) {
+    final completed = rides.where(_isCompletedRide).toList();
+    if (completed.isEmpty) {
+      return rides.isNotEmpty ? rides.first : null;
+    }
+
+    completed.sort((a, b) {
+      final aTime = _rideCompletionTime(a);
+      final bTime = _rideCompletionTime(b);
+      if (aTime == null && bTime == null) return 0;
+      if (aTime == null) return 1;
+      if (bTime == null) return -1;
+      return bTime.compareTo(aTime);
+    });
+    return completed.first;
+  }
+
+  String _formatTimeOfDay(DateTime? dateTime) {
+    if (dateTime == null) return "";
+    final hour = dateTime.hour % 12 == 0 ? 12 : dateTime.hour % 12;
+    final minutes = dateTime.minute.toString().padLeft(2, '0');
+    final suffix = dateTime.hour >= 12 ? "PM" : "AM";
+    return "$hour:$minutes $suffix";
+  }
+
+  String _recentRideSubtitle(Map<String, dynamic>? ride) {
+    final completedAt = _rideCompletionTime(ride);
+    final location = _rideLocationLabel(ride);
+    final timeLabel = _formatTimeOfDay(completedAt);
+    if (timeLabel.isNotEmpty) {
+      return "$location • $timeLabel";
+    }
+    return location;
+  }
+
   Future<void> _openRideConsoleFromDashboard(
     Map<String, dynamic> ride, {
     required String rideStatus,
   }) async {
-    print('Ride data: $ride'); // Debug print
     final normalizedStatus = rideStatus.toUpperCase();
     final title = (ride["title"] ?? "Ride").toString();
 
@@ -345,6 +401,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
           );
 
     await Navigator.push(context, MaterialPageRoute(builder: (_) => target));
+    await _refreshProfileData();
+  }
+
+  Future<void> _openRideSummaryFromDashboard(Map<String, dynamic> ride) async {
+    final rideUuid = (ride["uuid"] ?? ride["id"])?.toString();
+    final title = (ride["title"] ?? "Ride").toString();
+
+    if (rideUuid == null || rideUuid.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Unable to open ride summary")),
+      );
+      return;
+    }
+
+    Map<String, dynamic>? session;
+    try {
+      session = await RideService.fetchRideSession(widget.token, rideUuid);
+    } catch (error) {
+      Logger.warn("Failed to fetch ride summary session for $rideUuid: $error");
+    }
+
+    if (!mounted) return;
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RideSummaryScreen(
+          groupName: title,
+          session: session,
+          ride: ride,
+          token: widget.token,
+          rideUuid: rideUuid,
+        ),
+      ),
+    );
     await _refreshProfileData();
   }
 
@@ -584,9 +676,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final upcomingRideStatus = _normalizedRideStatus(upcomingRide);
         final cleanedTodaySubtitle = _cleanSubtitle(todayPlanRide);
         final upcomingDateLabel = _upcomingRideDateLabel(upcomingRide);
-        final latestCompletedRide = recentRides.isNotEmpty
-            ? recentRides.first
-            : null;
+        final latestCompletedRide = _latestCompletedRide(recentRides);
 
         return Scaffold(
           backgroundColor: theme.background,
@@ -1102,30 +1192,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           theme: theme,
                           child: Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(18),
                             decoration: _cardDecoration(theme),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: theme.primary.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Icon(
-                                    Icons.route_rounded,
-                                    color: theme.primary,
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(24),
+                                onTap: () => _openRideSummaryFromDashboard(
+                                  latestCompletedRide,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(18),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: theme.primary.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          Icons.route_rounded,
+                                          color: theme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              latestCompletedRide['title']
+                                                      ?.toString() ??
+                                                  "Ride",
+                                              style: _cardTitleStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              _recentRideSubtitle(
+                                                latestCompletedRide,
+                                              ),
+                                              style: _bodyStyle(
+                                                theme.textPrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.4,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Text(
-                                    latestCompletedRide['title']?.toString() ??
-                                        "Ride",
-                                    style: _cardTitleStyle(theme.textPrimary),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ),

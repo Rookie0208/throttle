@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.ridersclub.bike.service.BikeRegistryService;
 import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.enums.Status;
 import com.ridersclub.user.dto.request.UpdateProfileRequest;
@@ -38,6 +39,9 @@ public class UserService {
 
     @Autowired
     private com.ridersclub.ride.repository.RideRepository rideRepository;
+
+    @Autowired
+    private BikeRegistryService bikeRegistryService;
 
     // --- helper methods used by other services ---
     @Transactional(readOnly = true)
@@ -97,8 +101,7 @@ public class UserService {
 
         // Fetch bikes
         List<com.ridersclub.user.entity.UserBike> bikes = userBikeRepository.findByUserId(user.getId());
-        response.setBikes(bikes.stream().map(b -> new UserProfileResponse.UserBikeDto(
-                b.getMake(), b.getModel(), b.getYear(), b.getType(), b.getEngineCc())).toList());
+        response.setBikes(bikes.stream().map(bikeRegistryService::mapUserBike).toList());
 
         // Fetch achievements
         List<com.ridersclub.user.entity.UserAchievement> achievements = userAchievementRepository

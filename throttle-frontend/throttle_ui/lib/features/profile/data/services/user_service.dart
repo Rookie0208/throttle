@@ -41,7 +41,10 @@ class UserService {
 
   static Future<Map<String, dynamic>?> getProfileByUuid(String userUuid) async {
     try {
-      final response = await ApiService.get('/users/$userUuid', authorized: true);
+      final response = await ApiService.get(
+        '/users/$userUuid',
+        authorized: true,
+      );
 
       if (response['status'] == 200 || response['status'] == 201) {
         final decoded = jsonDecode(response['body']);
@@ -64,15 +67,75 @@ class UserService {
 
   static Future<bool> updateProfile(Map<String, dynamic> data) async {
     try {
-      final response = await ApiService.put('/users/me', data, authorized: true);
+      final response = await ApiService.put(
+        '/users/me',
+        data,
+        authorized: true,
+      );
       if (response['status'] == 200 || response['status'] == 201) {
         await Logger.info("Profile updated successfully.");
         return true;
       }
-      await Logger.warn("Update profile failed: ${response['status']} - ${response['body']}");
+      await Logger.warn(
+        "Update profile failed: ${response['status']} - ${response['body']}",
+      );
     } catch (e, st) {
       await Logger.error("Exception during update profile", e, st);
     }
     return false;
+  }
+
+  static Future<Map<String, dynamic>> addBike(Map<String, dynamic> data) async {
+    try {
+      final response = await ApiService.post(
+        '/users/me/bikes',
+        data,
+        authorized: true,
+      );
+      final decoded = jsonDecode(response['body']);
+      if (response['status'] == 200 || response['status'] == 201) {
+        return {
+          "success": true,
+          "data": decoded['data'],
+          "message": decoded['message'] ?? "Bike added successfully",
+        };
+      }
+      return {
+        "success": false,
+        "message":
+            decoded['error']?['message'] ??
+            decoded['message'] ??
+            "Failed to add bike",
+      };
+    } catch (e, st) {
+      await Logger.error("Exception during add bike", e, st);
+      return {"success": false, "message": e.toString()};
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteBike(int bikeId) async {
+    try {
+      final response = await ApiService.delete(
+        '/users/me/bikes/$bikeId',
+        authorized: true,
+      );
+      final decoded = jsonDecode(response['body']);
+      if (response['status'] == 200 || response['status'] == 201) {
+        return {
+          "success": true,
+          "message": decoded['message'] ?? "Bike removed successfully",
+        };
+      }
+      return {
+        "success": false,
+        "message":
+            decoded['error']?['message'] ??
+            decoded['message'] ??
+            "Failed to remove bike",
+      };
+    } catch (e, st) {
+      await Logger.error("Exception during delete bike", e, st);
+      return {"success": false, "message": e.toString()};
+    }
   }
 }
