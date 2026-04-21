@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 
 class RideSummaryScreen extends StatefulWidget {
@@ -33,7 +34,6 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
     super.initState();
     _session = widget.session;
     if (_session == null &&
-        widget.token != null &&
         widget.rideUuid != null &&
         widget.rideUuid!.isNotEmpty) {
       _fetchSession();
@@ -41,12 +41,15 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
   }
 
   Future<void> _fetchSession() async {
-    if (widget.token == null || widget.rideUuid == null) return;
+    if (widget.rideUuid == null || widget.rideUuid!.isEmpty) return;
+
+    final token = widget.token ?? await AuthService.getToken();
+    if (token == null || token.isEmpty) return;
 
     setState(() => _loading = true);
     try {
       final session = await RideService.fetchRideSession(
-        widget.token!,
+        token,
         widget.rideUuid!,
       );
       if (!mounted) return;
@@ -206,7 +209,7 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
               style: GoogleFonts.bebasNeue(color: theme.textPrimary),
             ),
             actions: [
-              if (widget.token != null && widget.rideUuid != null)
+              if (widget.rideUuid != null)
                 IconButton(
                   onPressed: _loading ? null : _fetchSession,
                   icon: Icon(Icons.refresh, color: theme.textPrimary),
