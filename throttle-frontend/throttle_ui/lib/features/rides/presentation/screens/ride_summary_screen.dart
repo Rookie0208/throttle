@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
-<<<<<<< HEAD
-
-class RideSummaryScreen extends StatelessWidget {
-  final String groupName;
-  final Map<String, dynamic> session;
-=======
+import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 
 class RideSummaryScreen extends StatefulWidget {
@@ -16,17 +11,10 @@ class RideSummaryScreen extends StatefulWidget {
   final Map<String, dynamic>? ride;
   final String? token;
   final String? rideUuid;
->>>>>>> amitThrottle
 
   const RideSummaryScreen({
     super.key,
     required this.groupName,
-<<<<<<< HEAD
-    required this.session,
-  });
-
-  @override
-=======
     this.session,
     this.ride,
     this.token,
@@ -46,7 +34,6 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
     super.initState();
     _session = widget.session;
     if (_session == null &&
-        widget.token != null &&
         widget.rideUuid != null &&
         widget.rideUuid!.isNotEmpty) {
       _fetchSession();
@@ -54,12 +41,15 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
   }
 
   Future<void> _fetchSession() async {
-    if (widget.token == null || widget.rideUuid == null) return;
+    if (widget.rideUuid == null || widget.rideUuid!.isEmpty) return;
+
+    final token = widget.token ?? await AuthService.getToken();
+    if (token == null || token.isEmpty) return;
 
     setState(() => _loading = true);
     try {
       final session = await RideService.fetchRideSession(
-        widget.token!,
+        token,
         widget.rideUuid!,
       );
       if (!mounted) return;
@@ -153,28 +143,11 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
   }
 
   @override
->>>>>>> amitThrottle
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: ThemeController.instance,
       builder: (context, _) {
         final theme = ThemeController.instance.theme;
-<<<<<<< HEAD
-        final checkpoints = List<Map<String, dynamic>>.from(
-          session["checkpoints"] ?? [],
-        );
-        final startTimeStr = session["startTime"];
-        DateTime? startTime;
-        if (startTimeStr != null) {
-          try {
-            startTime = DateTime.parse(startTimeStr);
-          } catch (_) {}
-        }
-        final endTime = DateTime.now();
-        final duration = startTime != null
-            ? endTime.difference(startTime)
-            : Duration.zero;
-=======
         final data = _data;
         final checkpoints = _mapList(data["checkpoints"]);
         final participants = _mapList(data["participants"]);
@@ -226,7 +199,6 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
         final inRideCount = _toInt(data["inRideCount"]);
         final atStartCount = _toInt(data["atStartCount"]);
         final enRouteCount = _toInt(data["enRouteCount"]);
->>>>>>> amitThrottle
 
         return Scaffold(
           backgroundColor: theme.background,
@@ -236,40 +208,8 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
               "Ride Summary",
               style: GoogleFonts.bebasNeue(color: theme.textPrimary),
             ),
-<<<<<<< HEAD
-          ),
-          body: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Text(
-                  groupName,
-                  style: GoogleFonts.bebasNeue(
-                    fontSize: 24,
-                    color: theme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Total Duration: ${duration.inHours}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}",
-                  style: TextStyle(color: theme.textPrimary),
-                ),
-                Text(
-                  "Checkpoints Completed: ${checkpoints.length}",
-                  style: TextStyle(color: theme.textPrimary),
-                ),
-                // Add more summary details as needed
-                const Spacer(),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Back to Home"),
-                ),
-              ],
-            ),
-          ),
-=======
             actions: [
-              if (widget.token != null && widget.rideUuid != null)
+              if (widget.rideUuid != null)
                 IconButton(
                   onPressed: _loading ? null : _fetchSession,
                   icon: Icon(Icons.refresh, color: theme.textPrimary),
@@ -470,13 +410,10 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
                     ],
                   ),
                 ),
->>>>>>> amitThrottle
         );
       },
     );
   }
-<<<<<<< HEAD
-=======
 
   Widget _statCard(String label, String value, AppThemeConfig theme) {
     return Container(
@@ -678,5 +615,4 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
             }).toList(),
     );
   }
->>>>>>> amitThrottle
 }
