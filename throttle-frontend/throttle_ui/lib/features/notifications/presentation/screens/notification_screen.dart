@@ -118,7 +118,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
 
     try {
-      if (notification.type == "RIDE_GROUP_INVITE") {
+      if (_isRideInviteNotification(notification.type)) {
         await _handleRideInviteNotification(notification);
       } else if (notification.type == "FRIEND_REQUEST") {
         await _handleFriendRequestNotification(notification);
@@ -131,6 +131,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
       );
     }
+  }
+
+  bool _isRideInviteNotification(String type) {
+    return type == "RIDE_INVITE" || type == "RIDE_GROUP_INVITE";
   }
 
   Future<void> _handleRideInviteNotification(
