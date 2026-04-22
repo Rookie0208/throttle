@@ -259,7 +259,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Map<String, dynamic>? todayPlanRide,
   }) {
     if (todayRide != null) {
-      return "ACTIVE";
+      final status = _normalizedRideStatus(todayRide);
+      if (status != "SCHEDULED") {
+        return status;
+      }
+      final subtitle = todayRide["subtitle"]?.toString().toUpperCase() ?? "";
+      if (subtitle.contains("IN PROGRESS")) {
+        return "ACTIVE";
+      }
     }
     final rawStatus =
         (todayPlanRide?["status"] ?? todayPlanRide?["rideStatus"] ?? "")
