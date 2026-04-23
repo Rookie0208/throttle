@@ -1,0 +1,34 @@
+# Flutter
+.build/
+.dart_tool/
+.packages
+
+# Env
+.env
+
+# Mac
+.DS_Store
+
+# Python
+venv/
+__pycache__/
+
+# Code graph
+.code-review-graph/
+
+# IDE
+.vscode/
+.idea/
+
+# AI / Tooling configs
+.claude/
+.cursorrules
+.kiro/
+.mcp.json
+.opencode.json
+.windsurfrules
+
+# Docs
+AGENTS.md
+CLAUDE.md
+GEMINI.md

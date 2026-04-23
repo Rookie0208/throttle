@@ -254,7 +254,28 @@ class _ProfileScreenState extends State<ProfileScreen>
     required Future<List<String>> Function(String query) loader,
   }) async {
     final searchController = TextEditingController();
-    Future<List<String>> future = loader("");
+    List<String> filteredOptions = const [];
+    bool isLoading = true;
+    bool didInitialLoad = false;
+    int requestId = 0;
+
+    Future<void> loadOptions(
+      StateSetter setSheetState, {
+      String query = "",
+    }) async {
+      final currentRequestId = ++requestId;
+      setSheetState(() {
+        isLoading = true;
+      });
+      final results = await loader(query);
+      if (!mounted || currentRequestId != requestId) {
+        return;
+      }
+      setSheetState(() {
+        filteredOptions = results;
+        isLoading = false;
+      });
+    }
 
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -266,6 +287,12 @@ class _ProfileScreenState extends State<ProfileScreen>
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            if (!didInitialLoad) {
+              didInitialLoad = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                loadOptions(setSheetState);
+              });
+            }
             return Padding(
               padding: EdgeInsets.fromLTRB(
                 20,
@@ -290,41 +317,26 @@ class _ProfileScreenState extends State<ProfileScreen>
                     TextField(
                       controller: searchController,
                       onChanged: (value) {
-                        setSheetState(() {
-                          future = loader(value);
-                        });
+                        loadOptions(setSheetState, query: value);
                       },
                       decoration: const InputDecoration(hintText: "Search"),
                     ),
                     const SizedBox(height: 14),
                     Expanded(
-                      child: FutureBuilder<List<String>>(
-                        future: future,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          final options = snapshot.data ?? const [];
-                          if (options.isEmpty) {
-                            return const Center(
-                              child: Text("No matches found"),
-                            );
-                          }
-                          return ListView.builder(
-                            itemCount: options.length,
-                            itemBuilder: (context, index) {
-                              final option = options[index];
-                              return ListTile(
-                                title: Text(option),
-                                onTap: () => Navigator.pop(context, option),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : filteredOptions.isEmpty
+                          ? const Center(child: Text("No matches found"))
+                          : ListView.builder(
+                              itemCount: filteredOptions.length,
+                              itemBuilder: (context, index) {
+                                final option = filteredOptions[index];
+                                return ListTile(
+                                  title: Text(option),
+                                  onTap: () => Navigator.pop(context, option),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -344,10 +356,32 @@ class _ProfileScreenState extends State<ProfileScreen>
     String model,
   ) async {
     final searchController = TextEditingController();
-    Future<List<BikeCatalogItem>> future = BikeRegistryService.fetchVariants(
-      brand,
-      model,
-    );
+    List<BikeCatalogItem> filteredVariants = const [];
+    bool isLoading = true;
+    bool didInitialLoad = false;
+    int requestId = 0;
+
+    Future<void> loadVariants(
+      StateSetter setSheetState, {
+      String query = "",
+    }) async {
+      final currentRequestId = ++requestId;
+      setSheetState(() {
+        isLoading = true;
+      });
+      final results = await BikeRegistryService.fetchVariants(
+        brand,
+        model,
+        query,
+      );
+      if (!mounted || currentRequestId != requestId) {
+        return;
+      }
+      setSheetState(() {
+        filteredVariants = results;
+        isLoading = false;
+      });
+    }
 
     final result = await showModalBottomSheet<BikeCatalogItem>(
       context: context,
@@ -359,6 +393,12 @@ class _ProfileScreenState extends State<ProfileScreen>
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            if (!didInitialLoad) {
+              didInitialLoad = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                loadVariants(setSheetState);
+              });
+            }
             return Padding(
               padding: EdgeInsets.fromLTRB(
                 20,
@@ -383,51 +423,32 @@ class _ProfileScreenState extends State<ProfileScreen>
                     TextField(
                       controller: searchController,
                       onChanged: (value) {
-                        setSheetState(() {
-                          future = BikeRegistryService.fetchVariants(
-                            brand,
-                            model,
-                            value,
-                          );
-                        });
+                        loadVariants(setSheetState, query: value);
                       },
                       decoration: const InputDecoration(hintText: "Search"),
                     ),
                     const SizedBox(height: 14),
                     Expanded(
-                      child: FutureBuilder<List<BikeCatalogItem>>(
-                        future: future,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          final options = snapshot.data ?? const [];
-                          if (options.isEmpty) {
-                            return const Center(
-                              child: Text("No variants found"),
-                            );
-                          }
-                          return ListView.builder(
-                            itemCount: options.length,
-                            itemBuilder: (context, index) {
-                              final option = options[index];
-                              return ListTile(
-                                title: Text(option.variant),
-                                subtitle: Text(
-                                  "${option.category} • ${option.bikeType}${option.engineCc != null ? " • ${option.engineCc}cc" : ""}",
-                                ),
-                                trailing: option.verified
-                                    ? null
-                                    : const Chip(label: Text("Unverified")),
-                                onTap: () => Navigator.pop(context, option),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : filteredVariants.isEmpty
+                          ? const Center(child: Text("No variants found"))
+                          : ListView.builder(
+                              itemCount: filteredVariants.length,
+                              itemBuilder: (context, index) {
+                                final option = filteredVariants[index];
+                                return ListTile(
+                                  title: Text(option.variant),
+                                  subtitle: Text(
+                                    "${option.category} • ${option.bikeType}${option.engineCc != null ? " • ${option.engineCc}cc" : ""}",
+                                  ),
+                                  trailing: option.verified
+                                      ? null
+                                      : const Chip(label: Text("Unverified")),
+                                  onTap: () => Navigator.pop(context, option),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -506,6 +527,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     String customBikeCategory = "";
     String customBikeType = "";
     bool setAsPrimary = bikes.isEmpty;
+    String? modalError;
 
     final added = await showModalBottomSheet<bool>(
       context: context,
@@ -518,6 +540,12 @@ class _ProfileScreenState extends State<ProfileScreen>
         final theme = ThemeController.instance.theme;
         return StatefulBuilder(
           builder: (context, setModalState) {
+            void setModalError(String? message) {
+              setModalState(() {
+                modalError = message;
+              });
+            }
+
             Future<void> saveBike() async {
               final brand = brandController.text.trim();
               final model = modelController.text.trim();
@@ -546,18 +574,15 @@ class _ProfileScreenState extends State<ProfileScreen>
                       engineCc > 5000);
 
               if (invalidCatalog || invalidCustom) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      invalidCatalog
-                          ? "Select brand, model, variant, and a valid year"
-                          : "Fill all custom bike details with valid values",
-                    ),
-                  ),
+                setModalError(
+                  invalidCatalog
+                      ? "Select brand, model, variant, and a valid year"
+                      : "Fill all custom bike details with valid values",
                 );
                 return;
               }
 
+              setModalError(null);
               setState(() => _bikeActionLoading = true);
               final result = await UserService.addBike({
                 "bikeMasterId": useCustomBike ? null : selectedVariant?.id,
@@ -633,6 +658,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         );
                         if (brand == null) return;
                         setModalState(() {
+                          modalError = null;
                           selectedBrand = brand;
                           selectedModel = "";
                           selectedVariant = null;
@@ -641,9 +667,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       const SizedBox(height: 14),
                       _selectorTile("Model", selectedModel, () async {
                         if (selectedBrand.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Select brand first")),
-                          );
+                          setModalError("Select brand first");
                           return;
                         }
                         final model = await _pickStringOption(
@@ -655,6 +679,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         );
                         if (model == null) return;
                         setModalState(() {
+                          modalError = null;
                           selectedModel = model;
                           selectedVariant = null;
                         });
@@ -665,19 +690,21 @@ class _ProfileScreenState extends State<ProfileScreen>
                         selectedVariant?.variant ?? "",
                         () async {
                           if (selectedBrand.isEmpty || selectedModel.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Select brand and model first"),
-                              ),
-                            );
+                            setModalError("Select brand and model first");
                             return;
                           }
                           final variantItem = await _pickVariantOption(
                             selectedBrand,
                             selectedModel,
                           );
-                          if (variantItem == null) return;
+                          if (variantItem == null) {
+                            setModalError(
+                              "No variants found for the selected brand and model",
+                            );
+                            return;
+                          }
                           setModalState(() {
+                            modalError = null;
                             selectedVariant = variantItem;
                           });
                         },
@@ -686,6 +713,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       TextButton(
                         onPressed: () {
                           setModalState(() {
+                            modalError = null;
                             useCustomBike = true;
                             selectedVariant = null;
                             selectedBrand = "";
@@ -784,6 +812,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       TextButton(
                         onPressed: () {
                           setModalState(() {
+                            modalError = null;
                             useCustomBike = false;
                             brandController.clear();
                             modelController.clear();
@@ -821,6 +850,24 @@ class _ProfileScreenState extends State<ProfileScreen>
                       title: const Text("Set as primary bike"),
                       contentPadding: EdgeInsets.zero,
                     ),
+                    if (modalError != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.22),
+                          ),
+                        ),
+                        child: Text(
+                          modalError!,
+                          style: TextStyle(color: theme.textPrimary),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     SizedBox(
                       width: double.infinity,

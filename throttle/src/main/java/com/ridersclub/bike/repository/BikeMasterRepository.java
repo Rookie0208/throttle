@@ -23,7 +23,7 @@ public interface BikeMasterRepository extends JpaRepository<BikeMaster, Long> {
             select distinct b.brand
             from BikeMaster b
             where b.active = true
-              and (:query = '' or lower(b.brand) like lower(concat('%', :query, '%')))
+              and (:query = '' or lower(trim(b.brand)) like lower(concat('%', trim(:query), '%')))
             order by b.brand asc
             """)
     List<String> findBrands(@Param("query") String query);
@@ -32,8 +32,8 @@ public interface BikeMasterRepository extends JpaRepository<BikeMaster, Long> {
             select distinct b.model
             from BikeMaster b
             where b.active = true
-              and lower(b.brand) = lower(:brand)
-              and (:query = '' or lower(b.model) like lower(concat('%', :query, '%')))
+              and lower(trim(b.brand)) = lower(trim(:brand))
+              and (:query = '' or lower(trim(b.model)) like lower(concat('%', trim(:query), '%')))
             order by b.model asc
             """)
     List<String> findModels(@Param("brand") String brand, @Param("query") String query);
@@ -42,9 +42,9 @@ public interface BikeMasterRepository extends JpaRepository<BikeMaster, Long> {
             select b
             from BikeMaster b
             where b.active = true
-              and lower(b.brand) = lower(:brand)
-              and lower(b.model) = lower(:model)
-              and (:query = '' or lower(b.variant) like lower(concat('%', :query, '%')))
+              and lower(trim(b.brand)) = lower(trim(:brand))
+              and lower(trim(b.model)) = lower(trim(:model))
+              and (:query = '' or lower(trim(b.variant)) like lower(concat('%', trim(:query), '%')))
             order by b.variant asc
             """)
     List<BikeMaster> findVariants(
