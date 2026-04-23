@@ -17,6 +17,7 @@ public enum NotificationType {
     FRIEND_ACCEPTED,
     NEW_FRIEND,
     RIDER_JOINED,
+    CLUB_MEMBER_JOINED,
     GENERAL,
     RIDE_REJECTED
 }

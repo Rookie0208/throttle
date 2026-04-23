@@ -19,40 +19,29 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "clubs")
+@Table(name = "club_subgroup_members")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Club {
+public class ClubSubgroupMember {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 100)
-    private String uuid;
-
-    @Column(nullable = false, length = 120)
-    private String name;
-
-    @Column(length = 160)
-    private String title;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @Column(length = 255)
-    private String bannerUrl;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subgroup_id", nullable = false)
+    private ClubSubgroup subgroup;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by", nullable = false)
-    private User createdBy;
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime joinedAt;
 
     @PrePersist
     public void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        this.joinedAt = LocalDateTime.now();
     }
 }

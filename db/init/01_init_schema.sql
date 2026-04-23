@@ -84,6 +84,96 @@ CREATE TABLE club_members (
 CREATE INDEX idx_club_members_club ON club_members(club_id);
 
 --------------------------------------------------
+-- CLUB SUBGROUPS
+--------------------------------------------------
+
+CREATE TABLE club_subgroups (
+    id BIGSERIAL PRIMARY KEY,
+
+    uuid VARCHAR(100) UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+
+    club_id BIGINT NOT NULL,
+    created_by BIGINT NOT NULL,
+
+    name VARCHAR(120) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE (club_id, name),
+
+    FOREIGN KEY (club_id)
+        REFERENCES clubs(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (created_by)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_club_subgroups_club ON club_subgroups(club_id);
+
+--------------------------------------------------
+-- CLUB SUBGROUP MEMBERS
+--------------------------------------------------
+
+CREATE TABLE club_subgroup_members (
+    id BIGSERIAL PRIMARY KEY,
+
+    subgroup_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+
+    joined_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE (subgroup_id, user_id),
+
+    FOREIGN KEY (subgroup_id)
+        REFERENCES club_subgroups(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_club_subgroup_members_subgroup ON club_subgroup_members(subgroup_id);
+CREATE INDEX idx_club_subgroup_members_user ON club_subgroup_members(user_id);
+
+--------------------------------------------------
+-- CLUB MESSAGES
+--------------------------------------------------
+
+CREATE TABLE club_messages (
+    id BIGSERIAL PRIMARY KEY,
+
+    uuid VARCHAR(100) UNIQUE NOT NULL DEFAULT gen_random_uuid(),
+
+    sender_id BIGINT NOT NULL,
+    club_id BIGINT NOT NULL,
+    subgroup_id BIGINT,
+
+    message TEXT,
+    message_type VARCHAR(40) NOT NULL,
+
+    created_at TIMESTAMP DEFAULT now(),
+
+    FOREIGN KEY (sender_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (club_id)
+        REFERENCES clubs(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (subgroup_id)
+        REFERENCES club_subgroups(id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX idx_club_messages_club ON club_messages(club_id);
+CREATE INDEX idx_club_messages_subgroup ON club_messages(subgroup_id);
+CREATE INDEX idx_club_messages_sender ON club_messages(sender_id);
+
+--------------------------------------------------
 -- RIDES 
 --------------------------------------------------
 

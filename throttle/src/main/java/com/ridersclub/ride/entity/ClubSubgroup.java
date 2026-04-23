@@ -19,11 +19,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "clubs")
+@Table(name = "club_subgroups")
 @Getter
 @Setter
 @NoArgsConstructor
-public class Club {
+public class ClubSubgroup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,21 +32,16 @@ public class Club {
     @Column(nullable = false, unique = true, length = 100)
     private String uuid;
 
-    @Column(nullable = false, length = 120)
-    private String name;
-
-    @Column(length = 160)
-    private String title;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
-
-    @Column(length = 255)
-    private String bannerUrl;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "club_id", nullable = false)
+    private Club club;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
+
+    @Column(nullable = false, length = 120)
+    private String name;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
