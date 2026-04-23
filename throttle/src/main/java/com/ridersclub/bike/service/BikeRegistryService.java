@@ -6,11 +6,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.math.BigDecimal;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ridersclub.bike.dto.request.BikeMasterAdminRequest;
 import com.ridersclub.bike.dto.response.BikeMasterResponse;
@@ -36,10 +38,17 @@ public class BikeRegistryService {
     private final BikeMasterRepository bikeMasterRepository;
     private final UserRepository userRepository;
     private final UserBikeRepository userBikeRepository;
+    private final TransactionTemplate transactionTemplate;
+
+    public int ensureSeedData() {
+        Integer inserted = transactionTemplate.execute(status -> seedIfEmpty(defaultSeedData()));
+        return inserted == null ? 0 : inserted;
+    }
 
     @Transactional(readOnly = true)
     @Cacheable(value = "bike_brands", key = "#root.methodName + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<String> findBrands(String query) {
+        ensureSeedData();
         return bikeMasterRepository.findBrands(normalizeQuery(query))
                 .stream()
                 .filter(value -> !isBlank(value))
@@ -53,6 +62,7 @@ public class BikeRegistryService {
     @Transactional(readOnly = true)
     @Cacheable(value = "bike_models", key = "#root.methodName + ':' + #brand.trim().toLowerCase() + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<String> findModels(String brand, String query) {
+        ensureSeedData();
         if (isBlank(brand)) {
             return List.of();
         }
@@ -69,6 +79,7 @@ public class BikeRegistryService {
     @Transactional(readOnly = true)
     @Cacheable(value = "bike_variants", key = "#root.methodName + ':' + #brand.trim().toLowerCase() + ':' + #model.trim().toLowerCase() + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<BikeMasterResponse> findVariants(String brand, String model, String query) {
+        ensureSeedData();
         if (isBlank(brand) || isBlank(model)) {
             return List.of();
         }
@@ -82,6 +93,7 @@ public class BikeRegistryService {
     @Transactional(readOnly = true)
     @Cacheable(value = "bike_search", key = "#root.methodName + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<BikeMasterResponse> search(String query) {
+        ensureSeedData();
         return bikeMasterRepository.searchActive(normalizeQuery(query))
                 .stream()
                 .limit(DEFAULT_LIMIT)
@@ -91,6 +103,7 @@ public class BikeRegistryService {
 
     @Transactional(readOnly = true)
     public List<BikeMasterResponse> adminSearch(String query) {
+        ensureSeedData();
         return bikeMasterRepository.searchAll(normalizeQuery(query))
                 .stream()
                 .limit(100)
@@ -380,5 +393,49 @@ public class BikeRegistryService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private List<BikeMasterAdminRequest> defaultSeedData() {
+        return List.of(
+                seed("Royal Enfield", "Hunter 350", "Hunter 350 Retro", 349, "cruiser", "Motorcycle", 13.0, 455, 8),
+                seed("Royal Enfield", "Classic 350", "Classic 350 Dark", 349, "cruiser", "Motorcycle", 13.0, 455, 9),
+                seed("Royal Enfield", "Himalayan 450", "Himalayan 450 Base", 452, "adv", "Motorcycle", 17.0, 510, 8),
+                seed("KTM", "Duke 390", "Duke 390 Gen 3", 399, "sport", "Motorcycle", 15.0, 420, 7),
+                seed("TVS", "Apache RTR 310", "Apache RTR 310 Arsenal Black", 312, "sport", "Motorcycle", 11.0, 330, 7),
+                seed("Bajaj", "Pulsar NS200", "Pulsar NS200 STD", 199, "sport", "Motorcycle", 12.0, 420, 7),
+                seed("Hero", "Xpulse 200 4V", "Xpulse 200 4V Pro", 199, "adv", "Motorcycle", 13.0, 455, 8),
+                seed("Honda", "CB350", "CB350 DLX", 348, "cruiser", "Motorcycle", 15.2, 530, 8),
+                seed("Yamaha", "MT-15", "MT-15 V2 Deluxe", 155, "sport", "Motorcycle", 10.0, 450, 7),
+                seed("Yamaha", "R15", "R15 V4 Racing Blue", 155, "sport", "Motorcycle", 11.0, 495, 6),
+                seed("Suzuki", "V-Strom SX", "V-Strom SX Ride Connect", 249, "adv", "Motorcycle", 12.0, 420, 8),
+                seed("Triumph", "Speed 400", "Speed 400 STD", 398, "sport", "Motorcycle", 13.0, 390, 8),
+                seed("TVS", "Ronin", "Ronin TD Special Edition", 225, "commuter", "Motorcycle", 14.0, 560, 8),
+                seed("Honda", "Shine 125", "Shine 125 Drum", 123, "commuter", "Motorcycle", 10.5, 650, 8),
+                seed("Bajaj", "Chetak", "Chetak Premium", 0, "commuter", "Electric Scooter", 0.0, 127, 8));
+    }
+
+    private BikeMasterAdminRequest seed(
+            String brand,
+            String model,
+            String variant,
+            int engineCc,
+            String category,
+            String bikeType,
+            double tankCapacity,
+            int rangeKm,
+            int comfortScore) {
+        BikeMasterAdminRequest request = new BikeMasterAdminRequest();
+        request.setBrand(brand);
+        request.setModel(model);
+        request.setVariant(variant);
+        request.setEngineCc(engineCc);
+        request.setCategory(category);
+        request.setBikeType(bikeType);
+        request.setTankCapacity(BigDecimal.valueOf(tankCapacity));
+        request.setRangeKm(rangeKm);
+        request.setComfortScore(comfortScore);
+        request.setActive(true);
+        request.setVerified(true);
+        return request;
     }
 }

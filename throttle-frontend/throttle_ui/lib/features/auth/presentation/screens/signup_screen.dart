@@ -131,33 +131,24 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     if (step == 2) {
-      final hasCatalogBike =
-          selectedBrand.isNotEmpty ||
-          selectedModel.isNotEmpty ||
-          selectedVariant != null ||
-          bikeYearController.text.trim().isNotEmpty;
-      final hasCustomBike =
-          useCustomBike ||
+      final customBikeTouched =
           bikeBrandController.text.trim().isNotEmpty ||
           bikeModelController.text.trim().isNotEmpty ||
           bikeVariantController.text.trim().isNotEmpty ||
           bikeYearController.text.trim().isNotEmpty ||
-          bikeEngineCcController.text.trim().isNotEmpty;
+          bikeEngineCcController.text.trim().isNotEmpty ||
+          customBikeCategory.isNotEmpty ||
+          customBikeType.isNotEmpty;
 
-      if (hasCatalogBike && !useCustomBike) {
-        if (selectedVariant == null || bikeYearController.text.trim().isEmpty) {
-          showError("Select brand, model, variant, and year");
-          return;
-        }
-      }
+      final shouldSubmitCatalogBike = !useCustomBike && selectedVariant != null;
+      final shouldSubmitCustomBike = useCustomBike && customBikeTouched;
 
-      if (hasCustomBike && useCustomBike) {
+      if (shouldSubmitCustomBike) {
         if (customBikeCategory.isEmpty ||
             customBikeType.isEmpty ||
             bikeBrandController.text.trim().isEmpty ||
             bikeModelController.text.trim().isEmpty ||
             bikeVariantController.text.trim().isEmpty ||
-            bikeYearController.text.trim().isEmpty ||
             bikeEngineCcController.text.trim().isEmpty) {
           showError(
             "Complete all custom bike fields or switch to bike registry",
@@ -166,25 +157,63 @@ class _SignupScreenState extends State<SignupScreen> {
         }
       }
 
-      final bikeYear = bikeYearController.text.trim().isEmpty
+      final parsedBikeYear = bikeYearController.text.trim().isEmpty
           ? null
           : int.tryParse(bikeYearController.text.trim());
-      final bikeEngineCc = bikeEngineCcController.text.trim().isEmpty
+      final parsedBikeEngineCc = bikeEngineCcController.text.trim().isEmpty
           ? null
           : int.tryParse(bikeEngineCcController.text.trim());
 
       if (bikeYearController.text.trim().isNotEmpty &&
-          (bikeYear == null || bikeYear < 1950 || bikeYear > 2100)) {
+          (parsedBikeYear == null ||
+              parsedBikeYear < 1950 ||
+              parsedBikeYear > 2100)) {
         showError("Enter a valid bike year");
         return;
       }
 
-      if (useCustomBike &&
+      if (shouldSubmitCustomBike &&
           bikeEngineCcController.text.trim().isNotEmpty &&
-          (bikeEngineCc == null || bikeEngineCc < 50 || bikeEngineCc > 5000)) {
+          (parsedBikeEngineCc == null ||
+              parsedBikeEngineCc < 50 ||
+              parsedBikeEngineCc > 5000)) {
         showError("Enter a valid engine CC");
         return;
       }
+
+      final bikeYear =
+          shouldSubmitCatalogBike || shouldSubmitCustomBike ? parsedBikeYear : null;
+      final bikeEngineCc = shouldSubmitCustomBike
+          ? parsedBikeEngineCc
+          : shouldSubmitCatalogBike
+              ? selectedVariant?.engineCc
+              : null;
+      final bikeMasterId = shouldSubmitCatalogBike ? selectedVariant?.id : null;
+      final bikeBrand = shouldSubmitCustomBike
+          ? _nullableText(bikeBrandController)
+          : shouldSubmitCatalogBike
+              ? selectedVariant?.brand
+              : null;
+      final bikeModel = shouldSubmitCustomBike
+          ? _nullableText(bikeModelController)
+          : shouldSubmitCatalogBike
+              ? selectedVariant?.model
+              : null;
+      final bikeVariant = shouldSubmitCustomBike
+          ? _nullableText(bikeVariantController)
+          : shouldSubmitCatalogBike
+              ? selectedVariant?.variant
+              : null;
+      final bikeCategory = shouldSubmitCustomBike
+          ? customBikeCategory.toLowerCase()
+          : shouldSubmitCatalogBike
+              ? selectedVariant?.category
+              : null;
+      final bikeType = shouldSubmitCustomBike
+          ? customBikeType
+          : shouldSubmitCatalogBike
+              ? selectedVariant?.bikeType
+              : null;
 
       final result = widget.isGoogleRegistration
           ? await AuthService.completeGoogleRegistration(
@@ -193,26 +222,14 @@ class _SignupScreenState extends State<SignupScreen> {
               lastName: surNameController.text.trim(),
               riderId: riderIdController.text.trim(),
               pronoun: pronoun,
-              bikeMasterId: useCustomBike ? null : selectedVariant?.id,
-              bikeBrand: useCustomBike
-                  ? _nullableText(bikeBrandController)
-                  : selectedVariant?.brand,
-              bikeModel: useCustomBike
-                  ? _nullableText(bikeModelController)
-                  : selectedVariant?.model,
-              bikeVariant: useCustomBike
-                  ? _nullableText(bikeVariantController)
-                  : selectedVariant?.variant,
-              bikeCategory: useCustomBike
-                  ? customBikeCategory.toLowerCase()
-                  : selectedVariant?.category,
-              bikeType: useCustomBike
-                  ? customBikeType
-                  : selectedVariant?.bikeType,
+              bikeMasterId: bikeMasterId,
+              bikeBrand: bikeBrand,
+              bikeModel: bikeModel,
+              bikeVariant: bikeVariant,
+              bikeCategory: bikeCategory,
+              bikeType: bikeType,
               bikeYear: bikeYear,
-              bikeEngineCc: useCustomBike
-                  ? bikeEngineCc
-                  : selectedVariant?.engineCc,
+              bikeEngineCc: bikeEngineCc,
             )
           : await AuthService.register(
               firstName: firstNameController.text.trim(),
@@ -221,26 +238,14 @@ class _SignupScreenState extends State<SignupScreen> {
               pronoun: pronoun,
               email: emailController.text.trim(),
               password: passwordController.text.trim(),
-              bikeMasterId: useCustomBike ? null : selectedVariant?.id,
-              bikeBrand: useCustomBike
-                  ? _nullableText(bikeBrandController)
-                  : selectedVariant?.brand,
-              bikeModel: useCustomBike
-                  ? _nullableText(bikeModelController)
-                  : selectedVariant?.model,
-              bikeVariant: useCustomBike
-                  ? _nullableText(bikeVariantController)
-                  : selectedVariant?.variant,
-              bikeCategory: useCustomBike
-                  ? customBikeCategory.toLowerCase()
-                  : selectedVariant?.category,
-              bikeType: useCustomBike
-                  ? customBikeType
-                  : selectedVariant?.bikeType,
+              bikeMasterId: bikeMasterId,
+              bikeBrand: bikeBrand,
+              bikeModel: bikeModel,
+              bikeVariant: bikeVariant,
+              bikeCategory: bikeCategory,
+              bikeType: bikeType,
               bikeYear: bikeYear,
-              bikeEngineCc: useCustomBike
-                  ? bikeEngineCc
-                  : selectedVariant?.engineCc,
+              bikeEngineCc: bikeEngineCc,
               experienceYears: 0,
             );
 
@@ -749,12 +754,14 @@ class _SignupScreenState extends State<SignupScreen> {
             child: const Text("Use Bike Registry Instead"),
           ),
         ],
-        const SizedBox(height: 12),
-        thinInput(
-          "Year of Purchase",
-          bikeYearController,
-          type: TextInputType.number,
-        ),
+        if (selectedVariant != null || useCustomBike) ...[
+          const SizedBox(height: 12),
+          thinInput(
+            "Year of Purchase",
+            bikeYearController,
+            type: TextInputType.number,
+          ),
+        ],
         if (useCustomBike) ...[
           const SizedBox(height: 20),
           thinInput(

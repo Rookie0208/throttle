@@ -51,7 +51,7 @@ class AuthService {
         "bikeModel": bikeModel,
         "bikeVariant": bikeVariant,
         "bikeCategory": bikeCategory,
-        "bikeType": bikeType ?? "",
+        "bikeType": bikeType,
         "bikeYear": bikeYear,
         "bikeEngineCc": bikeEngineCc,
         "role": "RIDER",
