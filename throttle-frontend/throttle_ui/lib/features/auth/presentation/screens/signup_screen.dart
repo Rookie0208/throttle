@@ -181,39 +181,40 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      final bikeYear =
-          shouldSubmitCatalogBike || shouldSubmitCustomBike ? parsedBikeYear : null;
+      final bikeYear = shouldSubmitCatalogBike || shouldSubmitCustomBike
+          ? parsedBikeYear
+          : null;
       final bikeEngineCc = shouldSubmitCustomBike
           ? parsedBikeEngineCc
           : shouldSubmitCatalogBike
-              ? selectedVariant?.engineCc
-              : null;
+          ? selectedVariant?.engineCc
+          : null;
       final bikeMasterId = shouldSubmitCatalogBike ? selectedVariant?.id : null;
       final bikeBrand = shouldSubmitCustomBike
           ? _nullableText(bikeBrandController)
           : shouldSubmitCatalogBike
-              ? selectedVariant?.brand
-              : null;
+          ? selectedVariant?.brand
+          : null;
       final bikeModel = shouldSubmitCustomBike
           ? _nullableText(bikeModelController)
           : shouldSubmitCatalogBike
-              ? selectedVariant?.model
-              : null;
+          ? selectedVariant?.model
+          : null;
       final bikeVariant = shouldSubmitCustomBike
           ? _nullableText(bikeVariantController)
           : shouldSubmitCatalogBike
-              ? selectedVariant?.variant
-              : null;
+          ? selectedVariant?.variant
+          : null;
       final bikeCategory = shouldSubmitCustomBike
           ? customBikeCategory.toLowerCase()
           : shouldSubmitCatalogBike
-              ? selectedVariant?.category
-              : null;
+          ? selectedVariant?.category
+          : null;
       final bikeType = shouldSubmitCustomBike
           ? customBikeType
           : shouldSubmitCatalogBike
-              ? selectedVariant?.bikeType
-              : null;
+          ? selectedVariant?.bikeType
+          : null;
 
       final result = widget.isGoogleRegistration
           ? await AuthService.completeGoogleRegistration(
@@ -307,7 +308,28 @@ class _SignupScreenState extends State<SignupScreen> {
     required Future<List<String>> Function(String query) loader,
   }) async {
     final searchController = TextEditingController();
-    Future<List<String>> future = loader("");
+    List<String> filteredOptions = const [];
+    bool isLoading = true;
+    bool didInitialLoad = false;
+    int requestId = 0;
+
+    Future<void> loadOptions(
+      StateSetter setSheetState, {
+      String query = "",
+    }) async {
+      final currentRequestId = ++requestId;
+      setSheetState(() {
+        isLoading = true;
+      });
+      final results = await loader(query);
+      if (!mounted || currentRequestId != requestId) {
+        return;
+      }
+      setSheetState(() {
+        filteredOptions = results;
+        isLoading = false;
+      });
+    }
 
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -319,6 +341,12 @@ class _SignupScreenState extends State<SignupScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            if (!didInitialLoad) {
+              didInitialLoad = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                loadOptions(setSheetState);
+              });
+            }
             return Padding(
               padding: EdgeInsets.fromLTRB(
                 20,
@@ -343,41 +371,26 @@ class _SignupScreenState extends State<SignupScreen> {
                     TextField(
                       controller: searchController,
                       onChanged: (value) {
-                        setSheetState(() {
-                          future = loader(value);
-                        });
+                        loadOptions(setSheetState, query: value);
                       },
                       decoration: const InputDecoration(hintText: "Search"),
                     ),
                     const SizedBox(height: 14),
                     Expanded(
-                      child: FutureBuilder<List<String>>(
-                        future: future,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          final options = snapshot.data ?? const [];
-                          if (options.isEmpty) {
-                            return const Center(
-                              child: Text("No matches found"),
-                            );
-                          }
-                          return ListView.builder(
-                            itemCount: options.length,
-                            itemBuilder: (context, index) {
-                              final option = options[index];
-                              return ListTile(
-                                title: Text(option),
-                                onTap: () => Navigator.pop(context, option),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : filteredOptions.isEmpty
+                          ? const Center(child: Text("No matches found"))
+                          : ListView.builder(
+                              itemCount: filteredOptions.length,
+                              itemBuilder: (context, index) {
+                                final option = filteredOptions[index];
+                                return ListTile(
+                                  title: Text(option),
+                                  onTap: () => Navigator.pop(context, option),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),
@@ -399,10 +412,32 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     final searchController = TextEditingController();
-    Future<List<BikeCatalogItem>> future = BikeRegistryService.fetchVariants(
-      selectedBrand,
-      selectedModel,
-    );
+    List<BikeCatalogItem> filteredVariants = const [];
+    bool isLoading = true;
+    bool didInitialLoad = false;
+    int requestId = 0;
+
+    Future<void> loadVariants(
+      StateSetter setSheetState, {
+      String query = "",
+    }) async {
+      final currentRequestId = ++requestId;
+      setSheetState(() {
+        isLoading = true;
+      });
+      final results = await BikeRegistryService.fetchVariants(
+        selectedBrand,
+        selectedModel,
+        query,
+      );
+      if (!mounted || currentRequestId != requestId) {
+        return;
+      }
+      setSheetState(() {
+        filteredVariants = results;
+        isLoading = false;
+      });
+    }
 
     final result = await showModalBottomSheet<BikeCatalogItem>(
       context: context,
@@ -414,6 +449,12 @@ class _SignupScreenState extends State<SignupScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            if (!didInitialLoad) {
+              didInitialLoad = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                loadVariants(setSheetState);
+              });
+            }
             return Padding(
               padding: EdgeInsets.fromLTRB(
                 20,
@@ -438,51 +479,32 @@ class _SignupScreenState extends State<SignupScreen> {
                     TextField(
                       controller: searchController,
                       onChanged: (value) {
-                        setSheetState(() {
-                          future = BikeRegistryService.fetchVariants(
-                            selectedBrand,
-                            selectedModel,
-                            value,
-                          );
-                        });
+                        loadVariants(setSheetState, query: value);
                       },
                       decoration: const InputDecoration(hintText: "Search"),
                     ),
                     const SizedBox(height: 14),
                     Expanded(
-                      child: FutureBuilder<List<BikeCatalogItem>>(
-                        future: future,
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          final options = snapshot.data ?? const [];
-                          if (options.isEmpty) {
-                            return const Center(
-                              child: Text("No variants found"),
-                            );
-                          }
-                          return ListView.builder(
-                            itemCount: options.length,
-                            itemBuilder: (context, index) {
-                              final option = options[index];
-                              return ListTile(
-                                title: Text(option.variant),
-                                subtitle: Text(
-                                  "${option.category} • ${option.bikeType}${option.engineCc != null ? " • ${option.engineCc}cc" : ""}",
-                                ),
-                                trailing: option.verified
-                                    ? null
-                                    : const Chip(label: Text("Unverified")),
-                                onTap: () => Navigator.pop(context, option),
-                              );
-                            },
-                          );
-                        },
-                      ),
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : filteredVariants.isEmpty
+                          ? const Center(child: Text("No variants found"))
+                          : ListView.builder(
+                              itemCount: filteredVariants.length,
+                              itemBuilder: (context, index) {
+                                final option = filteredVariants[index];
+                                return ListTile(
+                                  title: Text(option.variant),
+                                  subtitle: Text(
+                                    "${option.category} • ${option.bikeType}${option.engineCc != null ? " • ${option.engineCc}cc" : ""}",
+                                  ),
+                                  trailing: option.verified
+                                      ? null
+                                      : const Chip(label: Text("Unverified")),
+                                  onTap: () => Navigator.pop(context, option),
+                                );
+                              },
+                            ),
                     ),
                     TextButton(
                       onPressed: () {
