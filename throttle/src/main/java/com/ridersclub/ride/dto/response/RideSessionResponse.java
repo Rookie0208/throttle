@@ -23,6 +23,9 @@ public class RideSessionResponse {
     private boolean currentUserCaptain;
     private String currentUserRole;
     private String currentUserState;
+    private LocalDateTime currentUserRideStartedAt;
+    private LocalDateTime currentUserArrivedAtStartAt;
+    private Long currentUserTimeToMeetingSeconds;
     private String meetingPoint;
     private String fuelStops;
     private Integer currentCheckpointIndex;
