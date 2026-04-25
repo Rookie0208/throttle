@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.LocationType;
@@ -33,6 +34,7 @@ import com.ridersclub.ride.repository.RideParticipantRepository;
 import com.ridersclub.ride.repository.RideRepository;
 import com.ridersclub.user.entity.User;
 
+@Slf4j
 @Service
 @Transactional
 public class RideSessionService {

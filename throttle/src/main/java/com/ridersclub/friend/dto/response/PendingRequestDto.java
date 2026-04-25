@@ -17,6 +17,7 @@ public class PendingRequestDto {
     private String senderRiderId;
     private String senderFirstName;
     private String senderLastName;
+    private String senderUsername;
     private String senderProfileImage;
     private LocalDateTime createdAt;
     private int mutualCount;

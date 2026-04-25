@@ -43,7 +43,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String bearerToken = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
         try {
             if (bearerToken != null) {
-                log.debug("Found Bearer token in request, validating...");
+                // Guard: empty/whitespace token is a frontend state bug, not a security threat
+                if (bearerToken.isBlank()) {
+                    log.debug("Empty Bearer token received — skipping auth");
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 if (tokenBlacklistService.isTokenBlacklisted(bearerToken)) {
                     log.warn("Attempt to use blacklisted token!");
                     throw new ServletException("Token has been blacklisted");
@@ -52,6 +58,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 Claims claims = jwtService.parse(bearerToken).getBody();
                 String userId = claims.getSubject();
                 log.debug("Token parsed successfully. User ID: {}", userId);
+
+                if (tokenBlacklistService.isUserBlacklisted(userId)) {
+                    log.warn("Blocked user {} attempted to access the system", userId);
+                    throw new ServletException("User is completely blocked from the system");
+                }
 
                 String rolesStr = (String) claims.get("roles");
                 List<String> roles = Arrays.asList(rolesStr.split(","));
@@ -92,7 +103,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if ("OPTIONS".equalsIgnoreCase(req.getMethod()))
             return true;
         // ignore these urls
-        return s.startsWith("/auth") || s.startsWith("/swagger-ui") || s.startsWith("/v3/api-docs") || s.equals("/")
+        return s.startsWith("/api/v1/auth") || s.startsWith("/auth") || s.startsWith("/swagger-ui") || s.startsWith("/v3/api-docs") || s.equals("/")
                 || s.startsWith("/api/health");
     }
 }

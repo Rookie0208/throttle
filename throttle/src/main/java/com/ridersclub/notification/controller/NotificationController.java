@@ -22,8 +22,9 @@ import com.ridersclub.notification.entity.Notifications;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 
-
+@Slf4j
 @RestController
 @RequestMapping(ApiConstants.Notifications.BASE)
 public class NotificationController {
@@ -41,19 +42,14 @@ public class NotificationController {
     /**
      * Get notifications for logged-in user
      */
-  @GetMapping(ApiConstants.Notifications.MY)
-public ResponseEntity<ApiResponse<List<NotificationResponse>>> getMyNotifications(Authentication authentication) {
-    System.out.println(authentication.getPrincipal().getClass());
-
-    String userUuid = (String) authentication.getPrincipal();
-    System.out.println("Authenticated user UUID: " + userUuid);
-    User user = userRepository.findByUuid(userUuid)
+    @GetMapping(ApiConstants.Notifications.MY)
+    public ResponseEntity<ApiResponse<List<NotificationResponse>>> getMyNotifications(Authentication authentication) {
+        String userUuid = (String) authentication.getPrincipal();
+        User user = userRepository.findByUuid(userUuid)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-
-    System.out.println("Fetching notifications for user: " + user.getEmail());
-    List<NotificationResponse> notifications = notificationService.getMyNotifications(user.getId());
-    return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(notifications, "Notifications fetched successfully"));
-}
+        List<NotificationResponse> notifications = notificationService.getMyNotifications(user.getId());
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(notifications, "Notifications fetched successfully"));
+    }
 
     /**
      * Mark notification as read

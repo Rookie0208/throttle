@@ -22,4 +22,16 @@ public class TokenBlacklistService {
     public boolean isTokenBlacklisted(String token) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(token));
     }
+
+    public void blacklistUser(String userUuid) {
+        redisTemplate.opsForValue().set("blocked_user:" + userUuid, "true");
+    }
+
+    public void unblacklistUser(String userUuid) {
+        redisTemplate.delete("blocked_user:" + userUuid);
+    }
+
+    public boolean isUserBlacklisted(String userUuid) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey("blocked_user:" + userUuid));
+    }
 }

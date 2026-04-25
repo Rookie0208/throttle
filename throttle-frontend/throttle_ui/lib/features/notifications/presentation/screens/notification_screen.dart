@@ -85,9 +85,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   bool _matchesSenderName(Map<String, dynamic> request, String expectedName) {
-    final firstName = (request['senderFirstName'] ?? "").toString().trim();
-    final lastName = (request['senderLastName'] ?? "").toString().trim();
-    final fullName = "$firstName $lastName".trim().toLowerCase();
+    final fullName = (request['senderUsername'] ?? "").toString().trim().toLowerCase();
     return fullName.isNotEmpty && fullName == expectedName.trim().toLowerCase();
   }
 
@@ -215,8 +213,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           notification: notification,
           requestId: notification.referenceId,
           senderName: fallbackSenderName,
-          senderFirstName: fallbackSenderName,
-          senderLastName: "",
           senderUuid: null,
           senderProfileImage: null,
           mutualCount: 0,
@@ -225,11 +221,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         return;
       }
 
-      final senderFirstName = (matchingRequest['senderFirstName'] ?? "")
-          .toString();
-      final senderLastName = (matchingRequest['senderLastName'] ?? "")
-          .toString();
-      final senderName = "$senderFirstName $senderLastName".trim();
+      final senderName = (matchingRequest['senderUsername'] ?? "").toString().trim();
       final dynamic mutualValue = matchingRequest['mutualCount'];
       final mutualCount = mutualValue is int
           ? mutualValue
@@ -243,8 +235,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         notification: notification,
         requestId: resolvedRequestId,
         senderName: senderName.isEmpty ? fallbackSenderName : senderName,
-        senderFirstName: senderFirstName,
-        senderLastName: senderLastName,
         senderUuid: matchingRequest['senderUuid'],
         senderProfileImage: matchingRequest['senderProfileImage'],
         mutualCount: mutualCount,
@@ -267,8 +257,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     required NotificationItem notification,
     required int? requestId,
     required String senderName,
-    required String senderFirstName,
-    required String senderLastName,
     String? senderUuid,
     String? senderProfileImage,
     required int mutualCount,
@@ -278,8 +266,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       "requestId": requestId,
       "senderName": senderName,
       "senderUuid": senderUuid,
-      "senderFirstName": senderFirstName,
-      "senderLastName": senderLastName,
       "senderProfileImage": senderProfileImage,
       "mutualCount": mutualCount,
       "isPending": isPending,
@@ -367,8 +353,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             builder: (_) => PublicProfileScreen(
               user: {
                 "uuid": senderUuid,
-                "firstName": senderFirstName,
-                "lastName": senderLastName,
+                "username": senderName,
                 "profileImage": senderProfileImage,
               },
             ),
@@ -452,8 +437,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             builder: (_) => PublicProfileScreen(
               user: {
                 "uuid": userUuid,
-                "firstName": details["firstName"],
-                "lastName": details["lastName"],
+                "username": details["username"],
                 "profileImage": details["profileImage"],
               },
             ),
@@ -470,11 +454,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     BuildContext sheetContext,
     Map<String, dynamic> details,
   ) {
-    final firstName = (details["firstName"] ?? "").toString();
-    final lastName = (details["lastName"] ?? "").toString();
-    final requesterName = "$firstName $lastName".trim().isEmpty
+    final requesterName = (details["username"] ?? "").toString().trim().isEmpty
         ? "Rider"
-        : "$firstName $lastName".trim();
+        : (details["username"] ?? "").toString().trim();
     final subgroupName = (details["groupName"] ?? "subgroup").toString();
 
     return Padding(

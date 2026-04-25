@@ -384,7 +384,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   children: [
                                     Text(
                                       widget.userData != null
-                                          ? "${(widget.userData!['firstName'] ?? '').toString().toCapitalized()} ${(widget.userData!['lastName'] ?? '').toString().toCapitalized()}"
+                                          ? ((widget.userData!['username'] ??
+                                                        '')
+                                                    .toString())
                                                 .trim()
                                           : "Guest User",
                                       style: TextStyle(
@@ -677,68 +679,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                   .toList(),
                                             ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      "Recent Rides",
-                                      style: TextStyle(
-                                        color: theme.textPrimary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    rideHistory.isEmpty
-                                        ? Container(
-                                            width: double.infinity,
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 32,
-                                              horizontal: 16,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: theme.surface,
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              border: Border.all(
-                                                color: const Color(0x52B8C6DA),
-                                              ),
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                Icon(
-                                                  Icons.route,
-                                                  color: theme.textPrimary
-                                                      .withValues(alpha: 0.1),
-                                                  size: 48,
-                                                ),
-                                                const SizedBox(height: 12),
-                                                Text(
-                                                  "Your journey begins here",
-                                                  style: TextStyle(
-                                                    color: theme.textPrimary,
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 6),
-                                                Text(
-                                                  "Start tracking your rides to see your history",
-                                                  style: TextStyle(
-                                                    color: theme.textPrimary
-                                                        .withValues(alpha: 0.6),
-                                                    fontSize: 13,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                        : Column(
-                                            children: rideHistory
-                                                .map(
-                                                  (r) =>
-                                                      _buildRideCard(r, theme),
-                                                )
-                                                .toList(),
-                                          ),
+
                                   ],
                                 ),
                               ),

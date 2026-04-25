@@ -30,20 +30,15 @@ public class UserController {
     }
 
     @GetMapping(ApiConstants.Users.ME)
-    public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile(
-            Authentication user) {
-        log.info("Received request for /api/v1/users/me");
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getMyProfile(Authentication user) {
         if (user == null || user.getPrincipal() == null) {
-            log.error("Authentication object is null or has no principal!");
-        } else {
-            log.info("Fetching profile for user UUID: {}", user.getPrincipal());
-            UserProfileResponse profile = userService.getProfileByUUID((String) user.getPrincipal());
-            log.info("Returning profile data for: {} {}", profile.getFirstName(), profile.getLastName());
-    
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(ApiResponse.success(profile, "Profile Fetched Successfully"));
+            log.error("getMyProfile called with null authentication");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.failure(null, "Authentication required"));
         }
-        return null;
+        UserProfileResponse profile = userService.getProfileByUUID((String) user.getPrincipal());
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.success(profile, "Profile Fetched Successfully"));
     }
 
     @GetMapping(ApiConstants.Users.DETAILS)
