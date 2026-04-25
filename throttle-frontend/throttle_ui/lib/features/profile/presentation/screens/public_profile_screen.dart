@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
@@ -194,27 +192,19 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
         return ElevatedButton(
           onPressed: _unfriend,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
+            backgroundColor: colorScheme.error,
+            foregroundColor: colorScheme.onError,
           ),
           child: const Text('Unfriend'),
         );
       case 'request_sent':
-        return ElevatedButton(
+        return const ElevatedButton(
           onPressed: null,
-          style: ElevatedButton.styleFrom(
-            disabledBackgroundColor: Colors.grey,
-            disabledForegroundColor: Colors.white,
-          ),
-          child: const Text('Request Sent'),
+          child: Text('Request Sent'),
         );
       case 'request_received':
         return ElevatedButton(
           onPressed: _acceptFriendRequest,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colorScheme.primary,
-            foregroundColor: Colors.white,
-          ),
           child: const Text('Accept Request'),
         );
       case 'self':
@@ -223,10 +213,6 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
       default:
         return ElevatedButton(
           onPressed: _sendFriendRequest,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colorScheme.primary,
-            foregroundColor: Colors.white,
-          ),
           child: const Text('Add Friend'),
         );
     }
@@ -261,7 +247,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                   backgroundColor: colorScheme.primary,
                   child: Text(
                     name.isNotEmpty ? name[0] : "R",
-                    style: GoogleFonts.lexend(
+                    style: textTheme.titleLarge?.copyWith(
                       color: colorScheme.onPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
@@ -275,9 +261,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                     children: [
                       Text(
                         name,
-                        style: GoogleFonts.lexend(
-                          color: colorScheme.onSurface,
-                          fontSize: 18,
+                        style: textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -285,7 +269,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         const SizedBox(height: 4),
                         Text(
                           "@$riderId",
-                          style: GoogleFonts.lexend(
+                          style: textTheme.bodyMedium?.copyWith(
                             color: colorScheme.primary,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
@@ -300,30 +284,24 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.people,
                             size: 13,
-                            color: AppColors.textMuted,
+                            color: textTheme.bodySmall?.color,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             "$friendCount Friends",
-                            style: const TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 12,
-                            ),
+                            style: textTheme.bodySmall?.copyWith(fontSize: 12),
                           ),
                           if (!isLoadingMutual && mutualCount > 0) ...[
                             const SizedBox(width: 10),
-                            const Text(
-                              "·",
-                              style: TextStyle(color: AppColors.textHint),
-                            ),
+                            Text("·", style: textTheme.bodySmall),
                             const SizedBox(width: 10),
                             Text(
                               "$mutualCount Mutual",
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: textTheme.bodySmall?.copyWith(
+                                color: colorScheme.primary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -337,10 +315,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                           child: SizedBox(
                             height: 10,
                             width: 10,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5,
-                              color: AppColors.primary,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 1.5),
                           ),
                         ),
                     ],
@@ -355,10 +330,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
                         padding: EdgeInsets.only(top: 6),
                         child: Text(
                           "Loading profile...",
-                          style: TextStyle(
-                            color: AppColors.textHint,
-                            fontSize: 11,
-                          ),
+                          style: TextStyle(fontSize: 11),
                         ),
                       ),
                   ],
@@ -398,17 +370,15 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
           children: [
             Text(
               value,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 12,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(fontSize: 12),
             ),
           ],
         ),
