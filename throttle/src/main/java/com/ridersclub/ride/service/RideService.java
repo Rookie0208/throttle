@@ -106,9 +106,17 @@ public class RideService {
                 ride.setCurrentCheckpointIndex(0);
 
                 List<RideRule> rideRules = new ArrayList<>();
-                for (int i = 0; i < request.getRules().size(); i++) {
+                List<String> requestedRules = request.getRules() == null
+                                ? List.of()
+                                : request.getRules().stream()
+                                                .filter(Objects::nonNull)
+                                                .map(String::trim)
+                                                .filter(rule -> !rule.isEmpty())
+                                                .toList();
 
-                        RideRule rule = new RideRule(request.getRules().get(i));
+                for (int i = 0; i < requestedRules.size(); i++) {
+
+                        RideRule rule = new RideRule(requestedRules.get(i));
                         rule.setRide(ride);
                         rule.setCreatedBy(currentUser);
                         rule.setRuleOrder(i);
@@ -661,7 +669,20 @@ public class RideService {
                 GroupMember target = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), targetUser.getId())
                                 .orElseThrow(() -> new RuntimeException("Member not found in this subgroup"));
 
-                target.setRole(role.toUpperCase());
+                String normalizedRole = role == null ? "" : role.trim().toUpperCase();
+                boolean selfDemotingOnlyAdmin = actor.getUser().getUuid().equals(target.getUser().getUuid())
+                                && "ADMIN".equalsIgnoreCase(actor.getRole())
+                                && !"ADMIN".equals(normalizedRole);
+                if (selfDemotingOnlyAdmin) {
+                        long adminCount = groupMemberRepository.findByGroup_Id(group.getId()).stream()
+                                        .filter(item -> "ADMIN".equalsIgnoreCase(item.getRole()))
+                                        .count();
+                        if (adminCount <= 1) {
+                                throw new RuntimeException("Promote another admin before changing your role");
+                        }
+                }
+
+                target.setRole(normalizedRole);
                 groupMemberRepository.save(target);
         }
 

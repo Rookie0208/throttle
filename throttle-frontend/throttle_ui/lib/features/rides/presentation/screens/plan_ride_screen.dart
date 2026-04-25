@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class PlanRideScreen extends StatefulWidget {
@@ -291,8 +289,8 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                               itemBuilder: (_, index) {
                                 final member = inviteOptions[index];
                                 final displayName = _friendLabel(member);
-                                final riderId =
-                                    (member["riderId"] ?? "").toString();
+                                final riderId = (member["riderId"] ?? "")
+                                    .toString();
                                 final friendUuid = _friendUuid(member);
                                 final isSelected = selectedFriends.contains(
                                   friendUuid,
@@ -328,20 +326,24 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                                       onPressed: friendUuid.isEmpty
                                           ? null
                                           : () {
-                                        setModalState(() {
-                                          if (!isSelected) {
-                                            selectedFriends.add(friendUuid);
-                                            selectedFriendLabels[friendUuid] =
-                                                displayName;
-                                          } else {
-                                            selectedFriends.remove(friendUuid);
-                                            selectedFriendLabels.remove(
-                                              friendUuid,
-                                            );
-                                          }
-                                        });
-                                        setState(() {});
-                                      },
+                                              setModalState(() {
+                                                if (!isSelected) {
+                                                  selectedFriends.add(
+                                                    friendUuid,
+                                                  );
+                                                  selectedFriendLabels[friendUuid] =
+                                                      displayName;
+                                                } else {
+                                                  selectedFriends.remove(
+                                                    friendUuid,
+                                                  );
+                                                  selectedFriendLabels.remove(
+                                                    friendUuid,
+                                                  );
+                                                }
+                                              });
+                                              setState(() {});
+                                            },
                                       style: TextButton.styleFrom(
                                         foregroundColor: isSelected
                                             ? Colors.white
@@ -567,6 +569,14 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
     setState(() => isLoading = true);
 
+    final rules = rulesController.text.trim().isEmpty
+        ? <String>[]
+        : rulesController.text
+              .split(",")
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+
     final rideData = {
       "title": titleController.text.trim(),
       "description": descriptionController.text.replaceAll("\n", " "),
@@ -578,9 +588,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       "maxRiders": rideType == "GROUP"
           ? int.parse(maxRidersController.text)
           : 1,
-      "rules": rulesController.text.isNotEmpty
-          ? rulesController.text.split(",").map((e) => e.trim()).toList()
-          : [],
       "invitedFriends": selectedFriends,
       "startLocation": {
         "name": startLocationController.text.trim(),
@@ -593,6 +600,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         "longitude": endLng,
       },
     };
+
+    if (rules.isNotEmpty) {
+      rideData["rules"] = rules;
+    }
 
     final result = await RideService.createRide(rideData, widget.token);
 
@@ -806,7 +817,8 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               sectionTitle(
                 "Ride details",
                 theme,
-                subtitle: "Add title, description and any ride rules.",
+                subtitle:
+                    "Add title and description. Ride rules are optional here and can be added later in pre-ride info.",
               ),
               const SizedBox(height: 12),
               _ModernInputField(
@@ -828,7 +840,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               const SizedBox(height: 10),
               _ModernInputField(
                 controller: rulesController,
-                hint: "Helmet required, No rash riding",
+                hint: "Optional: Helmet required, No rash riding",
                 maxLines: 2,
                 icon: Icons.rule_folder_outlined,
                 primaryColor: theme.primary,
@@ -1026,10 +1038,8 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         final invited = selectedFriends.isEmpty
             ? "No riders"
             : selectedFriends
-                .map(
-                  (uuid) => selectedFriendLabels[uuid] ?? uuid,
-                )
-                .join(", ");
+                  .map((uuid) => selectedFriendLabels[uuid] ?? uuid)
+                  .join(", ");
 
         return cardWrapper(
           theme: theme,

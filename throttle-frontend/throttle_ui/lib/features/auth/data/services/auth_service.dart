@@ -63,7 +63,7 @@ class AuthService {
         body: jsonEncode(body),
       );
 
-      final decoded = jsonDecode(response.body);
+      final decoded = _decodeResponse(response.body);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final data = decoded["data"];
@@ -78,11 +78,15 @@ class AuthService {
       } else {
         return {
           "success": false,
-          "message": decoded["message"] ?? "Registration failed",
+          "message": _extractMessage(decoded, "Registration failed"),
         };
       }
     } catch (e) {
-      return {"success": false, "message": "Network error: $e"};
+      return {
+        "success": false,
+        "message":
+            "Unable to reach the server. Please check your connection and try again.",
+      };
     }
   }
 
@@ -101,7 +105,7 @@ class AuthService {
         body: jsonEncode({"email": email, "password": password}),
       );
 
-      final decoded = jsonDecode(response.body);
+      final decoded = _decodeResponse(response.body);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final token = decoded["data"]?["token"];
@@ -120,11 +124,15 @@ class AuthService {
         Logger.warn("Login failed with status ${response.statusCode}");
         return {
           "success": false,
-          "message": decoded["message"] ?? "Login failed",
+          "message": _extractMessage(decoded, "Login failed"),
         };
       }
     } catch (e) {
-      return {"success": false, "message": "Network error: $e"};
+      return {
+        "success": false,
+        "message":
+            "Unable to reach the server. Please check your connection and try again.",
+      };
     }
   }
 
@@ -169,7 +177,7 @@ class AuthService {
         body: jsonEncode({"idToken": idToken}),
       );
 
-      final decoded = jsonDecode(response.body);
+      final decoded = _decodeResponse(response.body);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final data = decoded["data"];
@@ -184,11 +192,15 @@ class AuthService {
       } else {
         return {
           "success": false,
-          "message": decoded["message"] ?? "Google verification failed",
+          "message": _extractMessage(decoded, "Google verification failed"),
         };
       }
     } catch (e) {
-      return {"success": false, "message": "Error signing in with Google: $e"};
+      return {
+        "success": false,
+        "message":
+            "Unable to complete Google sign-in right now. Please try again.",
+      };
     }
   }
 
@@ -204,22 +216,48 @@ class AuthService {
         body: jsonEncode({"email": email, "otp": otp}),
       );
 
-      final decoded = jsonDecode(response.body);
+      final decoded = _decodeResponse(response.body);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return {"success": true, "data": decoded["data"]};
       } else {
         return {
           "success": false,
-          "message": decoded["message"] ?? "Invalid OTP",
+          "message": _extractMessage(decoded, "Invalid OTP"),
         };
       }
     } catch (e) {
       return {
         "success": false,
-        "message": "Network error verification failed: $e",
+        "message":
+            "Unable to verify OTP right now. Please check your connection and try again.",
       };
     }
+  }
+
+  static Map<String, dynamic> _decodeResponse(String body) {
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    return <String, dynamic>{};
+  }
+
+  static String _extractMessage(Map<String, dynamic> decoded, String fallback) {
+    final topLevel = decoded["message"]?.toString().trim();
+    if (topLevel != null && topLevel.isNotEmpty) {
+      return topLevel;
+    }
+
+    final error = decoded["error"];
+    if (error is Map<String, dynamic>) {
+      final detail = error["errorMessage"]?.toString().trim();
+      if (detail != null && detail.isNotEmpty) {
+        return detail;
+      }
+    }
+
+    return fallback;
   }
 
   static Future<Map<String, dynamic>> completeGoogleRegistration({
