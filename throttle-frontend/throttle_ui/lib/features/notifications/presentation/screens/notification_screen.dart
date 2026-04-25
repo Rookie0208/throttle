@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
@@ -153,7 +151,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final action = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -261,7 +259,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           content: Text(
             "Error loading friend request: ${e.toString().replaceFirst("Exception: ", "")}",
           ),
-          backgroundColor: Colors.red,
         ),
       );
     }
@@ -294,7 +291,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final action = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -311,7 +308,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("This friend request could not be resolved."),
-            backgroundColor: Colors.red,
           ),
         );
         return;
@@ -325,10 +321,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceFirst("Exception: ", "")),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
         );
       }
     } else if (action == "reject") {
@@ -337,7 +330,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("This friend request could not be resolved."),
-            backgroundColor: Colors.red,
           ),
         );
         return;
@@ -356,10 +348,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceFirst("Exception: ", "")),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
         );
       }
     } else if (action == "view_profile") {
@@ -414,7 +403,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final action = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -474,6 +463,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     BuildContext sheetContext,
     Map<String, dynamic> details,
   ) {
+    final colorScheme = Theme.of(sheetContext).colorScheme;
+    final textTheme = Theme.of(sheetContext).textTheme;
     final firstName = (details["firstName"] ?? "").toString();
     final lastName = (details["lastName"] ?? "").toString();
     final requesterName = "$firstName $lastName".trim().isEmpty
@@ -496,27 +487,25 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: .08),
+              color: colorScheme.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: .24),
+                color: colorScheme.primary.withValues(alpha: .24),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Subgroup Join Request",
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
+                  style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "$requesterName requested to join $subgroupName",
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: textTheme.bodyMedium,
                 ),
               ],
             ),
@@ -557,6 +546,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     BuildContext sheetContext,
     Map<String, dynamic> invitation,
   ) {
+    final colorScheme = Theme.of(sheetContext).colorScheme;
+    final textTheme = Theme.of(sheetContext).textTheme;
     final status = (invitation["status"] ?? "PENDING").toString();
     final isPending = status == "PENDING";
     final meetingPoint = (invitation["meetingPoint"] ?? "").toString().trim();
@@ -578,10 +569,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: .08),
+              color: colorScheme.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: .24),
+                color: colorScheme.primary.withValues(alpha: .24),
               ),
             ),
             child: Column(
@@ -589,24 +580,30 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               children: [
                 Text(
                   invitation["rideTitle"]?.toString() ?? "Ride invitation",
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
+                  style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   "Invited by ${invitation["inviterName"] ?? "Unknown"}",
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: textTheme.bodyMedium,
                 ),
                 if (rideStartTime != null && rideStartTime.isNotEmpty) ...[
                   const SizedBox(height: 10),
-                  _inviteMetaRow(Icons.schedule, formatDateTime(rideStartTime)),
+                  _inviteMetaRow(
+                    sheetContext,
+                    Icons.schedule,
+                    formatDateTime(rideStartTime),
+                  ),
                 ],
                 if (meetingPoint.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  _inviteMetaRow(Icons.place_outlined, meetingPoint),
+                  _inviteMetaRow(
+                    sheetContext,
+                    Icons.place_outlined,
+                    meetingPoint,
+                  ),
                 ],
               ],
             ),
@@ -615,10 +612,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             const SizedBox(height: 14),
             Text(
               description,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
+              style: textTheme.bodyMedium?.copyWith(height: 1.4),
             ),
           ],
           const SizedBox(height: 16),
@@ -626,14 +620,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.surfaceMuted,
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
                 status == "ACCEPTED"
                     ? "You already accepted this invitation."
                     : "You already rejected this invitation.",
-                style: const TextStyle(color: AppColors.textSecondary),
+                style: textTheme.bodyMedium,
               ),
             ),
           const SizedBox(height: 18),
@@ -646,12 +640,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
                       color: isPending
-                          ? AppColors.border
-                          : AppColors.borderSoft,
+                          ? colorScheme.outline
+                          : colorScheme.outlineVariant,
                     ),
                     foregroundColor: isPending
-                        ? AppColors.textPrimary
-                        : AppColors.textHint,
+                        ? colorScheme.onSurface
+                        : textTheme.bodySmall?.color,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: Text(isPending ? "Reject" : "Close"),
@@ -664,10 +658,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       ? () => Navigator.pop(sheetContext, "accept")
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                    disabledBackgroundColor: AppColors.surfaceMuted,
-                    disabledForegroundColor: AppColors.textHint,
+                    disabledBackgroundColor:
+                        colorScheme.surfaceContainerHighest,
+                    disabledForegroundColor: textTheme.bodySmall?.color,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: const Text("Accept"),
@@ -680,17 +673,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     );
   }
 
-  Widget _inviteMetaRow(IconData icon, String label) {
+  Widget _inviteMetaRow(BuildContext context, IconData icon, String label) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.highlight),
+        Icon(icon, size: 16, color: colorScheme.tertiary),
         const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
-        ),
+        Expanded(child: Text(label, style: textTheme.bodyMedium)),
       ],
     );
   }
@@ -699,6 +689,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     BuildContext sheetContext,
     Map<String, dynamic> requestData,
   ) {
+    final colorScheme = Theme.of(sheetContext).colorScheme;
+    final textTheme = Theme.of(sheetContext).textTheme;
     final senderName = (requestData["senderName"] ?? "A friend").toString();
     final mutualCount = requestData["mutualCount"] as int? ?? 0;
     final isPending = requestData["isPending"] as bool? ?? true;
@@ -721,10 +713,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: .08),
+              color: colorScheme.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
               border: Border.all(
-                color: AppColors.primary.withValues(alpha: .24),
+                color: colorScheme.primary.withValues(alpha: .24),
               ),
             ),
             child: Column(
@@ -732,20 +724,16 @@ class _NotificationsScreenState extends State<NotificationsScreen>
               children: [
                 Text(
                   "Friend Request",
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 18,
+                  style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  "From $senderName",
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
+                Text("From $senderName", style: textTheme.bodyMedium),
                 if (mutualCount > 0) ...[
                   const SizedBox(height: 8),
                   _inviteMetaRow(
+                    sheetContext,
                     Icons.people_outline,
                     "$mutualCount mutual friend${mutualCount > 1 ? 's' : ''}",
                   ),
@@ -758,12 +746,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: AppColors.surfaceMuted,
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Text(
+              child: Text(
                 "This friend request is no longer pending.",
-                style: TextStyle(color: AppColors.textSecondary),
+                style: textTheme.bodyMedium,
               ),
             ),
           if (!isPending) const SizedBox(height: 18),
@@ -779,14 +767,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
                       color: isPending
-                          ? AppColors.border
-                          : AppColors.borderSoft,
+                          ? colorScheme.outline
+                          : colorScheme.outlineVariant,
                     ),
                     foregroundColor: isPending
                         ? (canResolveRequest
-                              ? AppColors.textPrimary
-                              : AppColors.textHint)
-                        : AppColors.textHint,
+                              ? colorScheme.onSurface
+                              : textTheme.bodySmall?.color)
+                        : textTheme.bodySmall?.color,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: const Text("Reject"),
@@ -799,10 +787,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       ? () => Navigator.pop(sheetContext, "accept")
                       : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.white,
-                    disabledBackgroundColor: AppColors.surfaceMuted,
-                    disabledForegroundColor: AppColors.textHint,
+                    disabledBackgroundColor:
+                        colorScheme.surfaceContainerHighest,
+                    disabledForegroundColor: textTheme.bodySmall?.color,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: const Text("Accept"),
@@ -818,9 +805,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ? () => Navigator.pop(sheetContext, "view_profile")
                   : null,
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.borderSoft),
-                foregroundColor: AppColors.textSecondary,
-                disabledForegroundColor: AppColors.textHint,
+                side: BorderSide(color: colorScheme.outlineVariant),
+                foregroundColor: textTheme.bodyMedium?.color,
+                disabledForegroundColor: textTheme.bodySmall?.color,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               icon: const Icon(Icons.person_outline, size: 18),
@@ -864,12 +851,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     List<NotificationItem> items, {
     required bool unreadSection,
   }) {
+    final textTheme = Theme.of(context).textTheme;
     if (items.isEmpty) {
-      return const Center(
-        child: Text(
-          "No notifications",
-          style: TextStyle(color: AppColors.textSecondary),
-        ),
+      return Center(
+        child: Text("No notifications", style: textTheme.bodyMedium),
       );
     }
 
@@ -883,10 +868,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           if (grouped[section]!.isNotEmpty) ...[
             Text(
               section,
-              style: const TextStyle(
-                color: Colors.white,
+              style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
               ),
             ),
             const SizedBox(height: 10),
@@ -909,9 +892,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final unread = notifications.where((n) => n.unread).toList();
     final read = notifications.where((n) => !n.unread).toList();
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -921,9 +905,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 children: [
                   Text(
                     "Notifications",
-                    style: GoogleFonts.lexend(
-                      color: colorScheme.onSurface,
-                      fontSize: 20,
+                    style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -935,7 +917,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: colorScheme.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -974,7 +956,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   labelColor: colorScheme.primary,
-                  unselectedLabelColor: AppColors.textMuted,
+                  unselectedLabelColor: textTheme.bodySmall?.color,
                   dividerColor: Colors.transparent,
                   tabs: [
                     Tab(text: "Unread (${unread.length})"),
@@ -1017,20 +999,20 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: 20),
         decoration: BoxDecoration(
-          color: AppColors.secondary,
+          color: colorScheme.secondary,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(Icons.mark_email_read, color: AppColors.black),
+        child: Icon(Icons.mark_email_read, color: colorScheme.onSecondary),
       ),
       secondaryBackground: Container(
         margin: const EdgeInsets.only(bottom: 10),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: AppColors.highlight,
+          color: colorScheme.tertiary,
           borderRadius: BorderRadius.circular(14),
         ),
-        child: const Icon(Icons.mark_email_unread, color: AppColors.black),
+        child: Icon(Icons.mark_email_unread, color: colorScheme.onTertiary),
       ),
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd && canMarkRead) {
@@ -1073,7 +1055,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   n.unread
                       ? Icons.notifications_active
                       : Icons.notifications_none,
-                  color: n.unread ? colorScheme.primary : AppColors.textMuted,
+                  color: n.unread
+                      ? colorScheme.primary
+                      : textTheme.bodySmall?.color,
                   size: 20,
                 ),
               ),
@@ -1102,10 +1086,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     const SizedBox(height: 8),
                     Text(
                       formatTime(n.time),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textHint,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(fontSize: 11),
                     ),
                   ],
                 ),
@@ -1128,10 +1109,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                       ? Icons.mark_email_read_outlined
                       : Icons.mark_email_unread_outlined,
                   color: canMarkRead
-                      ? AppColors.secondary
+                      ? colorScheme.secondary
                       : canMarkUnread
-                      ? AppColors.highlight
-                      : AppColors.textHint,
+                      ? colorScheme.tertiary
+                      : textTheme.bodySmall?.color,
                   size: 20,
                 ),
               ),
