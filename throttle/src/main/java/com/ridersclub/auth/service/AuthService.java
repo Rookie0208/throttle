@@ -72,7 +72,7 @@ public class AuthService {
             try {
                 neo4jClient.query(
                         "MERGE (u:User {id: $id}) " +
-                        "SET u.firstName = $firstName, u.lastName = $lastName")
+                                "SET u.firstName = $firstName, u.lastName = $lastName")
                         .bind(uuid).to("id")
                         .bind(firstName != null ? firstName : "").to("firstName")
                         .bind(lastName != null ? lastName : "").to("lastName")
@@ -93,6 +93,16 @@ public class AuthService {
             throw new InvalidCredentialsException("Invalid email or password");
         }
 
+        if (!user.isActive()) {
+            throw new InvalidCredentialsException("Account is blocked. Please contact support.");
+        }
+
+        if (request.getRole() != null && !request.getRole().trim().isEmpty()) {
+             if (user.getRole() == null || !user.getRole().name().equalsIgnoreCase(request.getRole())) {
+                 throw new InvalidCredentialsException("No account found matching these credentials with the selected role.");
+             }
+        }
+
         long expiresIn = 900L; // 15 mins Access Token TTL
         // store simple role string; JwtAuthFilter will parse comma-separated list
         String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
@@ -109,17 +119,14 @@ public class AuthService {
         String normalizedRiderId = riderIdService.normalizeAndValidateRequested(request.getRiderId());
         riderIdService.assertAvailable(normalizedRiderId);
 
-        if (userService.existsByUsername(request.getUsername())) {
-            throw new EmailAlreadyExistsException("Username already in use");
-        }
-
         User user = new User();
         user.setUuid(UserUtility.generateUUID(UuidPrefix.USER.name()));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
         user.setRiderId(normalizedRiderId);
         user.setEmail(request.getEmail());
-        user.setUsername(request.getUsername() != null ? request.getUsername() : request.getEmail().split("@")[0]);
+        user.setUsername(request.getUsername() != null ? request.getUsername()
+                : (request.getFirstName() + " " + request.getLastName()).trim());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setCity(request.getCity());
         user.setBikeType(request.getBikeType());
@@ -134,13 +141,14 @@ public class AuthService {
 
         boolean verificationRequired = true;
         String verificationType = verificationRequired ? "EMAIL" : "NONE";
-        
+
         long expiresIn = 900L;
         String roleValue = saved.getRole() != null ? saved.getRole().name() : "RIDER";
         String token = jwtService.generate(saved.getUuid().toString(), Map.of("roles", roleValue), expiresIn);
         String refreshToken = refreshTokenService.createRefreshToken(saved.getId()).getToken();
-        
-        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType, token, refreshToken, expiresIn);
+
+        return new RegisterResponse(saved.getUuid().toString(), verificationRequired, verificationType, token,
+                refreshToken, expiresIn);
     }
 
     public GoogleAuthResponse verifyGoogleToken(GoogleAuthRequest request) {

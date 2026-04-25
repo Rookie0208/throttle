@@ -190,8 +190,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return friends
         .where(
           (f) =>
-              (f["firstName"] ?? "").toLowerCase().contains(normalizedQuery) ||
-              (f["lastName"] ?? "").toLowerCase().contains(normalizedQuery) ||
+              (f["username"] ?? "").toLowerCase().contains(normalizedQuery) ||
               (f["riderId"] ?? "").toLowerCase().contains(normalizedQuery),
         )
         .toList();
@@ -203,8 +202,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
     return suggested
         .where(
           (f) =>
-              (f["firstName"] ?? "").toLowerCase().contains(normalizedQuery) ||
-              (f["lastName"] ?? "").toLowerCase().contains(normalizedQuery) ||
+              (f["username"] ?? "").toLowerCase().contains(normalizedQuery) ||
               (f["riderId"] ?? "").toLowerCase().contains(normalizedQuery),
         )
         .toList();
@@ -358,7 +356,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Widget _userCard(Map user, {required UserCardType type}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    String name = "${user['firstName'] ?? ''} ${user['lastName'] ?? ''}".trim();
+    String name = (user['username'] ?? '').toString().trim();
     final riderId = (user['riderId'] ?? '').toString();
     if (name.isEmpty) name = "Unknown Rider";
 
@@ -470,8 +468,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Widget _requestCard(Map req) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    String name =
-        "${req['senderFirstName'] ?? ''} ${req['senderLastName'] ?? ''}".trim();
+    String name = (req['senderUsername'] ?? '').toString().trim();
+    if (name.isEmpty) name = "Unknown Rider";
     final riderId = (req['senderRiderId'] ?? '').toString();
 
     return Container(

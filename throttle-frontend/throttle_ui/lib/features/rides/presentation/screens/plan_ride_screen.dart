@@ -277,7 +277,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                               itemBuilder: (_, index) {
                                 final member = inviteOptions[index];
                                 final displayName =
-                                    "${member["firstName"] ?? ""} ${member["lastName"] ?? ""}"
+                                    (member["username"] ?? "").toString()
                                         .trim();
                                 final riderId = (member["riderId"] ?? "")
                                     .toString();

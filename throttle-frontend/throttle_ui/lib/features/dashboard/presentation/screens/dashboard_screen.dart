@@ -8,7 +8,7 @@ import 'package:throttle_ui/features/notifications/presentation/screens/notifica
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
-import 'package:throttle_ui/core/utils/string_extensions.dart';
+
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/core/services/weather_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
@@ -632,7 +632,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 widget.userData != null
-                                    ? "${(_userData['firstName'] ?? '').toString().toCapitalized()} ${(_userData['lastName'] ?? '').toString().toCapitalized()}"
+                                    ? ((_userData['username'] ?? '').toString())
                                           .trim()
                                     : "Guest",
                                 style: GoogleFonts.lexend(

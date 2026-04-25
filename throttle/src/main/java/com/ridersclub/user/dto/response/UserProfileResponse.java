@@ -18,6 +18,7 @@ public class UserProfileResponse {
     private String id;
     private String firstName;
     private String lastName;
+    private String username;
     private String riderId;
     private String email;
     private String bio;
@@ -42,6 +43,7 @@ public class UserProfileResponse {
         this.id = user.getUuid().toString();
         this.firstName = user.getFirstName();
         this.lastName = user.getLastName();
+        this.username = user.getUsername();
         this.riderId = user.getRiderId();
         this.email = user.getEmail();
         this.bio = user.getBio();

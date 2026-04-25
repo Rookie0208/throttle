@@ -80,11 +80,11 @@ public class User {
     @PrePersist
     @PreUpdate
     public void normalize() {
-        username = NormalizeUtil.lowerTrim(username);
+        username = NormalizeUtil.capitalizeTrim(username);
         email = NormalizeUtil.lowerTrim(email);
         city = NormalizeUtil.lowerTrim(city);
-        firstName = NormalizeUtil.trim(firstName);
-        lastName = NormalizeUtil.trim(lastName);
+        firstName = NormalizeUtil.capitalizeTrim(firstName);
+        lastName = NormalizeUtil.capitalizeTrim(lastName);
         pronoun = NormalizeUtil.trim(pronoun);
 
     }
