@@ -52,9 +52,8 @@ public class AuthController {
     @PostMapping(ApiConstants.Auth.REGISTER)
     public ResponseEntity<ApiResponse<RegisterResponse>> register(
             @Valid @RequestBody RegisterRequest request) {
-        log.info("Received registration request for email: {}", request.getEmail());
         RegisterResponse response = authService.register(request);
-        log.info("User registered successfully");
+        log.debug("User registration completed");
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "User registered successfully"));
     }
@@ -62,9 +61,8 @@ public class AuthController {
     @PostMapping(ApiConstants.Auth.LOGIN)
     public ResponseEntity<ApiResponse<LoginResponse>> login(
             @Valid @RequestBody LoginRequest request) {
-        log.info("Received login request for email: {}", request.getEmail());
         LoginResponse response = authService.login(request);
-        log.info("User logged in successfully");
+        log.debug("Login attempt processed");
         return ResponseEntity.ok(ApiResponse.success(response, "User logged in successfully"));
     }
 
@@ -110,6 +108,10 @@ public class AuthController {
                 .map(refreshTokenService::verifyExpiration)
                 .map(com.ridersclub.auth.entity.RefreshToken::getUser)
                 .map(user -> {
+                    if (!user.isActive()) {
+                        log.warn("Blocked user {} attempted to refresh token", user.getUuid());
+                        throw new com.ridersclub.common.exception.InvalidCredentialsException("Account is blocked. Please contact support.");
+                    }
                     // Refresh Token Rotation: Delete old one, create new one
                     log.debug("Rotating refresh token for user UUID: {}", user.getUuid());
                     refreshTokenService.deleteByToken(refreshTokenService.findByToken(requestRefreshToken).get());

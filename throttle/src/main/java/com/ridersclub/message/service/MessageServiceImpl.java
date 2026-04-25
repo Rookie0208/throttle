@@ -29,7 +29,9 @@ import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional

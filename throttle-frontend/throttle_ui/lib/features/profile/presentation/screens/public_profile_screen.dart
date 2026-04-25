@@ -223,8 +223,7 @@ class _PublicProfileScreenState extends State<PublicProfileScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final user = _displayUser;
-    final String name = "${user["firstName"] ?? ""} ${user["lastName"] ?? ""}"
-        .trim();
+    final String name = (user["username"] ?? "").toString().trim();
     final String riderId = (user["riderId"] ?? "").toString();
 
     return Scaffold(

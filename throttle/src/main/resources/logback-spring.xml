@@ -1,31 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration scan="true" scanPeriod="30 seconds">
-    <property name="LOG_PATH" value="${logging.file.path:-logs}"/>
-    <property name="LOG_NAME" value="${logging.file.name:-throttle.log}"/>
 
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_PATH}/${LOG_NAME}</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <!-- rollover daily -->
-            <fileNamePattern>${LOG_PATH}/archive/%d{yyyy-MM-dd}.%i.log</fileNamePattern>
-            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
-                <!-- rollover when log reaches 10MB also -->
-                <maxFileSize>100MB</maxFileSize>
-            </timeBasedFileNamingAndTriggeringPolicy>
-            <maxHistory>30</maxHistory>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [%X{traceId:-n/a}] %logger{36} \(%F:%L\) - %msg%n</pattern>
+    <!-- ================================================================
+         FRAMEWORK NOISE SUPPRESSION
+         These produce high-volume, low-value logs. WARN/OFF keeps logs clean.
+    ================================================================ -->
+    <logger name="org.hibernate.SQL"                              level="OFF"/>
+    <logger name="org.hibernate.type.descriptor"                  level="OFF"/>
+    <logger name="org.hibernate.orm.jdbc.bind"                    level="OFF"/>
+    <logger name="org.apache.kafka"                               level="WARN"/>
+    <logger name="org.springframework.kafka"                      level="WARN"/>
+    <logger name="org.springframework.messaging"                  level="WARN"/>
+    <logger name="org.springframework.web.socket"                 level="WARN"/>
+    <logger name="org.springframework.web.servlet"                level="WARN"/>
+    <logger name="org.springframework.security"                   level="WARN"/>
+    <logger name="org.springframework.data"                       level="WARN"/>
+    <logger name="org.springframework.orm"                        level="WARN"/>
+    <logger name="org.springframework.boot.web"                   level="WARN"/>
+    <logger name="org.springframework.boot.autoconfigure"         level="WARN"/>
+    <logger name="org.neo4j.driver"                               level="WARN"/>
+    <logger name="co.elastic.clients"                             level="WARN"/>
+    <logger name="io.netty"                                       level="WARN"/>
+    <logger name="org.apache.coyote"                              level="WARN"/>
+    <logger name="org.apache.tomcat"                              level="WARN"/>
+    <logger name="com.zaxxer.hikari"                              level="WARN"/>
+
+    <!-- ================================================================
+         STREAM 1: APPLICATION LOGS
+         Console (all profiles) + File (local profile only)
+
+         Clean fields output:
+           time, level, logger (shortened), traceId, msg, service, stream
+         Removed: @version, level_value, thread_name, tags, mdc
+    ================================================================ -->
+    <appender name="APP_JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp><fieldName>time</fieldName></timestamp>
+                <logLevel><fieldName>level</fieldName></logLevel>
+                <loggerName>
+                    <fieldName>logger</fieldName>
+                    <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+                </loggerName>
+                <mdc/>
+                <arguments/>
+                <message><fieldName>msg</fieldName></message>
+                <stackTrace>
+                    <fieldName>error</fieldName>
+                    <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                        <exclude>sun\.reflect\..*</exclude>
+                        <exclude>java\.lang\.reflect\..*</exclude>
+                    </throwableConverter>
+                </stackTrace>
+                <globalCustomFields>
+                    <customFields>{"service":"throttle","stream":"app"}</customFields>
+                </globalCustomFields>
+            </providers>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
+
+    <springProfile name="local">
+        <appender name="APP_JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/throttle.json</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/archive/throttle.%d{yyyy-MM-dd}.%i.json</fileNamePattern>
+                <maxFileSize>50MB</maxFileSize>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>500MB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp><fieldName>time</fieldName></timestamp>
+                    <logLevel><fieldName>level</fieldName></logLevel>
+                    <loggerName>
+                        <fieldName>logger</fieldName>
+                        <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+                    </loggerName>
+                    <mdc/>
+                    <arguments/>
+                    <message><fieldName>msg</fieldName></message>
+                    <stackTrace>
+                        <fieldName>error</fieldName>
+                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                            <exclude>sun\.reflect\..*</exclude>
+                            <exclude>java\.lang\.reflect\..*</exclude>
+                        </throwableConverter>
+                    </stackTrace>
+                    <globalCustomFields>
+                        <customFields>{"service":"throttle","stream":"app","env":"local"}</customFields>
+                    </globalCustomFields>
+                </providers>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <!-- ================================================================
+         STREAM 2: ACCESS LOGS (HTTP requests via AccessLogFilter)
+    ================================================================ -->
+    <appender name="ACCESS_JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp><fieldName>time</fieldName></timestamp>
+                <mdc/>
+                <arguments/>
+                <message><fieldName>msg</fieldName></message>
+                <globalCustomFields>
+                    <customFields>{"service":"throttle","stream":"access"}</customFields>
+                </globalCustomFields>
+            </providers>
         </encoder>
     </appender>
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %-5level [%X{traceId:-n/a}] %logger{36} - %msg%n</pattern>
+    <springProfile name="local">
+        <appender name="ACCESS_JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/access.json</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/archive/access.%d{yyyy-MM-dd}.%i.json</fileNamePattern>
+                <maxFileSize>50MB</maxFileSize>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>200MB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp><fieldName>time</fieldName></timestamp>
+                    <mdc/>
+                    <arguments/>
+                    <message><fieldName>msg</fieldName></message>
+                    <globalCustomFields>
+                        <customFields>{"service":"throttle","stream":"access","env":"local"}</customFields>
+                    </globalCustomFields>
+                </providers>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <!-- ================================================================
+         STREAM 3: MOBILE LOGS (Flutter app via POST /api/v1/logs)
+    ================================================================ -->
+    <appender name="MOBILE_JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp><fieldName>time</fieldName></timestamp>
+                <logLevel><fieldName>level</fieldName></logLevel>
+                <mdc/>
+                <message><fieldName>msg</fieldName></message>
+                <globalCustomFields>
+                    <customFields>{"service":"throttle","stream":"mobile"}</customFields>
+                </globalCustomFields>
+            </providers>
         </encoder>
     </appender>
 
-    <root level="INFO">
-        <appender-ref ref="CONSOLE" />
-        <appender-ref ref="FILE" />
-    </root>
+    <springProfile name="local">
+        <appender name="MOBILE_JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>logs/mobile.json</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>logs/archive/mobile.%d{yyyy-MM-dd}.%i.json</fileNamePattern>
+                <maxFileSize>50MB</maxFileSize>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>200MB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+                <providers>
+                    <timestamp><fieldName>time</fieldName></timestamp>
+                    <logLevel><fieldName>level</fieldName></logLevel>
+                    <mdc/>
+                    <message><fieldName>msg</fieldName></message>
+                    <globalCustomFields>
+                        <customFields>{"service":"throttle","stream":"mobile","env":"local"}</customFields>
+                    </globalCustomFields>
+                </providers>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <!-- ================================================================
+         LOGGER ROUTING
+    ================================================================ -->
+    <springProfile name="local">
+        <logger name="ACCESS_LOG" level="INFO" additivity="false">
+            <appender-ref ref="ACCESS_JSON_CONSOLE"/>
+            <appender-ref ref="ACCESS_JSON_FILE"/>
+        </logger>
+    </springProfile>
+    <springProfile name="!local">
+        <logger name="ACCESS_LOG" level="INFO" additivity="false">
+            <appender-ref ref="ACCESS_JSON_CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <springProfile name="local">
+        <logger name="MOBILE_LOG" level="INFO" additivity="false">
+            <appender-ref ref="MOBILE_JSON_CONSOLE"/>
+            <appender-ref ref="MOBILE_JSON_FILE"/>
+        </logger>
+    </springProfile>
+    <springProfile name="!local">
+        <logger name="MOBILE_LOG" level="INFO" additivity="false">
+            <appender-ref ref="MOBILE_JSON_CONSOLE"/>
+        </logger>
+    </springProfile>
+
+    <springProfile name="local">
+        <root level="INFO">
+            <appender-ref ref="APP_JSON_CONSOLE"/>
+            <appender-ref ref="APP_JSON_FILE"/>
+        </root>
+    </springProfile>
+    <springProfile name="!local">
+        <root level="INFO">
+            <appender-ref ref="APP_JSON_CONSOLE"/>
+        </root>
+    </springProfile>
+
 </configuration>

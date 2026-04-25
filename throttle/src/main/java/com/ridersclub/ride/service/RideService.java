@@ -10,11 +10,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.transaction.annotation.Transactional;
 import com.ridersclub.common.Utils.UserUtility;
@@ -58,10 +57,10 @@ import com.ridersclub.ride.repository.RideStatsRepository;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
+@Slf4j
 @Service
 @Transactional
 public class RideService {
-        private static final Logger logger = LoggerFactory.getLogger(RideService.class);
 
         @Autowired
         private RideRepository rideRepository;
@@ -152,9 +151,8 @@ public class RideService {
 
                 Ride saved = rideRepository.save(ride);
                 participantRepo.save(new RideParticipant(saved, currentUser));
-                logger.debug("Ride created with ID: " + saved.getUuid() + " and Captain ID: "
-                                + saved.getCaptain().getId());
-                logger.debug("full ride details: " + ride);
+                log.debug("Ride created with ID: {} and Captain ID: {}", saved.getUuid(), saved.getCaptain().getId());
+                log.debug("Full ride details: {}", ride);
 
                 if (saved.getRideType() == RideType.GROUP) {
 
@@ -199,7 +197,7 @@ public class RideService {
                                 saved.getId(),
                                 "RIDE");
 
-                System.out.println("notification published");
+                log.debug("Ride notification dispatched for rideId={}", saved.getId());
 
                 return saved;
         }
@@ -306,7 +304,7 @@ public class RideService {
                                 savedGroup.getId(),
                                 "RIDE");
 
-                System.out.println("notification published");
+                log.debug("Subgroup notification dispatched for groupId={}", savedGroup.getId());
 
                 return buildSubGroupResponse(savedGroup, user);
         }
@@ -590,6 +588,7 @@ public class RideService {
                                                 .userUuid(member.getUser().getUuid())
                                                 .firstName(member.getUser().getFirstName())
                                                 .lastName(member.getUser().getLastName())
+                                                .username(member.getUser().getUsername())
                                                 .profileImage(member.getUser().getProfileImage())
                                                 .role(member.getRole())
                                                 .joinedAt(member.getJoinedAt())
@@ -616,6 +615,7 @@ public class RideService {
                                                 .userUuid(request.getUser().getUuid())
                                                 .firstName(request.getUser().getFirstName())
                                                 .lastName(request.getUser().getLastName())
+                                                .username(request.getUser().getUsername())
                                                 .profileImage(request.getUser().getProfileImage())
                                                 .riderId(request.getUser().getRiderId())
                                                 .groupUuid(group.getUuid())
@@ -643,6 +643,7 @@ public class RideService {
                                 .userUuid(request.getUser().getUuid())
                                 .firstName(request.getUser().getFirstName())
                                 .lastName(request.getUser().getLastName())
+                                .username(request.getUser().getUsername())
                                 .profileImage(request.getUser().getProfileImage())
                                 .riderId(request.getUser().getRiderId())
                                 .groupUuid(group.getUuid())

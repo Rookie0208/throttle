@@ -1,46 +1,51 @@
 package com.ridersclub.common.controller;
 
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+
 import java.util.Map;
 
+/**
+ * Receives structured log entries from the Flutter mobile app and routes them
+ * through the standard SLF4J pipeline (JSON → stdout → Loki → Grafana).
+ *
+ * Flutter sends POST /api/v1/logs with body:
+ *   { "level": "INFO|WARN|ERROR|DEBUG", "message": "...", "traceId": "optional" }
+ *
+ * Logs appear in Grafana with label: stream="mobile"
+ */
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/logs")
-
 public class LogController {
 
-    private static final String LOG_DIR = "logs";
-    private static final String LOG_FILE = LOG_DIR + "/throttle_UI.log";
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final org.slf4j.Logger mobileLog =
+            org.slf4j.LoggerFactory.getLogger("MOBILE_LOG");
 
     @PostMapping
-    public ResponseEntity<Void> receiveFrontendLog(@RequestBody Map<String, Object> logPayload) {
-        String level = (String) logPayload.getOrDefault("level", "INFO");
-        String message = (String) logPayload.getOrDefault("message", "");
-        String time = LocalDateTime.now().format(formatter);
+    public ResponseEntity<Void> receiveFrontendLog(@RequestBody Map<String, Object> payload) {
+        String level   = (String) payload.getOrDefault("level", "INFO");
+        String message = (String) payload.getOrDefault("message", "");
+        String traceId = (String) payload.getOrDefault("traceId", "");
 
-        String formattedLog = String.format("%s [%-5s] Frontend - %s\n", time, level, message);
-
-        writeLogToFile(formattedLog);
-        return ResponseEntity.ok().build();
-    }
-
-    private synchronized void writeLogToFile(String logMessage) {
+        // Inject optional client-side traceId into MDC so it appears in JSON output
         try {
-            File dir = new File(LOG_DIR);
-            if (!dir.exists()) {
-                dir.mkdirs();
+            if (traceId != null && !traceId.isBlank()) {
+                MDC.put("clientTraceId", traceId);
             }
-            try (FileWriter writer = new FileWriter(LOG_FILE, true)) {
-                writer.write(logMessage);
+
+            switch (level.toUpperCase()) {
+                case "ERROR" -> mobileLog.error("[Mobile] {}", message);
+                case "WARN"  -> mobileLog.warn("[Mobile] {}", message);
+                case "DEBUG" -> mobileLog.debug("[Mobile] {}", message);
+                default      -> mobileLog.info("[Mobile] {}", message);
             }
-        } catch (IOException e) {
-            System.err.println("Failed to write frontend log: " + e.getMessage());
+        } finally {
+            MDC.remove("clientTraceId");
         }
+
+        return ResponseEntity.ok().build();
     }
 }

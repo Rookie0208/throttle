@@ -352,7 +352,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Pick a role for ${member["firstName"] ?? "this rider"}.",
+                      "Pick a role for ${member["username"] ?? "this rider"}.",
                       style: TextStyle(
                         color: theme.textPrimary.withValues(alpha: 0.65),
                       ),
@@ -454,8 +454,8 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               ),
               content: Text(
                 _isSubGroup
-                    ? "This will remove ${member["firstName"] ?? "this rider"} from the subgroup."
-                    : "This will remove ${member["firstName"] ?? "this rider"} from the ride.",
+                    ? "This will remove ${member["username"] ?? "this rider"} from the subgroup."
+                    : "This will remove ${member["username"] ?? "this rider"} from the ride.",
                 style: TextStyle(
                   color: theme.textPrimary.withValues(alpha: 0.65),
                 ),
@@ -687,7 +687,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
             ...requests.map((request) {
               final requestId = request["requestId"] as int?;
               final name =
-                  "${request["firstName"] ?? ""} ${request["lastName"] ?? ""}"
+                  (request["username"] ?? "").toString()
                       .trim();
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -952,7 +952,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       ),
       builder: (_) {
         final String name =
-            "${member["firstName"] ?? ""} ${member["lastName"] ?? ""}".trim();
+            (member["username"] ?? "").toString().trim();
         final String role = member["role"] ?? "RIDER";
 
         return Padding(
@@ -1324,7 +1324,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         widget.rideGroup["title"] ?? widget.rideGroup["name"] ?? "Ride";
     final creatorUser = widget.rideGroup["createdByUser"];
     final creatorName = creatorUser != null
-        ? "${creatorUser["firstName"] ?? ""} ${creatorUser["lastName"] ?? ""}"
+        ? (creatorUser["username"] ?? "").toString()
               .trim()
         : (widget.rideGroup["createdByName"]?.toString().trim().isNotEmpty ??
               false)
@@ -2654,8 +2654,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
               if (searchQuery.isNotEmpty) {
                 members = members.where((m) {
-                  final name = "${m["firstName"] ?? ""} ${m["lastName"] ?? ""}"
-                      .toLowerCase();
+                  final name = (m["username"] ?? "").toString().trim().toLowerCase();
                   return name.contains(searchQuery.toLowerCase());
                 }).toList();
               }
@@ -2809,7 +2808,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                         final member = Map<String, dynamic>.from(m);
 
                         final name =
-                            "${member["firstName"] ?? ""} ${member["lastName"] ?? ""}"
+                            (member["username"] ?? "").toString()
                                 .trim();
 
                         return ListTile(

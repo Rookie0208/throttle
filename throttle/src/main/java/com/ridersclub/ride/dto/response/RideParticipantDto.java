@@ -14,6 +14,7 @@ public class RideParticipantDto {
     private String riderId;
     private String firstName;
     private String lastName;
+    private String username;
     private String profileImage;
 
     private String role; // CAPTAIN / MEMBER
