@@ -1,5 +1,6 @@
 package com.ridersclub.ride.service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -95,6 +96,9 @@ public class RideSessionService {
                 .currentUserCaptain(isRideManager(actor.getRole()))
                 .currentUserRole(actor.getRole().name())
                 .currentUserState(resolveRideState(actor, ride).name())
+                .currentUserRideStartedAt(actor.getPartialStartedAt())
+                .currentUserArrivedAtStartAt(actor.getArrivedAtStartAt())
+                .currentUserTimeToMeetingSeconds(resolveTimeToMeetingSeconds(actor))
                 .meetingPoint(mainGroup.getPreRideMeetingPoint())
                 .fuelStops(mainGroup.getPreRideFuelStops())
                 .currentCheckpointIndex(ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0)
@@ -133,8 +137,11 @@ public class RideSessionService {
         ensureRideMutable(ride);
 
         participant.setRideState(RideParticipantState.EN_ROUTE);
-        participant.setPartialStartedAt(LocalDateTime.now());
-        participant.setStateUpdatedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        if (participant.getPartialStartedAt() == null) {
+            participant.setPartialStartedAt(now);
+        }
+        participant.setStateUpdatedAt(now);
         participantRepository.save(participant);
 
         if (ride.getStatus() == Status.CREATED || ride.getStatus() == Status.SCHEDULED) {
@@ -154,8 +161,14 @@ public class RideSessionService {
         ensureRideMutable(ride);
 
         participant.setRideState(RideParticipantState.AT_START_POINT);
-        participant.setArrivedAtStartAt(LocalDateTime.now());
-        participant.setStateUpdatedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        if (participant.getPartialStartedAt() == null) {
+            participant.setPartialStartedAt(now);
+        }
+        if (participant.getArrivedAtStartAt() == null) {
+            participant.setArrivedAtStartAt(now);
+        }
+        participant.setStateUpdatedAt(now);
         participantRepository.save(participant);
 
         if (ride.getStatus() == Status.CREATED
@@ -362,6 +375,13 @@ public class RideSessionService {
             return RideParticipantState.COMPLETED;
         }
         return RideParticipantState.JOINED;
+    }
+
+    private Long resolveTimeToMeetingSeconds(RideParticipant participant) {
+        if (participant.getPartialStartedAt() == null || participant.getArrivedAtStartAt() == null) {
+            return null;
+        }
+        return Duration.between(participant.getPartialStartedAt(), participant.getArrivedAtStartAt()).getSeconds();
     }
 
     private RideParticipantDto mapParticipantDto(Ride ride, RideParticipant participant) {

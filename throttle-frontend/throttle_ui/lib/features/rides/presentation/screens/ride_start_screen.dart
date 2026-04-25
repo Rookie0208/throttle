@@ -61,49 +61,84 @@ class _RideStartScreenState extends State<RideStartScreen> {
       }.contains((_session?["currentUserRole"] ?? "").toString().toUpperCase());
 
   int get _enRouteCount =>
-      _toInt(_session?["enRouteCount"]) ?? (_currentUserState == "EN_ROUTE" ? 1 : 0);
+      _toInt(_session?["enRouteCount"]) ??
+      (_currentUserState == "EN_ROUTE" ? 1 : 0);
 
   int get _atStartCount =>
-      _toInt(_session?["atStartCount"]) ?? (_currentUserState == "AT_START_POINT" ? 1 : 0);
+      _toInt(_session?["atStartCount"]) ??
+      (_currentUserState == "AT_START_POINT" ? 1 : 0);
 
   int get _inRideCount =>
-      _toInt(_session?["inRideCount"]) ?? (_currentUserState == "IN_RIDE" ? 1 : 0);
+      _toInt(_session?["inRideCount"]) ??
+      (_currentUserState == "IN_RIDE" ? 1 : 0);
 
   int get _participantsCount =>
       _toInt(_session?["participantsCount"]) ?? widget.memberCount;
 
   String get _meetingPoint {
-    final value = (_session?["meetingPoint"] ?? widget.location).toString().trim();
+    final value = (_session?["meetingPoint"] ?? widget.location)
+        .toString()
+        .trim();
     return value.isEmpty ? "Start point" : value;
   }
 
-  String get _primaryActionLabel {
+  _RideStartAction get _primaryAction {
     if (_rideStatus == "ACTIVE" || _currentUserState == "IN_RIDE") {
-      return "OPEN LIVE RIDE";
+      return _RideStartAction.openLiveRide;
     }
     if (_rideStatus == "COMPLETED") {
-      return "RIDE COMPLETED";
+      return _RideStartAction.completed;
     }
     if (_currentUserState == "JOINED") {
-      return "START RIDE";
+      return _RideStartAction.startToMeeting;
     }
     if (_currentUserState == "EN_ROUTE") {
-      return "MARK ARRIVED";
+      return _RideStartAction.markArrived;
     }
     if (_currentUserState == "AT_START_POINT" && _canManageRide) {
-      return "BEGIN JOURNEY";
+      return _RideStartAction.beginJourney;
     }
     if (_currentUserState == "AT_START_POINT") {
-      return "WAIT FOR CAPTAIN";
+      return _RideStartAction.waitForCaptain;
     }
-    return "REFRESH";
+    return _RideStartAction.refresh;
+  }
+
+  String get _primaryActionLabel {
+    switch (_primaryAction) {
+      case _RideStartAction.openLiveRide:
+        return "OPEN LIVE RIDE";
+      case _RideStartAction.completed:
+        return "RIDE COMPLETED";
+      case _RideStartAction.startToMeeting:
+        return "START RIDE";
+      case _RideStartAction.markArrived:
+        return "MARK ARRIVED";
+      case _RideStartAction.beginJourney:
+        return "BEGIN JOURNEY";
+      case _RideStartAction.waitForCaptain:
+        return "WAIT FOR CAPTAIN";
+      case _RideStartAction.refresh:
+        return "REFRESH";
+    }
   }
 
   bool get _canSlideAction =>
       !_loading &&
       !_fetching &&
-      _primaryActionLabel != "WAIT FOR CAPTAIN" &&
-      _primaryActionLabel != "RIDE COMPLETED";
+      _primaryAction != _RideStartAction.waitForCaptain &&
+      _primaryAction != _RideStartAction.completed;
+
+  DateTime? get _currentUserRideStartedAt => DateTime.tryParse(
+    (_session?["currentUserRideStartedAt"] ?? "").toString(),
+  );
+
+  DateTime? get _currentUserArrivedAtStartAt => DateTime.tryParse(
+    (_session?["currentUserArrivedAtStartAt"] ?? "").toString(),
+  );
+
+  int? get _currentUserTimeToMeetingSeconds =>
+      _toInt(_session?["currentUserTimeToMeetingSeconds"]);
 
   @override
   void initState() {
@@ -204,9 +239,14 @@ class _RideStartScreenState extends State<RideStartScreen> {
 
   Future<void> _performPrimaryAction() async {
     if (!_canSlideAction) {
-      if (_primaryActionLabel == "WAIT FOR CAPTAIN") {
+      if (_primaryAction == _RideStartAction.waitForCaptain) {
         _showSnack("Waiting for the captain to start the ride");
       }
+      return;
+    }
+
+    if (_primaryAction == _RideStartAction.openLiveRide) {
+      _maybeOpenLiveRide();
       return;
     }
 
@@ -214,31 +254,36 @@ class _RideStartScreenState extends State<RideStartScreen> {
     try {
       Map<String, dynamic>? session;
 
-      switch (_currentUserState) {
-        case "JOINED":
+      switch (_primaryAction) {
+        case _RideStartAction.startToMeeting:
           session = await RideService.partialStartRide(
             widget.token,
             widget.rideUuid,
           );
           break;
-        case "EN_ROUTE":
+        case _RideStartAction.markArrived:
           session = await RideService.arriveAtStart(
             widget.token,
             widget.rideUuid,
           );
           break;
-        case "AT_START_POINT":
-          if (_canManageRide) {
-            session = await RideService.startRideSession(
-              widget.token,
-              widget.rideUuid,
-            );
-          } else {
-            _showSnack("Waiting for the captain to start the ride");
-          }
+        case _RideStartAction.beginJourney:
+          session = await RideService.startRideSession(
+            widget.token,
+            widget.rideUuid,
+          );
           break;
-        default:
+        case _RideStartAction.waitForCaptain:
+          _showSnack("Waiting for the captain to start the ride");
+          break;
+        case _RideStartAction.openLiveRide:
+          _maybeOpenLiveRide();
+          break;
+        case _RideStartAction.refresh:
           await _loadSession();
+          break;
+        case _RideStartAction.completed:
+          break;
       }
 
       if (!mounted || session == null) return;
@@ -297,6 +342,21 @@ class _RideStartScreenState extends State<RideStartScreen> {
     return int.tryParse(value?.toString() ?? "");
   }
 
+  String _formatDurationSeconds(int seconds) {
+    final duration = Duration(seconds: seconds);
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final remainingSeconds = duration.inSeconds % 60;
+
+    if (hours > 0) {
+      return "${hours}h ${minutes}m";
+    }
+    if (minutes > 0) {
+      return "${minutes}m ${remainingSeconds}s";
+    }
+    return "${remainingSeconds}s";
+  }
+
   void _endRide(AppThemeConfig theme) {
     showDialog(
       context: context,
@@ -349,9 +409,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
             ],
           ),
           body: _fetching && _session == null
-              ? Center(
-                  child: CircularProgressIndicator(color: theme.primary),
-                )
+              ? Center(child: CircularProgressIndicator(color: theme.primary))
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -361,6 +419,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
                       _liveProgress(theme),
                       const SizedBox(height: 20),
                       _slider(theme),
+                      if (_currentUserRideStartedAt != null) ...[
+                        const SizedBox(height: 16),
+                        _individualRideTimer(theme),
+                      ],
                       if (_currentUserState == "AT_START_POINT") ...[
                         const SizedBox(height: 20),
                         _arrivalMessage(theme),
@@ -429,7 +491,12 @@ class _RideStartScreenState extends State<RideStartScreen> {
           Row(
             children: [
               _info(Icons.location_on, "Meetup", _meetingPoint, theme),
-              _info(Icons.people, "Riders", "$_participantsCount joined", theme),
+              _info(
+                Icons.people,
+                "Riders",
+                "$_participantsCount joined",
+                theme,
+              ),
             ],
           ),
         ],
@@ -630,6 +697,68 @@ class _RideStartScreenState extends State<RideStartScreen> {
     );
   }
 
+  Widget _individualRideTimer(AppThemeConfig theme) {
+    final startedAt = _currentUserRideStartedAt;
+    final arrivedAt = _currentUserArrivedAtStartAt;
+    final timeToMeetingSeconds = _currentUserTimeToMeetingSeconds;
+
+    String subtitle =
+        "Your personal ride timer started when you left for the meetup.";
+    if (arrivedAt != null && timeToMeetingSeconds != null) {
+      subtitle =
+          "You reached the meeting point in ${_formatDurationSeconds(timeToMeetingSeconds)}.";
+    } else if (startedAt != null) {
+      subtitle =
+          "Started at ${TimeOfDay.fromDateTime(startedAt).format(context)}.";
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: theme.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.timer_outlined, color: theme.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Personal Ride Timer",
+                  style: TextStyle(
+                    color: theme.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: theme.textPrimary.withValues(alpha: 0.68),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _slider(AppThemeConfig theme) {
     final double maxWidth = MediaQuery.of(context).size.width - 32;
     const double thumbSize = 60;
@@ -697,7 +826,8 @@ class _RideStartScreenState extends State<RideStartScreen> {
               onHorizontalDragEnd: _canSlideAction
                   ? (_) {
                       setState(() => _isDragging = false);
-                      if (_dragPosition >= maxDrag) {
+                      if (_dragPosition >= maxDrag * 0.82) {
+                        setState(() => _dragPosition = maxDrag);
                         _performPrimaryAction();
                       } else {
                         setState(() => _dragPosition = 0);
@@ -807,6 +937,16 @@ class _RideStartScreenState extends State<RideStartScreen> {
       ],
     );
   }
+}
+
+enum _RideStartAction {
+  openLiveRide,
+  completed,
+  startToMeeting,
+  markArrived,
+  beginJourney,
+  waitForCaptain,
+  refresh,
 }
 
 class _HelpItem extends StatelessWidget {
