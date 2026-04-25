@@ -9,8 +9,6 @@ import 'package:throttle_ui/features/auth/presentation/screens/signup_screen.dar
 import 'package:throttle_ui/app/main_screen.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/otp_screen.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
-import 'package:throttle_ui/features/auth/presentation/widgets/web_signin_stub.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -179,9 +177,6 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         showError(result["message"] ?? "Login failed");
       }
-    } catch (e) {
-      // Any network or unexpected error
-      showError("Login failed. Please check your credentials or network.");
     } finally {
       // ✅ Make sure spinner always stops
       if (mounted) setState(() => isLoading = false);

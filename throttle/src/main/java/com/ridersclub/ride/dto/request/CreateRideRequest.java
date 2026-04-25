@@ -11,7 +11,6 @@ import com.ridersclub.common.enums.Visibility;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -47,7 +46,6 @@ public class CreateRideRequest {
     @NotNull
     private Visibility visibility;
 
-    @NotEmpty
     private List<@NotBlank String> rules;
 
     private List<@NotBlank String> invitedFriends;

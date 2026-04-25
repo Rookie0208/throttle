@@ -119,6 +119,18 @@ public class RideParticipantService {
             throw new RuntimeException("Invalid role");
         }
 
+        boolean selfDemotingOnlyAdmin = actor.getUser().getUuid().equals(target.getUser().getUuid())
+                && actor.getRole() == Role.ADMIN
+                && newRole != Role.ADMIN;
+        if (selfDemotingOnlyAdmin) {
+            long adminCount = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED).stream()
+                    .filter(item -> item.getRole() == Role.ADMIN)
+                    .count();
+            if (adminCount <= 1) {
+                throw new RuntimeException("Promote another admin before changing your role");
+            }
+        }
+
         target.setRole(newRole);
         participantRepository.save(target);
 
