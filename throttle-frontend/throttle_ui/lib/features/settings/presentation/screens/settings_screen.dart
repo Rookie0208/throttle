@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:throttle_ui/features/profile/presentation/screens/friends_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/bike_management_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/message_settings_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/notification_preferences_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/privacy_settings_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/onboarding_screen.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -377,30 +381,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         title: "Notifications",
                         subtitle: "Manage alerts",
                         theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const NotificationPreferencesScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _settingsTile(
                         icon: Icons.message_outlined,
                         title: "Messages",
                         subtitle: "Chat settings",
                         theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MessageSettingsScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _settingsTile(
                         icon: Icons.people_outline_rounded,
                         title: "Followers",
                         subtitle: "Manage connections",
                         theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FriendsScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _settingsTile(
                         icon: Icons.two_wheeler_outlined,
                         title: "My Bikes",
                         subtitle: "Add or edit bikes",
                         theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const BikeManagementScreen(),
+                            ),
+                          );
+                        },
                       ),
                       _settingsTile(
                         icon: Icons.shield_outlined,
                         title: "Privacy",
                         subtitle: "Data & security",
                         theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PrivacySettingsScreen(),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                       ListTile(
@@ -487,8 +532,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String title,
     required String subtitle,
     required AppThemeConfig theme,
+    VoidCallback? onTap,
   }) {
     return ListTile(
+      onTap: onTap,
       leading: Icon(icon, color: theme.primary),
       title: Text(
         title,
