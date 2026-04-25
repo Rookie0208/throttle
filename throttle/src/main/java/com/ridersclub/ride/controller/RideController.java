@@ -48,13 +48,14 @@ import com.ridersclub.user.entity.User;
 import com.ridersclub.common.Utils.ApiConstants;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import jakarta.validation.Valid;
 
+@Slf4j
 @RestController
 @RequestMapping(ApiConstants.Rides.BASE)
 @RequiredArgsConstructor
 public class RideController {
-    private static final Logger logger = LoggerFactory.getLogger(RideController.class);
 
     @Autowired
     private RideService rideService;
@@ -71,20 +72,19 @@ public class RideController {
             Authentication authentication) throws AccessDeniedException {
         RideResponse response = null;
         String userId = (String) authentication.getPrincipal();
-        System.out.println("Creating ride for user: " + userId);
         try {
-            logger.debug("current user : {}", userId);
+            log.debug("Creating ride for user: {}", userId);
             Ride ride = rideService.createRide(request, userId);
             response = new RideResponse(ride.getUuid());
-            logger.info("Ride created with rideID: {}", ride.getUuid());
+            log.info("Ride created with rideID: {}", ride.getUuid());
         } catch (IllegalArgumentException e) {
-            logger.warn("invalid ride creation request", e);
+            log.warn("Invalid ride creation request: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.failure(
                             new ApiErrors("RIDE_VALIDATION_FAILED", e.getMessage(), "/api/v1/rides/create"),
                             e.getMessage()));
         } catch (Exception e) {
-            logger.error("error creating ride", e);
+            log.error("Error creating ride", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.failure(
                             new ApiErrors("RIDE_CREATION_FAILED", e.getMessage(), "/api/v1/rides/create"),
@@ -96,7 +96,6 @@ public class RideController {
     @GetMapping(ApiConstants.Rides.MY_RIDES)
     public ApiResponse<?> my(Authentication authentication) {
         String userId = (String) authentication.getPrincipal();
-        System.out.println("getting my rides for user : " + userId);
         return ApiResponse.success(rideService.myRides(userId), "My rides");
     }
 
@@ -274,7 +273,7 @@ public class RideController {
                             new ApiErrors("SUBGROUP_CREATION_FAILED", e.getMessage(), "/api/v1/rides/subgroup"),
                             e.getMessage()));
         } catch (Exception e) {
-            logger.error("error creating subgrop", e);
+            log.error("Error creating subgroup", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.failure(
                             new ApiErrors("SUBGROUP_CREATION_FAILED", e.getMessage(), "/api/v1/rides/subgroup"),

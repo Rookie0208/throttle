@@ -122,9 +122,7 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
   }
 
   String _displayName(Map<String, dynamic> user) {
-    final firstName = user['firstName']?.toString().trim() ?? '';
-    final lastName = user['lastName']?.toString().trim() ?? '';
-    final fullName = '$firstName $lastName'.trim();
+    final fullName = (user['username'] ?? '').toString();
     return fullName.isEmpty ? 'Unknown Rider' : fullName;
   }
 

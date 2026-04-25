@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -62,6 +63,14 @@ public class GlobalExceptionHandler {
         .body(ApiResponse.failure(error, message));
   }
 
+  @ExceptionHandler(AccessDeniedException.class)
+  public ResponseEntity<ApiResponse<Void>> accessDenied(AccessDeniedException ex, HttpServletRequest request) {
+    ApiErrors error = new ApiErrors("ACCESS_DENIED", ex.getMessage(), request.getRequestURI());
+    log.warn("Access denied on {}: {}", request.getRequestURI(), ex.getMessage());
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        .body(ApiResponse.failure(error, "You do not have permission to access this resource"));
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ApiResponse<Void>> generic(Exception ex, HttpServletRequest request) {
     String message = safeMessage(ex.getMessage(), "Something went wrong. Please try again");
@@ -96,7 +105,7 @@ public class GlobalExceptionHandler {
     ApiErrors error = new ApiErrors("AUTH_INVALID_CREDENTIALS", message, request.getRequestURI());
     log.warn("Invalid credentials on {}: {}", request.getRequestURI(), message);
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-        .body(ApiResponse.failure(error, message));
+        .body(ApiResponse.failure(error, ex.getMessage()));
   }
 
   @ExceptionHandler(UserNotFoundException.class)

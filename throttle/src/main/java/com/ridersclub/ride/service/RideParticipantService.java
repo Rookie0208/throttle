@@ -9,6 +9,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.Role;
@@ -43,6 +44,7 @@ import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.user.entity.User;
 import com.ridersclub.user.repository.UserRepository;
 
+@Slf4j
 @Service
 public class RideParticipantService {
 
@@ -86,6 +88,7 @@ public class RideParticipantService {
                     .riderId(rp.getUser().getRiderId())
                     .firstName(rp.getUser().getFirstName())
                     .lastName(rp.getUser().getLastName())
+                    .username(rp.getUser().getUsername())
                     .profileImage(rp.getUser().getProfileImage())
                     .role(rp.getRole().toString())
                     .rsvpStatus(rp.getRsvpStatus().toString())
@@ -313,6 +316,7 @@ public class RideParticipantService {
                         .riderId(friend.getRiderId())
                         .firstName(friend.getFirstName())
                         .lastName(friend.getLastName())
+                        .username(friend.getUsername())
                         .profileImage(friend.getProfileImage())
                         .email(friend.getEmail())
                         .clubFriend(clubMemberIds.contains(friend.getId()))

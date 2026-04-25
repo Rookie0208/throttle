@@ -17,6 +17,7 @@ public class GroupMemberResponse {
     private String userUuid;
     private String firstName;
     private String lastName;
+    private String username;
     private String profileImage;
     private String role;
     private LocalDateTime joinedAt;

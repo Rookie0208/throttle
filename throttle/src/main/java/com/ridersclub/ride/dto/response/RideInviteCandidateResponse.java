@@ -10,6 +10,7 @@ public class RideInviteCandidateResponse {
     private String riderId;
     private String firstName;
     private String lastName;
+    private String username;
     private String profileImage;
     private String email;
     private boolean clubFriend;

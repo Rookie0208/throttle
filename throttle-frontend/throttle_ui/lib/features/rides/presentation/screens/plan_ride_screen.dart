@@ -99,8 +99,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   }
 
   String _friendLabel(Map<String, dynamic> friend) {
-    final displayName =
-        "${friend["firstName"] ?? ""} ${friend["lastName"] ?? ""}".trim();
+   final displayName = (friend["username"] ?? "").toString().trim();
     final riderId = (friend["riderId"] ?? "").toString().trim();
     if (displayName.isNotEmpty) return displayName;
     if (riderId.isNotEmpty) return "@$riderId";
