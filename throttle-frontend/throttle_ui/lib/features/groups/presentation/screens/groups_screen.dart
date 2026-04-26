@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/public_rides_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'group_chat_screen.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
@@ -99,7 +100,7 @@ class _GroupsScreenState extends State<GroupsScreen>
                     MaterialPageRoute(
                       builder: (_) => PublicRidesScreen(token: widget.token),
                     ),
-                  );
+                  ).then((_) => fetchGroups());
                 },
                 style: TextButton.styleFrom(foregroundColor: theme.primary),
                 child: const Text("Join Ride"),
@@ -112,7 +113,7 @@ class _GroupsScreenState extends State<GroupsScreen>
                     MaterialPageRoute(
                       builder: (_) => PlanRideScreen(token: widget.token),
                     ),
-                  );
+                  ).then((_) => fetchGroups());
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: theme.primary,
@@ -131,7 +132,20 @@ class _GroupsScreenState extends State<GroupsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    RideRefreshNotifier.revision.addListener(_handleRideRefresh);
     _loadHiddenGroups().then((_) => fetchGroups());
+  }
+
+  @override
+  void dispose() {
+    RideRefreshNotifier.revision.removeListener(_handleRideRefresh);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _handleRideRefresh() {
+    if (!mounted) return;
+    fetchGroups();
   }
 
   Future<void> _loadHiddenGroups() async {
@@ -290,6 +304,7 @@ class _GroupsScreenState extends State<GroupsScreen>
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Rejoined ride")),
                           );
+                          RideRefreshNotifier.notify();
                           await fetchGroups();
                         } catch (e) {
                           if (!mounted) return;

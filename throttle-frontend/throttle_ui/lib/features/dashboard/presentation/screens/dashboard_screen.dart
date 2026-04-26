@@ -12,6 +12,7 @@ import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/core/services/weather_service.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
@@ -440,10 +441,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    RideRefreshNotifier.revision.addListener(_handleRideRefresh);
     _refreshProfileData();
     _fetchLocationAndWeather();
     _initializeNotifications();
     _syncUpcomingRideReminderNotifications();
+  }
+
+  void _handleRideRefresh() {
+    _refreshProfileData();
   }
 
   Future<void> _refreshProfileData() async {
@@ -456,6 +462,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    RideRefreshNotifier.revision.removeListener(_handleRideRefresh);
     _notificationClient?.deactivate();
     super.dispose();
   }
@@ -784,6 +791,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                 .length;
                                           });
                                         }
+                                        await _refreshProfileData();
                                       },
                                     ),
                                   ),

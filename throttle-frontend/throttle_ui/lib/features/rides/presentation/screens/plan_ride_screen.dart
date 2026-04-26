@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
@@ -610,6 +611,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     setState(() => isLoading = false);
 
     if (result["success"]) {
+      RideRefreshNotifier.notify();
       showSuccess("Ride created successfully!");
       Navigator.pop(context, rideType == "GROUP");
     } else {
