@@ -128,7 +128,7 @@ public class AuthController {
                 })
                 .orElseThrow(() -> {
                     log.error("Refresh token rejected or not found in database");
-                    return new RuntimeException("Refresh token is not in database!");
+                    return new com.ridersclub.common.exception.InvalidCredentialsException("Refresh token is invalid or expired. Please login again.");
                 });
     }
 
