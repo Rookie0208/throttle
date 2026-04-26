@@ -90,6 +90,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     }.contains(rideStatus);
   }
 
+  bool get _isSoloRide {
+    final rideType = (widget.group["rideType"] ?? "").toString().toUpperCase();
+    return rideType == "SOLO";
+  }
+
   /// ================= FETCH SUBGROUPS =================
   Future<void> fetchSubGroups() async {
     try {
@@ -522,6 +527,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
                   ];
                   if (_canManageRide &&
                       activeSubGroup == null &&
+                      !_isSoloRide &&
                       !_isRideStarted) {
                     items.add(
                       PopupMenuItem(
