@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_realtime_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 
@@ -89,6 +90,9 @@ class _RideStartScreenState extends State<RideStartScreen> {
     if (_rideStatus == "COMPLETED") {
       return _RideStartAction.completed;
     }
+    if (_rideStatus == "CANCELLED") {
+      return _RideStartAction.cancelled;
+    }
     if (_currentUserState == "JOINED") {
       return _RideStartAction.startToMeeting;
     }
@@ -110,6 +114,8 @@ class _RideStartScreenState extends State<RideStartScreen> {
         return "OPEN LIVE RIDE";
       case _RideStartAction.completed:
         return "RIDE COMPLETED";
+      case _RideStartAction.cancelled:
+        return "RIDE CANCELLED";
       case _RideStartAction.startToMeeting:
         return "START RIDE";
       case _RideStartAction.markArrived:
@@ -127,7 +133,30 @@ class _RideStartScreenState extends State<RideStartScreen> {
       !_loading &&
       !_fetching &&
       _primaryAction != _RideStartAction.waitForCaptain &&
-      _primaryAction != _RideStartAction.completed;
+      _primaryAction != _RideStartAction.completed &&
+      _primaryAction != _RideStartAction.cancelled;
+
+  bool get _isRideCompleted => _rideStatus == "COMPLETED";
+  bool get _isRideCancelled => _rideStatus == "CANCELLED";
+  bool get _isRideClosed => _isRideCompleted || _isRideCancelled;
+
+  bool get _hasRideStarted =>
+      !_isRideClosed &&
+      (_rideStatus == "ACTIVE" ||
+          _currentUserState == "IN_RIDE" ||
+          _session?["rideStartedAt"] != null);
+
+  bool get _showRideManagementAction => _canManageRide && !_isRideClosed;
+
+  String get _rideManagementTitle =>
+      _hasRideStarted ? "End Ride" : "Cancel Ride";
+
+  String get _rideManagementDescription => _hasRideStarted
+      ? "Are you sure you want to end this ride?"
+      : "Are you sure you want to cancel this ride before it starts?";
+
+  String get _rideManagementConfirmLabel =>
+      _hasRideStarted ? "End Ride" : "Cancel Ride";
 
   DateTime? get _currentUserRideStartedAt => DateTime.tryParse(
     (_session?["currentUserRideStartedAt"] ?? "").toString(),
@@ -224,6 +253,30 @@ class _RideStartScreenState extends State<RideStartScreen> {
     setState(() => _loading = true);
     try {
       await RideService.completeRide(widget.token, widget.rideUuid);
+      RideRefreshNotifier.notify();
+      await _loadSession();
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _cancelRide() async {
+    if (!_canManageRide) {
+      _showSnack("Only captain/admin can cancel this ride");
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      await RideService.cancelRide(widget.token, widget.rideUuid);
+      RideRefreshNotifier.notify();
       await _loadSession();
       if (!mounted) return;
       Navigator.pop(context);
@@ -283,6 +336,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
           await _loadSession();
           break;
         case _RideStartAction.completed:
+        case _RideStartAction.cancelled:
           break;
       }
 
@@ -357,14 +411,17 @@ class _RideStartScreenState extends State<RideStartScreen> {
     return "${remainingSeconds}s";
   }
 
-  void _endRide(AppThemeConfig theme) {
+  void _manageRide(AppThemeConfig theme) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: theme.surface,
-        title: Text("End Ride", style: TextStyle(color: theme.textPrimary)),
+        title: Text(
+          _rideManagementTitle,
+          style: TextStyle(color: theme.textPrimary),
+        ),
         content: Text(
-          "Are you sure you want to end this ride?",
+          _rideManagementDescription,
           style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
         ),
         actions: [
@@ -376,9 +433,13 @@ class _RideStartScreenState extends State<RideStartScreen> {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(context);
-              _completeRide();
+              if (_hasRideStarted) {
+                _completeRide();
+              } else {
+                _cancelRide();
+              }
             },
-            child: const Text("End Ride"),
+            child: Text(_rideManagementConfirmLabel),
           ),
         ],
       ),
@@ -402,10 +463,11 @@ class _RideStartScreenState extends State<RideStartScreen> {
                 onPressed: _fetching ? null : _loadSession,
                 icon: Icon(Icons.refresh, color: theme.textPrimary),
               ),
-              IconButton(
-                onPressed: _loading ? null : () => _endRide(theme),
-                icon: const Icon(Icons.stop_circle, color: Colors.red),
-              ),
+              if (_showRideManagementAction)
+                IconButton(
+                  onPressed: _loading ? null : () => _manageRide(theme),
+                  icon: const Icon(Icons.stop_circle, color: Colors.red),
+                ),
             ],
           ),
           body: _fetching && _session == null
@@ -942,6 +1004,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
 enum _RideStartAction {
   openLiveRide,
   completed,
+  cancelled,
   startToMeeting,
   markArrived,
   beginJourney,

@@ -62,6 +62,8 @@ import com.ridersclub.user.repository.UserRepository;
 @Transactional
 public class RideService {
 
+        private static final String PRE_RIDE_FROZEN_MESSAGE = "Pre-ride setup is frozen once the ride has started";
+
         @Autowired
         private RideRepository rideRepository;
         @Autowired
@@ -246,6 +248,7 @@ public class RideService {
 
                 Ride ride = rideRepository.findByUuid(request.getRideUuid())
                                 .orElseThrow(() -> new RuntimeException("Ride not found"));
+                ensurePreRideSetupEditable(ride);
 
                 RideParticipant actor = participantRepo.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
                                 ride.getUuid(),
@@ -513,6 +516,38 @@ public class RideService {
                 rideSessionService.publishSessionUpdate(rideId);
         }
 
+        public void cancel(String rideId, String userId) {
+
+                Ride ride = rideRepository.findByUuid(rideId)
+                                .orElseThrow(() -> new RuntimeException("Ride not found"));
+
+                RideParticipant participant = participantRepo
+                                .findByRide_UuidAndUser_Uuid(rideId, userId)
+                                .orElseThrow(() -> new RuntimeException("Not part of ride"));
+
+                if (participant.getRole() != Role.CAPTAIN
+                                && participant.getRole() != Role.ADMIN
+                                && participant.getRole() != Role.CO_CAPTAIN) {
+                        throw new RuntimeException("Only captain can cancel ride");
+                }
+
+                if (ride.getStatus() == Status.CANCELLED) {
+                        rideSessionService.publishSessionUpdate(rideId);
+                        return;
+                }
+
+                if (ride.getStatus() == Status.ACTIVE
+                                || ride.getStatus() == Status.IN_PROGRESS
+                                || ride.getStatus() == Status.COMPLETED) {
+                        throw new RuntimeException("Started rides cannot be cancelled");
+                }
+
+                ride.setStatus(Status.CANCELLED);
+                ride.setEndTime(LocalDateTime.now());
+                rideRepository.save(ride);
+                rideSessionService.publishSessionUpdate(rideId);
+        }
+
         public void addStats(String rideId, String userId, RideSummaryRequest req) {
 
                 statsRepo.save(new RideStats(null, rideId, userId,
@@ -662,6 +697,7 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+                ensurePreRideSetupEditable(group.getRide());
 
                 GroupMember actor = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
                                 .orElseThrow(() -> new RuntimeException("You are not part of this subgroup"));
@@ -696,6 +732,7 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+                ensurePreRideSetupEditable(group.getRide());
 
                 GroupMember actor = groupMemberRepository.findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
                                 .orElseThrow(() -> new RuntimeException("You are not part of this subgroup"));
@@ -721,6 +758,7 @@ public class RideService {
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = rideGroupRepository.findByUuid(groupUuid)
                                 .orElseThrow(() -> new RuntimeException("Group not found"));
+                ensurePreRideSetupEditable(group.getRide());
 
                 if (group.getParentGroup() == null) {
                         throw new RuntimeException("Use ride join to rejoin the main group");
@@ -772,6 +810,7 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+                ensurePreRideSetupEditable(group.getRide());
 
                 if (!canManageGroup(group, actorUser)) {
                         throw new RuntimeException("Only captain/admin can approve join requests");
@@ -809,6 +848,7 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+                ensurePreRideSetupEditable(group.getRide());
 
                 if (!canManageGroup(group, actorUser)) {
                         throw new RuntimeException("Only captain/admin can reject join requests");
@@ -862,6 +902,7 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+                ensurePreRideSetupEditable(group.getRide());
 
                 if (!canManageGroup(group, actorUser)) {
                         throw new RuntimeException("Only captain/admin can rename groups");
@@ -971,6 +1012,7 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+                ensurePreRideSetupEditable(group.getRide());
 
                 if (!canAddMembers(group, actorUser)) {
                         throw new RuntimeException("You do not have permission to add members to this subgroup");
@@ -1007,6 +1049,7 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
+                ensurePreRideSetupEditable(group.getRide());
 
                 GroupMember actorMembership = groupMemberRepository
                                 .findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
@@ -1153,6 +1196,17 @@ public class RideService {
                                 .stream()
                                 .filter(member -> !member.getUser().getId().equals(actorUser.getId()))
                                 .anyMatch(member -> isSubGroupManager(member.getRole()));
+        }
+
+        private void ensurePreRideSetupEditable(Ride ride) {
+                if (ride == null) {
+                        return;
+                }
+
+                Status status = ride.getStatus();
+                if (status != Status.CREATED && status != Status.SCHEDULED) {
+                        throw new RuntimeException(PRE_RIDE_FROZEN_MESSAGE);
+                }
         }
 
         private void notifyGroupManagers(
