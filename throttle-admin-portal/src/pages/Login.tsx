@@ -24,7 +24,7 @@ export const Login = () => {
       
       if (resp.data.data && resp.data.data.token && resp.data.data.refreshToken) {
         // Authenticate via robust context utilizing both tokens
-        login(resp.data.data.token, resp.data.data.refreshToken);
+        login(resp.data.data.token, resp.data.data.refreshToken, role);
         toast.success("Welcome back, Admin!");
         navigate('/');
       } else {

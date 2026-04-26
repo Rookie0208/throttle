@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
-import { Home, Users, Bike, LogOut, Menu, X, Flag, History } from 'lucide-react';
+import { Home, Users, Bike, LogOut, Menu, X, Flag, History, Database } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const Layout = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, role } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -23,6 +23,10 @@ export const Layout = () => {
     { name: 'Reports', path: '/reports', icon: Flag },
     { name: 'Audit Logs', path: '/audit-logs', icon: History },
   ];
+
+  if (role === 'ADMIN') {
+    navItems.push({ name: 'Query Executor', path: '/query-executor', icon: Database });
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 flex-col md:flex-row overflow-hidden">
