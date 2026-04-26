@@ -25,7 +25,12 @@ public class RideSessionResponse {
     private String currentUserState;
     private LocalDateTime currentUserRideStartedAt;
     private LocalDateTime currentUserArrivedAtStartAt;
+    private LocalDateTime currentUserReturnStartTime;
+    private LocalDateTime currentUserReturnEndTime;
     private Long currentUserTimeToMeetingSeconds;
+    private Long currentUserGroupRideDurationSeconds;
+    private Long currentUserReturnRideDurationSeconds;
+    private Long currentUserTotalRideDurationSeconds;
     private String meetingPoint;
     private String fuelStops;
     private Integer currentCheckpointIndex;
@@ -43,6 +48,8 @@ public class RideSessionResponse {
     private Integer enRouteCount;
     private Integer atStartCount;
     private Integer inRideCount;
+    private Integer returnRideStartedCount;
+    private Integer returnRideCompletedCount;
     private List<RideSessionCheckpointResponse> checkpoints;
     private List<RideParticipantDto> participants;
 }
