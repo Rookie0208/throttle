@@ -500,6 +500,11 @@ public class RideService {
                         throw new RuntimeException("Only captain can complete ride");
                 }
 
+                if (ride.getStatus() == Status.COMPLETED && ride.getRideCompletedAt() != null) {
+                        rideSessionService.publishSessionUpdate(rideId);
+                        return;
+                }
+
                 ride.setStatus(Status.COMPLETED);
                 ride.setRideCompletedAt(LocalDateTime.now());
                 ride.setEndTime(LocalDateTime.now());
