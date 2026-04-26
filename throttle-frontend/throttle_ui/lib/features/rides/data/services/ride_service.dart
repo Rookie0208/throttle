@@ -388,6 +388,18 @@ class RideService {
     }
   }
 
+  static Future<void> cancelRide(String token, String rideUuid) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/cancel"),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final data = _decodeBody(response.body);
+      throw Exception(data["message"] ?? "Failed to cancel ride");
+    }
+  }
+
   static Map<String, dynamic> buildPreRideInfoPayload({
     required Map<String, dynamic> rideGroup,
     required String meetingPoint,
