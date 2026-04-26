@@ -31,6 +31,7 @@ import com.ridersclub.common.enums.NotificationType;
 import com.ridersclub.ride.entity.RideInvitation;
 import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
+import com.ridersclub.common.enums.RideType;
 import com.ridersclub.notification.service.NotificationService;
 import com.ridersclub.ride.dto.response.RideInviteCandidateResponse;
 import com.ridersclub.ride.dto.response.RideInvitationResponse;
@@ -73,6 +74,12 @@ public class RideParticipantService {
 
     private boolean isRideManager(Role role) {
         return role == Role.CAPTAIN || role == Role.ADMIN || role == Role.CO_CAPTAIN;
+    }
+
+    private void ensureRideSupportsInvites(Ride ride) {
+        if (ride.getRideType() == RideType.SOLO) {
+            throw new RuntimeException("Solo rides do not support member invites");
+        }
     }
 
     public List<RideParticipantDto> getRideParticipants(String rideId) {
@@ -274,6 +281,7 @@ public class RideParticipantService {
     public List<RideInviteCandidateResponse> getInviteCandidates(String rideUuid, String actorUserUuid) {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
+        ensureRideSupportsInvites(ride);
 
         RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
                 rideUuid, actorUserUuid, Status.EXITED)
@@ -329,6 +337,7 @@ public class RideParticipantService {
     public RideInvitationResponse inviteMember(String rideUuid, String inviteeUuid, String actorUserUuid) {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
+        ensureRideSupportsInvites(ride);
 
         RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
                 rideUuid, actorUserUuid, Status.EXITED)

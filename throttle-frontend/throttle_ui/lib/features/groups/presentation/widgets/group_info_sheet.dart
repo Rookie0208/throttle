@@ -101,7 +101,13 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
   bool _canOpenAddMembers(String currentUserRole) {
     if (_isGroupLocked) return false;
-    if (!_isSubGroup) return _canManageMembers(currentUserRole);
+    if (!_isSubGroup) {
+      final rideType = (widget.rideGroup["rideType"] ?? "")
+          .toString()
+          .toUpperCase();
+      if (rideType == "SOLO") return false;
+      return _canManageMembers(currentUserRole);
+    }
     if (!_isGroupMember(widget.rideGroup)) return false;
     if (_canManageMembers(currentUserRole)) return true;
     return widget.rideGroup["membersCanAddMembers"] == true &&
