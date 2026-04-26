@@ -7,6 +7,7 @@ import { Users } from './pages/Users';
 import { Rides } from './pages/Rides';
 import { Reports } from './pages/Reports';
 import { AuditLogs } from './pages/AuditLogs';
+import { DatabaseQuery } from './pages/DatabaseQuery';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
             <Route path="rides" element={<Rides />} />
             <Route path="reports" element={<Reports />} />
             <Route path="audit-logs" element={<AuditLogs />} />
+            <Route path="query-executor" element={<DatabaseQuery />} />
           </Route>
         </Routes>
       </BrowserRouter>
