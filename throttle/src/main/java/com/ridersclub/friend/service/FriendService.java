@@ -21,6 +21,10 @@ import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.Cache;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -46,6 +50,51 @@ public class FriendService {
     private final SimpMessagingTemplate messagingTemplate;
     private final Neo4jClient neo4jClient;
     private final NotificationService notificationService;
+    private final CacheManager cacheManager;
+
+    private void notifyUsersAfterCommit(String... uuids) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    for (String uuid : uuids) {
+                        notifyUser(uuid);
+                    }
+                }
+            });
+        } else {
+            for (String uuid : uuids) {
+                notifyUser(uuid);
+            }
+        }
+    }
+
+    private void evictAndNotifyAfterCommit(String... uuids) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    Cache cache = cacheManager.getCache("user_friends");
+                    for (String uuid : uuids) {
+                        log.debug("{} action=evict_and_notify_after_commit user={}", LOG_PREFIX, uuid);
+                        if (cache != null) {
+                            cache.evict(uuid);
+                        }
+                        notifyUser(uuid);
+                    }
+                }
+            });
+        } else {
+            Cache cache = cacheManager.getCache("user_friends");
+            for (String uuid : uuids) {
+                log.debug("{} action=evict_and_notify_no_tx user={}", LOG_PREFIX, uuid);
+                if (cache != null) {
+                    cache.evict(uuid);
+                }
+                notifyUser(uuid);
+            }
+        }
+    }
 
     private User getRequiredUser(String userUuid, String label) {
         return userRepository.findByUuid(userUuid)
@@ -129,8 +178,7 @@ public class FriendService {
         if (existingOutgoingRequest.isPresent()) {
             FriendRequest request = existingOutgoingRequest.get();
             reactivateRequest(request, sender, receiver, "outgoing");
-            notifyUser(senderUuid);
-            notifyUser(receiverUuid);
+            notifyUsersAfterCommit(senderUuid, receiverUuid);
             return;
         }
 
@@ -138,8 +186,7 @@ public class FriendService {
         if (existingIncomingRequest.isPresent()) {
             FriendRequest request = existingIncomingRequest.get();
             reactivateRequest(request, sender, receiver, "incoming");
-            notifyUser(senderUuid);
-            notifyUser(receiverUuid);
+            notifyUsersAfterCommit(senderUuid, receiverUuid);
             return;
         }
 
@@ -150,8 +197,7 @@ public class FriendService {
         log.info("{} action=send_request_created sender={} receiver={} requestId={}", LOG_PREFIX, senderUuid,
                 receiverUuid, request.getId());
         createFriendRequestNotification(sender, receiver, request.getId());
-        notifyUser(senderUuid);
-        notifyUser(receiverUuid);
+        notifyUsersAfterCommit(senderUuid, receiverUuid);
     }
 
     private void reactivateRequest(FriendRequest request, User sender, User receiver, String direction) {
@@ -191,7 +237,6 @@ public class FriendService {
     }
 
     @Transactional
-    @CacheEvict(value = "user_friends", key = "#receiverUuid")
     public void acceptRequest(String receiverUuid, Long requestId) {
         log.info("{} action=accept_request_start receiver={} requestId={}", LOG_PREFIX, receiverUuid, requestId);
         FriendRequest request = getAuthorizedPendingRequest(receiverUuid, requestId, "accept_request");
@@ -226,22 +271,20 @@ public class FriendService {
                     sender.getUuid(), receiver.getUuid(), requestId);
         }
 
-        evictCache(sender.getUuid());
-
         notificationService.createAndSend(
                 sender.getId(),
-                NotificationType.FRIEND_ACCEPTED,
+                com.ridersclub.common.enums.NotificationType.FRIEND_ACCEPTED,
                 "Friend Request Accepted!",
                 receiverName + " accepted your friend request.",
                 receiver.getId(),
                 "USER");
+
         log.info("{} action=create_accept_notification sender={} receiver={} requestId={}", LOG_PREFIX,
                 sender.getUuid(), receiver.getUuid(), requestId);
 
         friendshipEventPublisher.publishFriendAcceptedEvent(sender.getUuid(), receiver.getUuid());
 
-        notifyUser(sender.getUuid());
-        notifyUser(receiver.getUuid());
+        evictAndNotifyAfterCommit(sender.getUuid(), receiver.getUuid());
 
         final String sUuid = sender.getUuid();
         final String sFirst = sender.getFirstName();
@@ -271,11 +314,6 @@ public class FriendService {
         });
     }
 
-    @CacheEvict(value = "user_friends", key = "#uuid")
-    public void evictCache(String uuid) {
-        log.debug("{} action=evict_cache user={}", LOG_PREFIX, uuid);
-    }
-
     @Transactional
     public void rejectRequest(String receiverUuid, Long requestId) {
         log.info("{} action=reject_request_start receiver={} requestId={}", LOG_PREFIX, receiverUuid, requestId);
@@ -284,8 +322,7 @@ public class FriendService {
         request.setStatus(FriendRequestStatus.REJECTED);
         friendRequestRepository.save(request);
         log.info("{} action=reject_request_completed receiver={} requestId={}", LOG_PREFIX, receiverUuid, requestId);
-        notifyUser(receiverUuid);
-        notifyUser(request.getSender().getUuid());
+        notifyUsersAfterCommit(receiverUuid, request.getSender().getUuid());
     }
 
     @Transactional
@@ -304,10 +341,7 @@ public class FriendService {
         friendshipRepository.deleteByUserAndFriend(target, user);
         log.info("{} action=unfriend_completed user={} target={}", LOG_PREFIX, userUuid, targetUserUuid);
 
-        evictCache(userUuid);
-        evictCache(targetUserUuid);
-        notifyUser(userUuid);
-        notifyUser(targetUserUuid);
+        evictAndNotifyAfterCommit(userUuid, targetUserUuid);
 
         CompletableFuture.runAsync(() -> {
             try {
