@@ -3,6 +3,7 @@ import 'package:throttle_ui/features/notifications/data/models/notification_mode
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/public_profile_screen.dart';
 
@@ -163,6 +164,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         widget.token,
         notification.referenceId!,
       );
+      RideRefreshNotifier.notify();
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

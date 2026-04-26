@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 
 class PublicRidesScreen extends StatefulWidget {
   final String token;
@@ -235,6 +236,7 @@ class _PublicRidesScreenState extends State<PublicRidesScreen> {
   void _joinRide(String rideId) async {
     try {
       await GroupService.joinRide(widget.token, rideId);
+      RideRefreshNotifier.notify();
       if (!mounted) return;
 
       ScaffoldMessenger.of(
