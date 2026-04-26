@@ -250,6 +250,40 @@ class RideService {
     throw Exception(data["message"] ?? "Failed to start ride");
   }
 
+  static Future<Map<String, dynamic>> startReturnRide(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/return/start"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to start return ride");
+  }
+
+  static Future<Map<String, dynamic>> endReturnRide(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/return/end"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to complete return ride");
+  }
+
   static Future<Map<String, dynamic>> updateRideLocation(
     String token,
     String rideUuid, {
