@@ -45,48 +45,48 @@ export const Rides = () => {
     <div className="animate-in fade-in duration-500">
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Ride Management</h1>
-          <p className="text-gray-500 mt-2">Monitor active and scheduled rides.</p>
+          <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white">Ride Management</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">Monitor active and scheduled rides.</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="glass-panel overflow-hidden border-x-0 border-b-0 md:border md:rounded-2xl shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-max">
+          <table className="glass-table min-w-max">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
-                <th className="p-4 font-medium">Title</th>
-                <th className="p-4 font-medium">Type</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium text-right">Actions</th>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
             {loading ? (
-              <tr><td colSpan={4} className="text-center p-8 text-gray-400">Loading rides...</td></tr>
+              <tr><td colSpan={4} className="text-center py-10 font-semibold text-slate-500 dark:text-slate-400">Loading rides...</td></tr>
             ) : rides.length === 0 ? (
-              <tr><td colSpan={4} className="text-center p-8 text-gray-400">No rides found.</td></tr>
+              <tr><td colSpan={4} className="text-center py-10 font-semibold text-slate-500 dark:text-slate-400">No rides found.</td></tr>
             ) : (
               rides.map(ride => (
-                <tr key={ride.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4 font-medium text-gray-900">{ride.title}</td>
-                  <td className="p-4 text-gray-500">{ride.rideType}</td>
-                  <td className="p-4">
-                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        ride.status === 'UPCOMING' ? 'bg-amber-50 text-amber-700' : 
-                        ride.status === 'COMPLETED' ? 'bg-emerald-50 text-emerald-700' :
-                        'bg-red-50 text-red-700'
+                <tr key={ride.id}>
+                  <td className="font-semibold text-slate-900 dark:text-slate-200">{ride.title}</td>
+                  <td className="text-slate-600 dark:text-slate-400">{ride.rideType}</td>
+                  <td>
+                     <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${
+                        ride.status === 'UPCOMING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30' : 
+                        ride.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' :
+                        'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'
                       }`}>
                         {ride.status}
                      </span>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="text-right">
                     {ride.status !== 'CANCELLED' && (
                       <button
                         onClick={() => handleCancel(ride.id)}
-                        className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-red-600 bg-red-50 hover:bg-red-100"
+                        className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all text-rose-700 hover:bg-rose-100 bg-rose-50 border border-rose-200 dark:text-rose-400 dark:hover:bg-rose-500/20 dark:bg-rose-500/10 dark:border-rose-500/30"
                       >
-                        <XCircle size={16} /> <span>Force Cancel</span>
+                        <XCircle size={14} /> <span>Cancel</span>
                       </button>
                     )}
                   </td>
