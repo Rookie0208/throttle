@@ -71,6 +71,15 @@ public class RideParticipant {
     @Column(name = "state_updated_at")
     private LocalDateTime stateUpdatedAt;
 
+    @Column(name = "return_started_at")
+    private LocalDateTime returnStartedAt;
+
+    @Column(name = "return_completed_at")
+    private LocalDateTime returnCompletedAt;
+
+    @Column(name = "return_ride_duration_seconds")
+    private Long returnRideDurationSeconds;
+
     public RideParticipant(Ride ride, User user) {
         this.ride = ride;
         this.user = user;
