@@ -149,6 +149,16 @@ public class RideController {
         return ApiResponse.success(null, "Ride completed successfully");
     }
 
+    @PostMapping(ApiConstants.Rides.CANCEL)
+    public ApiResponse<?> cancel(@PathVariable String id,
+            Authentication authentication) {
+
+        String userUuid = authentication.getName();
+
+        rideService.cancel(id, userUuid);
+        return ApiResponse.success(null, "Ride cancelled successfully");
+    }
+
     @GetMapping("/{id}/session")
     public ApiResponse<RideSessionResponse> getRideSession(
             @PathVariable String id,

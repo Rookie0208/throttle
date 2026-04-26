@@ -11,6 +11,7 @@ class InviteMemberScreen extends StatefulWidget {
   final String? subgroupUuid;
   final bool selectionOnly;
   final List<String> preselectedMemberUuids;
+  final bool preRideFrozen;
 
   const InviteMemberScreen({
     super.key,
@@ -19,6 +20,7 @@ class InviteMemberScreen extends StatefulWidget {
     this.subgroupUuid,
     this.selectionOnly = false,
     this.preselectedMemberUuids = const [],
+    this.preRideFrozen = false,
   });
 
   bool get isRideInviteMode => subgroupUuid == null && !selectionOnly;
@@ -156,6 +158,13 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
   }
 
   Future<void> _inviteFriend(Map<String, dynamic> friend) async {
+    if (widget.preRideFrozen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ride setup is frozen after start')),
+      );
+      return;
+    }
+
     final friendUuid =
         friend['userUuid']?.toString() ?? friend['uuid']?.toString();
     if (friendUuid == null || friendUuid.isEmpty) return;
@@ -181,6 +190,13 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
   }
 
   Future<void> _submitSelectedMembers() async {
+    if (widget.preRideFrozen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ride setup is frozen after start')),
+      );
+      return;
+    }
+
     final selected = _selectedUuids.toList();
     if (selected.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -626,7 +626,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           context,
           MaterialPageRoute(
             builder: (_) =>
-                InviteMemberScreen(rideUuid: _rideUuid, token: widget.token),
+                InviteMemberScreen(
+                  rideUuid: _rideUuid,
+                  token: widget.token,
+                  preRideFrozen: _isRideStarted,
+                ),
           ),
         );
         break;
@@ -739,7 +743,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       context,
       MaterialPageRoute(
         builder: (_) =>
-            CreateSubGroupScreen(rideUuid: _rideUuid, token: widget.token),
+            CreateSubGroupScreen(
+              rideUuid: _rideUuid,
+              token: widget.token,
+              preRideFrozen: _isRideStarted,
+            ),
       ),
     );
 
