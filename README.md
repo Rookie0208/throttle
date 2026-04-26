@@ -133,3 +133,28 @@ Update `application.properties`:
 
 Backend will start at:
 http://localhost:8080
+
+---
+
+# 💻 Super Admin Portal
+
+The Super Admin Portal is a web-based dashboard for administrative controls and insights, built with React and Vite.
+
+## 🛠 Requirements
+
+- Node.js (v18 or higher)
+- npm
+
+## ▶️ How to Run Super Admin Portal
+
+1. Navigate to the admin portal folder:
+   -> cd throttle-admin-portal
+
+2. Install dependencies (if not already installed):
+   -> npm install
+
+3. Run the development server:
+   -> npm run dev
+
+The admin portal will start at:
+http://localhost:5173

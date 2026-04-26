@@ -522,7 +522,28 @@ public class FriendService {
                     e.getMessage());
         }
 
-        List<FriendDto> nonMutualResults = userRepository.findAll(PageRequest.of(0, 50)).stream()
+        List<User> fallbackCandidates = new ArrayList<>();
+
+        // 1. Fetch latest registered users to ensure "fresh" unlinked accounts are discoverable immediately
+        fallbackCandidates.addAll(userRepository.findAll(
+                PageRequest.of(0, 50, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))
+        ).getContent());
+
+        // 2. Fetch a random page slice of the entire user base for organic varied discovery on reload
+        long totalUsers = userRepository.count();
+        if (totalUsers > 50) {
+            int totalPages = (int) (totalUsers / 50);
+            int randomPage = totalPages > 0 ? new java.util.Random().nextInt(totalPages) : 0;
+            fallbackCandidates.addAll(userRepository.findAll(PageRequest.of(randomPage, 50)).getContent());
+        }
+
+        // 3. Shuffle combination for highly dynamic presentation
+        java.util.Collections.shuffle(fallbackCandidates);
+
+        java.util.Set<String> seenCandidateUuids = new HashSet<>();
+
+        List<FriendDto> nonMutualResults = fallbackCandidates.stream()
+                .filter(u -> seenCandidateUuids.add(u.getUuid()))
                 .filter(u -> u.isActive()
                         && !u.getUuid().equals(userUuid)
                         && !existingFriendUuids.contains(u.getUuid())
