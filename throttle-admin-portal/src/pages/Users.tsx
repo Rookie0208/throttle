@@ -66,77 +66,76 @@ const handleRoleChange = async (id: number, newRole: string) => {
     <div className="animate-in fade-in duration-500">
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-500 mt-2">View and manage platform riders.</p>
+          <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white">User Management</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">View and manage platform riders.</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="glass-panel overflow-hidden border-x-0 border-b-0 md:border md:rounded-2xl shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-max">
+          <table className="glass-table min-w-max">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
-                <th className="p-4 font-medium">Username</th>
-                <th className="p-4 font-medium">Email</th>
-                <th className="p-4 font-medium">Role</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium text-right">Actions</th>
+              <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center p-8 text-gray-400">Loading users...</td></tr>
+              <tr><td colSpan={5} className="text-center py-10 font-semibold text-slate-500 dark:text-slate-400">Loading users...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={5} className="text-center p-8 text-gray-400">No users found.</td></tr>
+              <tr><td colSpan={5} className="text-center py-10 font-semibold text-slate-500 dark:text-slate-400">No users found.</td></tr>
             ) : (
               users.map(user => {
                 const currentSelectedRole = pendingRoles[user.id] || user.role;
                 const hasRoleChanged = currentSelectedRole !== user.role;
 
                 return (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4 font-medium text-gray-900">{user.username}</td>
-                    <td className="p-4 text-gray-500">{user.email}</td>
-                    <td className="p-4">
+                  <tr key={user.id}>
+                    <td className="font-semibold text-slate-900 dark:text-slate-200">{user.username}</td>
+                    <td className="text-slate-600 dark:text-slate-400">{user.email}</td>
+                    <td>
                       <select
                         value={currentSelectedRole}
                         onChange={(e) => setPendingRoles({ ...pendingRoles, [user.id]: e.target.value })}
-                        className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full text-xs font-semibold uppercase hover:bg-indigo-100 cursor-pointer focus:outline-none border-0"
+                        className="bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300 px-3 py-1.5 rounded-md text-xs font-semibold uppercase hover:bg-slate-200 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none"
                       >
-
                         <option value="RIDER">RIDER</option>
                         <option value="SUPPORT">SUPPORT</option>
                         <option value="MODERATOR">MODERATOR</option>
                         <option value="ADMIN">ADMIN</option>
                       </select>
                     </td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${user.active ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                    <td>
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${user.active ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30'}`}>
                         {user.active ? 'Active' : 'Blocked'}
                       </span>
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="text-right">
                       <div className="flex items-center justify-end space-x-2">
                         <button
                           onClick={() => handleRoleChange(user.id, currentSelectedRole)}
                           disabled={!hasRoleChanged}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all ${
                             hasRoleChanged 
-                              ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
-                              : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm' 
+                              : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed'
                           }`}
                         >
                           Update
                         </button>
                         <button
                           onClick={() => handleToggleBlock(user.id, user.active)}
-                          className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all ${
                             user.active 
-                              ? 'text-red-600 bg-red-50 hover:bg-red-100' 
-                              : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                              ? 'text-rose-700 hover:bg-rose-100 bg-rose-50 border border-rose-200 dark:text-rose-400 dark:hover:bg-rose-500/20 dark:bg-rose-500/10 dark:border-rose-500/30' 
+                              : 'text-emerald-700 hover:bg-emerald-100 bg-emerald-50 border border-emerald-200 dark:text-emerald-400 dark:hover:bg-emerald-500/20 dark:bg-emerald-500/10 dark:border-emerald-500/30'
                           }`}
                         >
-                          {user.active ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
+                          {user.active ? <ShieldAlert size={14} /> : <ShieldCheck size={14} />}
                           <span>{user.active ? 'Block' : 'Unblock'}</span>
                         </button>
                       </div>

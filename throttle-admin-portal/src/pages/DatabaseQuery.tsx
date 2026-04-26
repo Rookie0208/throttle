@@ -41,24 +41,24 @@ export const DatabaseQuery = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="animate-in fade-in duration-500 space-y-6">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Query Executor</h1>
-          <p className="text-gray-500 mt-1">Run complex queries and data fixes manually (Max 500 rows)</p>
+          <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white">Query Executor</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">Run complex database queries and telemetry fixes seamlessly via raw uplink.</p>
         </div>
       </div>
 
       {/* Editor Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="bg-slate-900 px-4 py-3 flex justify-between items-center">
-          <span className="text-gray-300 text-sm font-mono flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span> SQL Window
+      <div className="glass-panel overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm rounded-2xl">
+        <div className="bg-slate-100 dark:bg-slate-950 px-6 py-4 flex justify-between items-center border-b border-slate-200 dark:border-slate-800">
+          <span className="text-indigo-600 dark:text-indigo-400 text-xs font-semibold uppercase tracking-widest flex items-center gap-3">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)] dark:shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span> Secure SQL Tunnel ACTIVE
           </span>
           <button
             onClick={handleExecute}
             disabled={loading || !query.trim()}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -72,28 +72,28 @@ export const DatabaseQuery = () => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="SELECT * FROM users LIMIT 10;"
-          className="w-full h-48 sm:h-64 bg-slate-950 text-emerald-400 font-mono p-4 resize-y focus:outline-none placeholder-gray-700 leading-relaxed"
+          className="w-full h-48 sm:h-64 bg-slate-50 dark:bg-slate-900/50 text-indigo-700 dark:text-cyan-400 font-mono p-6 resize-y outline-none placeholder-slate-400 dark:placeholder-slate-700 leading-relaxed text-sm shadow-inner"
           spellCheck={false}
         />
       </div>
 
       {/* Results Section */}
       {result && (
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className="flex items-center justify-between text-sm">
-            <h2 className="text-lg font-semibold text-gray-900">Execution Result</h2>
-            <div className="flex items-center space-x-4">
-              <span className="flex items-center space-x-1.5 text-gray-500">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center justify-between text-sm bg-slate-100 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+            <h2 className="text-lg font-display font-bold text-slate-900 dark:text-slate-200 uppercase tracking-wide">Execution Result</h2>
+            <div className="flex items-center space-x-6">
+              <span className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 font-mono">
                 <Clock size={14} />
-                <span>{result.executionTimeMs} ms</span>
+                <span>{result.executionTimeMs}ms</span>
               </span>
               {result.error ? (
-                <span className="flex items-center space-x-1.5 text-red-600 bg-red-50 px-2.5 py-1 rounded-full">
+                <span className="flex items-center space-x-2 text-rose-700 bg-rose-100 border border-rose-200 dark:text-rose-400 dark:bg-rose-500/10 dark:border-rose-500/30 px-3 py-1 rounded-full font-bold uppercase text-[10px] tracking-widest">
                   <AlertCircle size={14} />
                   <span>Failed</span>
                 </span>
               ) : (
-                <span className="flex items-center space-x-1.5 text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                <span className="flex items-center space-x-2 text-emerald-700 bg-emerald-100 border border-emerald-200 dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-emerald-500/30 px-3 py-1 rounded-full font-bold uppercase text-[10px] tracking-widest">
                   <CheckCircle2 size={14} />
                   <span>Success</span>
                 </span>
@@ -102,55 +102,54 @@ export const DatabaseQuery = () => {
           </div>
 
           {result.error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg font-mono text-sm whitespace-pre-wrap">
-              <div className="font-semibold mb-1 flex items-center gap-2">
-                <AlertCircle size={16} /> SQL Exception
+            <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-400 p-6 rounded-2xl font-mono text-sm whitespace-pre-wrap">
+              <div className="font-bold mb-3 flex items-center gap-2 uppercase tracking-widest text-xs">
+                <AlertCircle size={16} /> SQL Exception Detected
               </div>
               {result.error}
             </div>
           )}
 
           {!result.error && !result.resultSet && (
-            <div className="bg-white border border-gray-200 p-6 rounded-xl flex flex-col items-center justify-center text-gray-500">
-              <CheckCircle2 size={32} className="text-emerald-500 mb-3" />
-              <p className="text-lg font-medium text-gray-900">Query Executed Successfully</p>
-              <p className="mt-1">{result.rowsAffected} row(s) affected.</p>
+            <div className="glass-panel p-10 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400">
+              <CheckCircle2 size={48} className="text-emerald-500 dark:text-emerald-400 mb-4" />
+              <p className="text-2xl font-display font-bold text-slate-900 dark:text-slate-200">Query Executed Successfully</p>
+              <p className="mt-2 text-indigo-600 dark:text-indigo-300 font-mono">{result.rowsAffected} row(s) updated in database.</p>
             </div>
           )}
 
           {!result.error && result.resultSet && result.columns && result.data && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+            <div className="glass-panel overflow-hidden overflow-x-auto shadow-sm rounded-2xl">
+              <table className="glass-table min-w-full">
+                <thead>
                   <tr>
                     {result.columns.map((col, idx) => (
                       <th
                         key={idx}
-                        className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                       >
                         {col}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {result.data.length === 0 ? (
                     <tr>
-                      <td colSpan={result.columns.length} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={result.columns.length} className="px-6 py-8 text-center text-slate-500 font-medium">
                         No rows returned.
                       </td>
                     </tr>
                   ) : (
                     result.data.map((row, rowIdx) => (
-                      <tr key={rowIdx} className="hover:bg-slate-50 transition-colors">
+                      <tr key={rowIdx}>
                         {result.columns!.map((col, colIdx) => (
-                          <td key={colIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                          <td key={colIdx}>
                             {row[col] === null ? (
-                              <span className="text-gray-400 italic">null</span>
+                              <span className="text-slate-400 dark:text-slate-500 italic font-mono text-xs">null</span>
                             ) : typeof row[col] === 'boolean' ? (
-                              row[col] ? 'true' : 'false'
+                              <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-widest ${row[col] ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'}`}>{row[col] ? 'true' : 'false'}</span>
                             ) : typeof row[col] === 'object' ? (
-                              JSON.stringify(row[col])
+                              <span className="font-mono text-xs text-indigo-600 dark:text-indigo-300">{JSON.stringify(row[col])}</span>
                             ) : (
                               String(row[col])
                             )}

@@ -54,59 +54,59 @@ export const Reports = () => {
     <div className="animate-in fade-in duration-500">
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Content Moderation</h1>
-          <p className="text-gray-500 mt-2">Manage flagged content, toxic behavior, and platform reports.</p>
+          <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white">Content Moderation</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">Manage flagged content, toxic behavior, and platform reports.</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="glass-panel overflow-hidden border-x-0 border-b-0 md:border md:rounded-2xl shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-max">
+          <table className="glass-table min-w-max">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
-                <th className="p-4 font-medium">Type</th>
-                <th className="p-4 font-medium">Reason</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium text-right">Actions</th>
+              <tr>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {loading ? (
-                <tr><td colSpan={4} className="text-center p-8 text-gray-400">Loading reports...</td></tr>
+                <tr><td colSpan={4} className="text-center py-10 font-semibold text-slate-500 dark:text-slate-400">Loading reports...</td></tr>
               ) : reports.length === 0 ? (
-                <tr><td colSpan={4} className="text-center p-8 text-gray-400">No active reports. Good job!</td></tr>
+                <tr><td colSpan={4} className="text-center py-10 font-semibold text-slate-500 dark:text-slate-400">No active reports. All clear!</td></tr>
               ) : (
                 reports.map(report => (
-                  <tr key={report.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-4">
+                  <tr key={report.id}>
+                    <td>
                       <div className="flex items-center space-x-2">
-                        <Flag size={16} className={report.type === 'USER' ? 'text-blue-500' : 'text-purple-500'} />
-                        <span className="font-semibold text-gray-900">{report.type}</span>
-                        <span className="text-xs text-gray-400">#{report.targetId}</span>
+                        <Flag size={16} className={report.type === 'USER' ? 'text-indigo-600 dark:text-indigo-400' : 'text-purple-600 dark:text-purple-400'} />
+                        <span className="font-semibold text-slate-900 dark:text-slate-200">{report.type}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-500">#{report.targetId}</span>
                       </div>
                     </td>
-                    <td className="p-4 text-gray-600 max-w-md truncate" title={report.reason}>{report.reason}</td>
-                    <td className="p-4">
-                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          report.status === 'PENDING' ? 'bg-amber-50 text-amber-700' : 
-                          'bg-emerald-50 text-emerald-700'
+                    <td className="text-slate-600 dark:text-slate-400 max-w-md truncate" title={report.reason}>{report.reason}</td>
+                    <td>
+                       <span className={`px-2.5 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${
+                          report.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30' : 
+                          'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
                         }`}>
                           {report.status}
                        </span>
                        {report.resolutionNote && (
-                         <div className="text-xs text-gray-400 mt-1 truncate max-w-[150px]" title={report.resolutionNote}>
+                         <div className="text-xs text-slate-500 dark:text-slate-500 mt-1 truncate max-w-[150px]" title={report.resolutionNote}>
                            Note: {report.resolutionNote}
                          </div>
                        )}
                     </td>
-                    <td className="p-4 text-right">
+                    <td className="text-right">
                       {report.status === 'PENDING' && (
                         <button
                           onClick={() => handleResolve(report.id)}
                           disabled={resolvingId === report.id}
-                          className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-emerald-600 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50"
+                          className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wide transition-all text-emerald-700 hover:bg-emerald-100 bg-emerald-50 border border-emerald-200 dark:text-emerald-400 dark:hover:bg-emerald-500/20 dark:bg-emerald-500/10 dark:border-emerald-500/30 disabled:opacity-50"
                         >
-                          <CheckCircle size={16} /> <span>{resolvingId === report.id ? 'Resolving...' : 'Resolve'}</span>
+                          <CheckCircle size={14} /> <span>{resolvingId === report.id ? 'PROCESSING...' : 'RESOLVE'}</span>
                         </button>
                       )}
                     </td>

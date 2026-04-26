@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
-import { Home, Users, Bike, LogOut, Menu, X, Flag, History, Database } from 'lucide-react';
+import { Home, Users, Bike, LogOut, Menu, X, Flag, History, Database, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export const Layout = () => {
   const { isAuthenticated, logout, role } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -29,15 +31,20 @@ export const Layout = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 flex-col md:flex-row overflow-hidden">
+    <div className="flex h-screen bg-transparent flex-col md:flex-row overflow-hidden relative font-sans">
       {/* Mobile Topbar */}
-      <div className="md:hidden flex items-center justify-between bg-slate-900 text-white p-4 z-40 relative">
-        <h1 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">
+      <div className="md:hidden flex items-center justify-between glass-panel text-slate-900 dark:text-white p-4 z-40 relative">
+        <h1 className="text-xl font-bold font-display text-indigo-600 dark:text-indigo-400">
           Throttle Admin
         </h1>
-        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-gray-400 hover:text-white focus:outline-none">
-          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div className="flex items-center space-x-4">
+          <button onClick={toggleTheme} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white focus:outline-none">
+            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          </button>
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white focus:outline-none">
+            {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </div>
 
       {/* Sidebar Overlay for Mobile */}
@@ -50,19 +57,25 @@ export const Layout = () => {
 
       {/* Sidebar */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 glass-panel flex flex-col transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:m-4 md:rounded-2xl md:h-[calc(100vh-2rem)] ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-6 hidden md:block">
-          <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">
-            Throttle Admin
-          </h1>
+        <div className="p-6 hidden md:flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-indigo-600 dark:text-indigo-400 drop-shadow-sm">
+              Throttle
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-indigo-300 font-semibold tracking-widest mt-1 uppercase">Portal AI</p>
+          </div>
+          <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors">
+            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
         </div>
         
-        <div className="p-6 md:hidden flex justify-between items-center border-b border-gray-800">
-          <h1 className="text-xl font-bold text-white">Menu</h1>
-          <button onClick={() => setSidebarOpen(false)} className="text-gray-400 hover:text-white focus:outline-none">
+        <div className="p-6 md:hidden flex justify-between items-center border-b border-slate-200 dark:border-slate-800/50">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Menu</h1>
+          <button onClick={() => setSidebarOpen(false)} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white focus:outline-none">
              <X size={24} />
           </button>
         </div>
@@ -77,10 +90,10 @@ export const Layout = () => {
                 key={item.name}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                className={`flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                   isActive 
-                    ? 'bg-blue-600/20 text-blue-400 font-medium' 
-                    : 'text-gray-400 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-semibold border border-indigo-100 dark:border-indigo-500/30' 
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/40 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 <Icon size={20} />
@@ -90,20 +103,22 @@ export const Layout = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800/50">
           <button 
             onClick={handleLogout}
-            className="flex items-center space-x-3 px-4 py-3 text-gray-400 hover:text-white w-full rounded-lg transition-colors hover:bg-slate-800 focus:outline-none"
+            className="flex items-center space-x-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 w-full rounded-xl transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 focus:outline-none"
           >
             <LogOut size={20} />
-            <span>Logout</span>
+            <span className="font-medium">Logout</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto bg-gray-50 p-4 md:p-8 h-full">
-        <Outlet />
+      <main className="flex-1 overflow-auto bg-transparent p-4 md:p-8 md:pl-4 h-full">
+        <div className="max-w-7xl mx-auto h-full">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
