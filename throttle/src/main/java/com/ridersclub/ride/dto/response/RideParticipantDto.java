@@ -23,6 +23,13 @@ public class RideParticipantDto {
     private Double lastLatitude;
     private Double lastLongitude;
     private LocalDateTime lastLocationUpdatedAt;
-
     private LocalDateTime joinedAt;
+    private LocalDateTime rideStartedAt;
+    private LocalDateTime arrivedAtStartAt;
+    private LocalDateTime returnStartTime;
+    private LocalDateTime returnEndTime;
+    private Long rideToMeetingDurationSeconds;
+    private Long groupRideDurationSeconds;
+    private Long returnRideDurationSeconds;
+    private Long totalRideDurationSeconds;
 }

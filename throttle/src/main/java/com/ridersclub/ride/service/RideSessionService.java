@@ -100,7 +100,12 @@ public class RideSessionService {
                 .currentUserState(resolveRideState(actor, ride).name())
                 .currentUserRideStartedAt(actor.getPartialStartedAt())
                 .currentUserArrivedAtStartAt(actor.getArrivedAtStartAt())
+                .currentUserReturnStartTime(actor.getReturnStartedAt())
+                .currentUserReturnEndTime(actor.getReturnCompletedAt())
                 .currentUserTimeToMeetingSeconds(resolveTimeToMeetingSeconds(actor))
+                .currentUserGroupRideDurationSeconds(resolveGroupRideDurationSeconds(actor, ride))
+                .currentUserReturnRideDurationSeconds(resolveReturnRideDurationSeconds(actor))
+                .currentUserTotalRideDurationSeconds(resolveTotalRideDurationSeconds(actor, ride))
                 .meetingPoint(mainGroup.getPreRideMeetingPoint())
                 .fuelStops(mainGroup.getPreRideFuelStops())
                 .currentCheckpointIndex(ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0)
@@ -127,6 +132,12 @@ public class RideSessionService {
                         .count())
                 .inRideCount((int) participants.stream()
                         .filter(participant -> resolveRideState(participant, ride) == RideParticipantState.IN_RIDE)
+                        .count())
+                .returnRideStartedCount((int) participants.stream()
+                        .filter(participant -> resolveRideState(participant, ride) == RideParticipantState.RETURN_RIDE_STARTED)
+                        .count())
+                .returnRideCompletedCount((int) participants.stream()
+                        .filter(participant -> resolveRideState(participant, ride) == RideParticipantState.RETURN_RIDE_COMPLETED)
                         .count())
                 .checkpoints(checkpoints)
                 .participants(participantDtos)
@@ -233,6 +244,76 @@ public class RideSessionService {
         return session;
     }
 
+    public RideSessionResponse startReturnRide(String rideUuid, String actorUserUuid) {
+        Ride ride = getRide(rideUuid);
+        RideParticipant participant = getActiveParticipant(rideUuid, actorUserUuid);
+        ensureRideCompletedForReturn(ride);
+        ensureParticipantEligibleForReturn(participant);
+
+        if (participant.getReturnStartedAt() != null
+                || resolveRideState(participant, ride) == RideParticipantState.RETURN_RIDE_STARTED
+                || resolveRideState(participant, ride) == RideParticipantState.RETURN_RIDE_COMPLETED) {
+            return getRideSession(rideUuid, actorUserUuid);
+        }
+
+        LocalDateTime rideCompletedAt = ride.getRideCompletedAt();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime returnStartedAt = rideCompletedAt != null && now.isBefore(rideCompletedAt)
+                ? rideCompletedAt
+                : now;
+
+        participant.setReturnStartedAt(returnStartedAt);
+        participant.setRideState(RideParticipantState.RETURN_RIDE_STARTED);
+        participant.setStateUpdatedAt(returnStartedAt);
+        participantRepository.save(participant);
+
+        createSystemGroupMessage(
+                ride,
+                participant.getUser(),
+                formatUserName(participant.getUser()) + " started their return ride.");
+
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
+    }
+
+    public RideSessionResponse endReturnRide(String rideUuid, String actorUserUuid) {
+        Ride ride = getRide(rideUuid);
+        RideParticipant participant = getActiveParticipant(rideUuid, actorUserUuid);
+        ensureRideCompletedForReturn(ride);
+        ensureParticipantEligibleForReturn(participant);
+
+        if (participant.getReturnCompletedAt() != null
+                || resolveRideState(participant, ride) == RideParticipantState.RETURN_RIDE_COMPLETED) {
+            return getRideSession(rideUuid, actorUserUuid);
+        }
+
+        if (participant.getReturnStartedAt() == null) {
+            throw new RuntimeException("Return ride has not been started");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime returnCompletedAt = now.isBefore(participant.getReturnStartedAt())
+                ? participant.getReturnStartedAt()
+                : now;
+
+        participant.setReturnCompletedAt(returnCompletedAt);
+        participant.setReturnRideDurationSeconds(
+                Duration.between(participant.getReturnStartedAt(), returnCompletedAt).getSeconds());
+        participant.setRideState(RideParticipantState.RETURN_RIDE_COMPLETED);
+        participant.setStateUpdatedAt(returnCompletedAt);
+        participantRepository.save(participant);
+
+        createSystemGroupMessage(
+                ride,
+                participant.getUser(),
+                formatUserName(participant.getUser()) + " completed their return ride.");
+
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
+    }
+
     public RideSessionResponse advanceCheckpoint(String rideUuid, String actorUserUuid) {
         Ride ride = getRide(rideUuid);
         RideParticipant actor = getActiveParticipant(rideUuid, actorUserUuid);
@@ -315,8 +396,13 @@ public class RideSessionService {
 
     public void syncCompletionState(Ride ride) {
         List<RideParticipant> participants = participantRepository.findByRide_IdAndRsvpStatusNot(ride.getId(), Status.EXITED);
-        LocalDateTime completedAt = LocalDateTime.now();
+        LocalDateTime completedAt = ride.getRideCompletedAt() != null ? ride.getRideCompletedAt() : LocalDateTime.now();
         for (RideParticipant participant : participants) {
+            if (participant.getRideState() == RideParticipantState.DROPPED
+                    || participant.getRideState() == RideParticipantState.RETURN_RIDE_STARTED
+                    || participant.getRideState() == RideParticipantState.RETURN_RIDE_COMPLETED) {
+                continue;
+            }
             participant.setRideState(RideParticipantState.COMPLETED);
             participant.setStateUpdatedAt(completedAt);
         }
@@ -356,9 +442,21 @@ public class RideSessionService {
         }
     }
 
+    private void ensureRideCompletedForReturn(Ride ride) {
+        if (ride.getStatus() != Status.COMPLETED || ride.getRideCompletedAt() == null) {
+            throw new RuntimeException("Return ride can only start after the group ride is completed");
+        }
+    }
+
     private void ensureActorCanManage(RideParticipant actor) {
         if (!isRideManager(actor.getRole())) {
             throw new RuntimeException("Only captain/admin can manage the ride");
+        }
+    }
+
+    private void ensureParticipantEligibleForReturn(RideParticipant participant) {
+        if (participant.getRideState() == RideParticipantState.DROPPED) {
+            throw new RuntimeException("Dropped riders cannot start a return ride");
         }
     }
 
@@ -380,10 +478,62 @@ public class RideSessionService {
     }
 
     private Long resolveTimeToMeetingSeconds(RideParticipant participant) {
-        if (participant.getPartialStartedAt() == null || participant.getArrivedAtStartAt() == null) {
+        return resolveElapsedSeconds(participant.getPartialStartedAt(), participant.getArrivedAtStartAt());
+    }
+
+    private Long resolveGroupRideDurationSeconds(RideParticipant participant, Ride ride) {
+        if (ride.getRideStartedAt() == null) {
             return null;
         }
-        return Duration.between(participant.getPartialStartedAt(), participant.getArrivedAtStartAt()).getSeconds();
+
+        LocalDateTime groupRideEnd = ride.getRideCompletedAt();
+        if (groupRideEnd == null && ride.getStatus() == Status.ACTIVE) {
+            groupRideEnd = LocalDateTime.now();
+        }
+
+        return resolveElapsedSeconds(ride.getRideStartedAt(), groupRideEnd);
+    }
+
+    private Long resolveReturnRideDurationSeconds(RideParticipant participant) {
+        if (participant.getReturnRideDurationSeconds() != null) {
+            return participant.getReturnRideDurationSeconds();
+        }
+
+        return resolveElapsedSeconds(participant.getReturnStartedAt(), participant.getReturnCompletedAt());
+    }
+
+    private Long resolveTotalRideDurationSeconds(RideParticipant participant, Ride ride) {
+        Long rideToMeeting = resolveTimeToMeetingSeconds(participant);
+        Long groupRide = resolveGroupRideDurationSeconds(participant, ride);
+        Long returnRide = resolveReturnRideDurationSeconds(participant);
+
+        long total = 0L;
+        boolean hasSegment = false;
+
+        if (rideToMeeting != null) {
+            total += rideToMeeting;
+            hasSegment = true;
+        }
+        if (groupRide != null) {
+            total += groupRide;
+            hasSegment = true;
+        }
+        if (returnRide != null) {
+            total += returnRide;
+            hasSegment = true;
+        }
+
+        return hasSegment ? total : null;
+    }
+
+    private Long resolveElapsedSeconds(LocalDateTime startedAt, LocalDateTime completedAt) {
+        if (startedAt == null || completedAt == null) {
+            return null;
+        }
+        if (completedAt.isBefore(startedAt)) {
+            return 0L;
+        }
+        return Duration.between(startedAt, completedAt).getSeconds();
     }
 
     private RideParticipantDto mapParticipantDto(Ride ride, RideParticipant participant) {
@@ -404,6 +554,14 @@ public class RideSessionService {
                 .lastLongitude(latestLocation.map(RideLiveLocation::getLongitude).orElse(null))
                 .lastLocationUpdatedAt(latestLocation.map(RideLiveLocation::getRecordedAt).orElse(null))
                 .joinedAt(participant.getJoinedAt())
+                .rideStartedAt(participant.getPartialStartedAt())
+                .arrivedAtStartAt(participant.getArrivedAtStartAt())
+                .returnStartTime(participant.getReturnStartedAt())
+                .returnEndTime(participant.getReturnCompletedAt())
+                .rideToMeetingDurationSeconds(resolveTimeToMeetingSeconds(participant))
+                .groupRideDurationSeconds(resolveGroupRideDurationSeconds(participant, ride))
+                .returnRideDurationSeconds(resolveReturnRideDurationSeconds(participant))
+                .totalRideDurationSeconds(resolveTotalRideDurationSeconds(participant, ride))
                 .build();
     }
 
