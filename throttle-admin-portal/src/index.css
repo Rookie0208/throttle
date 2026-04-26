@@ -1,5 +1,53 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
+}
 
 body {
-  @apply bg-gray-50 text-gray-900;
+  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-200 antialiased font-sans transition-colors duration-200;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+/* Classic Panel Utilities replacing glass-panel */
+.glass-panel {
+  @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200;
+}
+
+/* Classic Inputs replacing glass-input */
+.glass-input {
+  @apply bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-slate-900 dark:text-white rounded-lg outline-none transition-all placeholder-slate-400 dark:placeholder-slate-500;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100 dark:bg-slate-950/50;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600 transition-colors;
+}
+
+/* Classic Table override */
+.glass-table {
+  @apply w-full text-left border-collapse bg-white dark:bg-slate-900 transition-colors duration-200;
+}
+.glass-table th {
+  @apply bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/50 text-slate-500 dark:text-slate-300 font-medium px-4 py-3 uppercase tracking-wider text-xs;
+}
+.glass-table td {
+  @apply border-b border-slate-200 dark:border-slate-700/30 px-4 py-3 text-sm text-slate-700 dark:text-slate-300;
+}
+.glass-table tr:hover td {
+  @apply bg-slate-50 dark:bg-slate-800/40 transition-colors;
 }
