@@ -16,6 +16,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
 
+import com.ridersclub.admin.dto.request.QueryRequestDTO;
+import com.ridersclub.admin.dto.response.QueryResponseDTO;
+import com.ridersclub.admin.service.AdminQueryService;
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
@@ -23,6 +28,7 @@ public class AdminController {
 
     private final AdminService adminService;
     private final ElasticsearchAuditService elasticsearchAuditService;
+    private final AdminQueryService adminQueryService;
 
     // A mock method to get current admin ID, typically derived from Security Context
     private Long getCurrentAdminId() {
@@ -93,5 +99,12 @@ public class AdminController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<AdminAuditDTO>>> getAuditLogs() {
         return ResponseEntity.ok(ApiResponse.success(elasticsearchAuditService.getAuditLogs(), "Audit logs retrieved from Elasticsearch"));
+    }
+
+    @PostMapping("/execute-query")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<QueryResponseDTO>> executeQuery(@Valid @RequestBody QueryRequestDTO request) {
+        QueryResponseDTO response = adminQueryService.executeQuery(getCurrentAdminId(), request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Query executed"));
     }
 }
