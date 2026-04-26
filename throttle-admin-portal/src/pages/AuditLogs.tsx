@@ -34,54 +34,54 @@ export const AuditLogs = () => {
     <div className="animate-in fade-in duration-500">
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
-            <History className="w-8 h-8 text-blue-600" />
+          <h1 className="text-3xl font-display font-bold text-slate-900 dark:text-white flex items-center space-x-3">
+            <History className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
             <span>Audit Logs</span>
           </h1>
-          <p className="text-gray-500 mt-2">Monitor all administrative actions performed across the platform.</p>
+          <p className="text-slate-600 dark:text-slate-400 mt-1 font-medium">Monitor all administrative actions performed across the platform.</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="glass-panel overflow-hidden border-x-0 border-b-0 md:border md:rounded-2xl shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-max">
+          <table className="glass-table min-w-max">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100 text-sm text-gray-500 uppercase tracking-wider">
-                <th className="p-4 font-medium">Log ID</th>
-                <th className="p-4 font-medium">Action</th>
-                <th className="p-4 font-medium">Admin ID</th>
-                <th className="p-4 font-medium">Target ID</th>
-                <th className="p-4 font-medium">Timestamp</th>
+              <tr>
+                <th>Log ID</th>
+                <th>Action</th>
+                <th>Admin ID</th>
+                <th>Target ID</th>
+                <th>Timestamp</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center p-8 text-gray-400">Loading audit events...</td></tr>
+              <tr><td colSpan={5} className="text-center py-10 font-semibold text-slate-500 dark:text-slate-400">Loading audit events...</td></tr>
             ) : logs.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center p-12">
-                  <ShieldCheck className="mx-auto w-12 h-12 text-gray-300 mb-4" />
-                  <p className="text-gray-400">No audit logs found. The system is quiet.</p>
+                  <ShieldCheck className="mx-auto w-12 h-12 text-slate-400 dark:text-slate-600 mb-4" />
+                  <p className="text-slate-500 dark:text-slate-400 font-medium">No audit logs found. The system is quiet.</p>
                 </td>
               </tr>
             ) : (
               logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).map(log => (
-                <tr key={log.esDocId || log.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="p-4 font-mono text-xs text-gray-500" title={log.esDocId}>
+                <tr key={log.esDocId || log.id}>
+                  <td className="font-mono text-xs text-indigo-600 dark:text-indigo-400 font-semibold" title={log.esDocId}>
                     {log.esDocId ? log.esDocId.substring(0, 8) + '…' : `#${log.id}`}
                   </td>
-                  <td className="p-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                      log.action.includes('BLOCK') ? 'bg-red-50 text-red-700' : 
-                      log.action.includes('RESOLVE') ? 'bg-emerald-50 text-emerald-700' : 
-                      'bg-indigo-50 text-indigo-700'
+                  <td>
+                    <span className={`px-2 py-1 rounded-md text-[10px] uppercase font-bold tracking-widest ${
+                      log.action.includes('BLOCK') ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30' : 
+                      log.action.includes('RESOLVE') ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' : 
+                      'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-500/30'
                     }`}>
                       {log.action}
                     </span>
                   </td>
-                  <td className="p-4 font-medium text-gray-900">Admin #{log.adminId}</td>
-                  <td className="p-4 text-gray-500">Target #{log.targetId}</td>
-                  <td className="p-4 text-gray-400 text-sm">
+                  <td className="font-semibold text-slate-900 dark:text-slate-200">Admin #{log.adminId}</td>
+                  <td className="text-slate-600 dark:text-slate-400">Target #{log.targetId}</td>
+                  <td className="text-slate-500 dark:text-slate-500 text-sm font-mono">
                     {new Date(log.timestamp).toLocaleString()}
                   </td>
                 </tr>
