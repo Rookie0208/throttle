@@ -8,11 +8,13 @@ import 'package:throttle_ui/app/theme/theme_controller.dart';
 class CreateSubGroupScreen extends StatefulWidget {
   final String rideUuid;
   final String token;
+  final bool preRideFrozen;
 
   const CreateSubGroupScreen({
     super.key,
     required this.rideUuid,
     required this.token,
+    this.preRideFrozen = false,
   });
 
   @override
@@ -31,6 +33,13 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
   bool _saving = false;
 
   void _selectMembers() async {
+    if (widget.preRideFrozen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ride setup is frozen after start')),
+      );
+      return;
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -39,6 +48,7 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
           token: widget.token,
           selectionOnly: true,
           preselectedMemberUuids: selectedMembers,
+          preRideFrozen: widget.preRideFrozen,
         ),
       ),
     );
@@ -51,6 +61,13 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
   }
 
   Future<void> _createSubGroup() async {
+    if (widget.preRideFrozen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ride setup is frozen after start')),
+      );
+      return;
+    }
+
     if (nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Subgroup name is required")),
@@ -265,7 +282,7 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                     letterSpacing: 1.1,
                   ),
                 ),
-                onPressed: _selectMembers,
+                onPressed: widget.preRideFrozen ? null : _selectMembers,
               ),
 
               const SizedBox(height: 24),
@@ -279,7 +296,8 @@ class _CreateSubGroupScreenState extends State<CreateSubGroupScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: _saving ? null : _createSubGroup,
+                onPressed:
+                    _saving || widget.preRideFrozen ? null : _createSubGroup,
                 child: Text(
                   _saving ? "CREATING..." : "CREATE SUBGROUP",
                   style: GoogleFonts.bebasNeue(

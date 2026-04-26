@@ -50,6 +50,23 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         {"CANCELLED", "COMPLETED", "ENDED"}.contains(rideStatus);
   }
 
+  bool get _isRideStarted {
+    final rideStatus = (widget.rideGroup["rideStatus"] ??
+            widget.rideGroup["status"] ??
+            "")
+        .toString()
+        .toUpperCase();
+    return {
+      "PARTIAL_STARTED",
+      "READY_TO_START",
+      "ACTIVE",
+      "IN_PROGRESS",
+      "COMPLETED",
+      "CANCELLED",
+      "ENDED",
+    }.contains(rideStatus);
+  }
+
   bool _isGroupMember(Map<dynamic, dynamic>? group) =>
       group?["isMember"] == true || group?["member"] == true;
 
@@ -93,14 +110,20 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   bool _canManageMembers(String currentUserRole) {
-    if (_isGroupLocked) return false;
+    if (_isGroupLocked || _isRideStarted) return false;
+    return currentUserRole == "CAPTAIN" ||
+        currentUserRole == "ADMIN" ||
+        currentUserRole == "CO_CAPTAIN";
+  }
+
+  bool _isRideManagerRole(String currentUserRole) {
     return currentUserRole == "CAPTAIN" ||
         currentUserRole == "ADMIN" ||
         currentUserRole == "CO_CAPTAIN";
   }
 
   bool _canOpenAddMembers(String currentUserRole) {
-    if (_isGroupLocked) return false;
+    if (_isGroupLocked || _isRideStarted) return false;
     if (!_isSubGroup) {
       final rideType = (widget.rideGroup["rideType"] ?? "")
           .toString()
@@ -116,13 +139,14 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
   bool _canJoinCurrentSubGroup() =>
       _isSubGroup &&
+      !_isRideStarted &&
       !_isGroupMember(widget.rideGroup) &&
       !_canManageMembers((widget.rideGroup["myRole"] ?? "").toString()) &&
       (widget.rideGroup["canJoinDirectly"] == true ||
           widget.rideGroup["canRequestToJoin"] == true);
 
   bool _canRenameGroup(String currentUserRole) =>
-      _canManageMembers(currentUserRole);
+      !_isRideStarted && _canManageMembers(currentUserRole);
 
   String get _memberNoun => _isSubGroup ? "members" : "riders";
 
@@ -195,7 +219,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       return;
     }
 
-    if (!_canManageMembers(currentUserRole)) {
+    if (!_isRideManagerRole(currentUserRole)) {
       _showMessage(
         "Only captain/admin can publish announcements",
         isError: true,
@@ -530,7 +554,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   bool _canEditPreRide(String currentUserRole) {
-    if (_isGroupLocked) return false;
+    if (_isGroupLocked || _isRideStarted) return false;
     return _canManageMembers(currentUserRole);
   }
 
@@ -545,7 +569,12 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     AppThemeConfig theme,
   ) async {
     if (!_canRenameGroup(currentUserRole)) {
-      _showMessage("Only captain/admin can rename this group", isError: true);
+      _showMessage(
+        _isRideStarted
+            ? "Ride setup is frozen after the ride starts"
+            : "Only captain/admin can rename this group",
+        isError: true,
+      );
       return;
     }
 
@@ -1388,7 +1417,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     enabled:
                         !_isSubGroup &&
                         !_isGroupLocked &&
-                        _canManageMembers(currentUserRole),
+                        _isRideManagerRole(currentUserRole),
                     onTap: () {
                       _openAnnouncementComposer(currentUserRole, theme);
                     },
@@ -1407,6 +1436,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                             rideUuid: _rideUuid,
                             subgroupUuid: _isSubGroup ? _groupUuid : null,
                             token: widget.token,
+                            preRideFrozen: _isRideStarted,
                           ),
                         ),
                       ).then((result) async {

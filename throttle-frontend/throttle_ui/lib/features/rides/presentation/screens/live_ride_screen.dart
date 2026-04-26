@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_realtime_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 
@@ -376,6 +377,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
 
     await _withLoading(() async {
       await RideService.completeRide(widget.token!, widget.rideUuid!);
+      RideRefreshNotifier.notify();
       if (!mounted) return;
       Navigator.pop(context);
     });

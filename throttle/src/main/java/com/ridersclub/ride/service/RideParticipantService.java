@@ -49,6 +49,8 @@ import com.ridersclub.user.repository.UserRepository;
 @Service
 public class RideParticipantService {
 
+    private static final String PRE_RIDE_FROZEN_MESSAGE = "Pre-ride setup is frozen once the ride has started";
+
     @Autowired
     private RideRepository rideRepository;
     @Autowired
@@ -79,6 +81,16 @@ public class RideParticipantService {
     private void ensureRideSupportsInvites(Ride ride) {
         if (ride.getRideType() == RideType.SOLO) {
             throw new RuntimeException("Solo rides do not support member invites");
+        }
+    }
+
+    private void ensurePreRideSetupEditable(Ride ride) {
+        if (ride == null) {
+            return;
+        }
+
+        if (ride.getStatus() != Status.CREATED && ride.getStatus() != Status.SCHEDULED) {
+            throw new RuntimeException(PRE_RIDE_FROZEN_MESSAGE);
         }
     }
 
@@ -338,6 +350,7 @@ public class RideParticipantService {
         Ride ride = rideRepository.findByUuid(rideUuid)
                 .orElseThrow(() -> new RuntimeException("Ride not found"));
         ensureRideSupportsInvites(ride);
+        ensurePreRideSetupEditable(ride);
 
         RideParticipant actor = participantRepository.findByRide_UuidAndUser_UuidAndRsvpStatusNot(
                 rideUuid, actorUserUuid, Status.EXITED)
