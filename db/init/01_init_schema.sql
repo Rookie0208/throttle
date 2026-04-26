@@ -304,6 +304,9 @@ CREATE TABLE ride_participants (
     partial_started_at TIMESTAMP,
     arrived_at_start_at TIMESTAMP,
     state_updated_at TIMESTAMP,
+    return_started_at TIMESTAMP,
+    return_completed_at TIMESTAMP,
+    return_ride_duration_seconds BIGINT,
     left_at TIMESTAMP,
 
     UNIQUE (ride_id, user_id),

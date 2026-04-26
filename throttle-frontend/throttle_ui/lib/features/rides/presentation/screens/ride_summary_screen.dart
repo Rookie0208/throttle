@@ -4,6 +4,7 @@ import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/return_ride_screen.dart';
 
 class RideSummaryScreen extends StatefulWidget {
   final String groupName;
@@ -28,6 +29,13 @@ class RideSummaryScreen extends StatefulWidget {
 class _RideSummaryScreenState extends State<RideSummaryScreen> {
   Map<String, dynamic>? _session;
   bool _loading = false;
+
+  String get _currentUserState =>
+      (_session?["currentUserState"] ?? "").toString().toUpperCase();
+
+  bool get _returnRideStarted => _currentUserState == "RETURN_RIDE_STARTED";
+
+  bool get _returnRideCompleted => _currentUserState == "RETURN_RIDE_COMPLETED";
 
   @override
   void initState() {
@@ -118,6 +126,69 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
     return int.tryParse(value?.toString() ?? "") ?? fallback;
   }
 
+  Future<void> _handleBackToHome() async {
+    final rideUuid = widget.rideUuid;
+    if (rideUuid == null || rideUuid.isEmpty) {
+      Navigator.pop(context);
+      return;
+    }
+
+    final token = widget.token ?? await AuthService.getToken();
+    if (token == null || token.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please sign in again to update return ride")),
+      );
+      return;
+    }
+
+    if (_returnRideCompleted) {
+      if (!mounted) return;
+      Navigator.pop(context, _session);
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final wasReturnRideStarted = _returnRideStarted;
+      final session = wasReturnRideStarted
+          ? await RideService.fetchRideSession(token, rideUuid)
+          : await RideService.startReturnRide(token, rideUuid);
+
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+      });
+
+      final message = wasReturnRideStarted
+          ? "Resuming return ride"
+          : "Return ride started";
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ReturnRideScreen(
+            groupName: widget.groupName,
+            token: token,
+            rideUuid: rideUuid,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst("Exception: ", "")),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   List<Map<String, dynamic>> _mapList(dynamic value) {
     if (value is! List) return const [];
     return value.whereType<Map>().map((item) {
@@ -199,6 +270,10 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
         final inRideCount = _toInt(data["inRideCount"]);
         final atStartCount = _toInt(data["atStartCount"]);
         final enRouteCount = _toInt(data["enRouteCount"]);
+        final showBackToHomeButton = !_returnRideCompleted;
+        final backToHomeLabel = _returnRideStarted
+            ? "Resume Return Ride"
+            : "Back to Home";
 
         return Scaffold(
           backgroundColor: theme.background,
@@ -395,18 +470,19 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
                       const SizedBox(height: 18),
                       _peopleSection(theme, people),
                       const SizedBox(height: 18),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.primary,
-                            foregroundColor: AppColors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                      if (showBackToHomeButton)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _loading ? null : _handleBackToHome,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.primary,
+                              foregroundColor: AppColors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: Text(backToHomeLabel),
                           ),
-                          child: const Text("Back to Home"),
                         ),
-                      ),
                     ],
                   ),
                 ),

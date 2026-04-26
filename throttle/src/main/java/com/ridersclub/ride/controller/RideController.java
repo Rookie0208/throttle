@@ -169,6 +169,26 @@ public class RideController {
                 "Ride started successfully");
     }
 
+    @PostMapping(ApiConstants.Rides.START_RETURN)
+    public ApiResponse<RideSessionResponse> startReturnRide(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.startReturnRide(id, userUuid),
+                "Return ride started successfully");
+    }
+
+    @PostMapping(ApiConstants.Rides.END_RETURN)
+    public ApiResponse<RideSessionResponse> endReturnRide(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.endReturnRide(id, userUuid),
+                "Return ride completed successfully");
+    }
+
     @PostMapping("/{id}/partial-start")
     public ApiResponse<RideSessionResponse> partialStartRide(
             @PathVariable String id,
