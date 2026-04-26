@@ -6,7 +6,8 @@ import toast from 'react-hot-toast';
 interface AuthContextType {
   token: string | null;
   refreshToken: string | null;
-  login: (token: string, refreshToken: string) => void;
+  role: string | null;
+  login: (token: string, refreshToken: string, userRole: string) => void;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
 }
@@ -16,12 +17,15 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [refreshToken, setRefreshToken] = useState<string | null>(localStorage.getItem('refreshToken'));
+  const [role, setRole] = useState<string | null>(localStorage.getItem('role'));
 
-  const login = (newToken: string, newRefreshToken: string) => {
+  const login = (newToken: string, newRefreshToken: string, userRole: string) => {
     setToken(newToken);
     setRefreshToken(newRefreshToken);
+    setRole(userRole);
     localStorage.setItem('token', newToken);
     localStorage.setItem('refreshToken', newRefreshToken);
+    localStorage.setItem('role', userRole);
   };
 
   const logout = async () => {
@@ -38,13 +42,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setToken(null);
       setRefreshToken(null);
+      setRole(null);
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('role');
     }
   };
 
   return (
-    <AuthContext.Provider value={{ token, refreshToken, login, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ token, refreshToken, role, login, logout, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );
