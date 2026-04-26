@@ -8,10 +8,10 @@ import java.util.Locale;
 import java.util.Set;
 import java.math.BigDecimal;
 
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.ridersclub.bike.dto.request.BikeMasterAdminRequest;
@@ -38,15 +38,17 @@ public class BikeRegistryService {
     private final BikeMasterRepository bikeMasterRepository;
     private final UserRepository userRepository;
     private final UserBikeRepository userBikeRepository;
-    private final TransactionTemplate transactionTemplate;
+    private final PlatformTransactionManager transactionManager;
 
     public int ensureSeedData() {
-        Integer inserted = transactionTemplate.execute(status -> seedIfEmpty(defaultSeedData()));
+        TransactionTemplate seedTemplate = new TransactionTemplate(transactionManager);
+        seedTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        seedTemplate.setReadOnly(false);
+        Integer inserted = seedTemplate.execute(status -> seedIfEmpty(defaultSeedData()));
         return inserted == null ? 0 : inserted;
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "bike_brands", key = "#root.methodName + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<String> findBrands(String query) {
         ensureSeedData();
         return bikeMasterRepository.findBrands(normalizeQuery(query))
@@ -60,7 +62,6 @@ public class BikeRegistryService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "bike_models", key = "#root.methodName + ':' + #brand.trim().toLowerCase() + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<String> findModels(String brand, String query) {
         ensureSeedData();
         if (isBlank(brand)) {
@@ -77,21 +78,35 @@ public class BikeRegistryService {
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "bike_variants", key = "#root.methodName + ':' + #brand.trim().toLowerCase() + ':' + #model.trim().toLowerCase() + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<BikeMasterResponse> findVariants(String brand, String model, String query) {
         ensureSeedData();
         if (isBlank(brand) || isBlank(model)) {
             return List.of();
         }
-        return bikeMasterRepository.findVariants(brand.trim(), model.trim(), normalizeQuery(query))
+        List<BikeMasterResponse> directMatches = bikeMasterRepository.findVariants(brand.trim(), model.trim(), normalizeQuery(query))
                 .stream()
+                .limit(DEFAULT_LIMIT)
+                .map(BikeMasterResponse::from)
+                .toList();
+        if (!directMatches.isEmpty()) {
+            return directMatches;
+        }
+
+        String normalizedBrand = normalizeLookupValue(brand);
+        String normalizedModel = normalizeLookupValue(model);
+        String searchTerm = buildVariantSearchTerm(brand, model, query);
+
+        return bikeMasterRepository.searchActive(searchTerm)
+                .stream()
+                .filter(item -> normalizeLookupValue(item.getBrand()).equals(normalizedBrand))
+                .filter(item -> normalizeLookupValue(item.getModel()).equals(normalizedModel))
+                .filter(item -> matchesVariantQuery(item.getVariant(), query))
                 .limit(DEFAULT_LIMIT)
                 .map(BikeMasterResponse::from)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    @Cacheable(value = "bike_search", key = "#root.methodName + ':' + (#query == null ? '' : #query.trim().toLowerCase())")
     public List<BikeMasterResponse> search(String query) {
         ensureSeedData();
         return bikeMasterRepository.searchActive(normalizeQuery(query))
@@ -111,7 +126,6 @@ public class BikeRegistryService {
                 .toList();
     }
 
-    @CacheEvict(value = { "bike_brands", "bike_models", "bike_variants", "bike_search" }, allEntries = true)
     public BikeMasterResponse createBike(BikeMasterAdminRequest request) {
         validateCategory(request.getCategory());
         if (bikeMasterRepository.existsByBrandIgnoreCaseAndModelIgnoreCaseAndVariantIgnoreCase(
@@ -127,7 +141,6 @@ public class BikeRegistryService {
         return BikeMasterResponse.from(bikeMasterRepository.save(bike));
     }
 
-    @CacheEvict(value = { "bike_brands", "bike_models", "bike_variants", "bike_search" }, allEntries = true)
     public BikeMasterResponse updateBike(Long id, BikeMasterAdminRequest request) {
         validateCategory(request.getCategory());
         BikeMaster bike = bikeMasterRepository.findById(id)
@@ -147,7 +160,6 @@ public class BikeRegistryService {
         return BikeMasterResponse.from(bikeMasterRepository.save(toEntity(bike, request)));
     }
 
-    @CacheEvict(value = { "bike_brands", "bike_models", "bike_variants", "bike_search" }, allEntries = true)
     public BikeMasterResponse verifyBike(Long id) {
         BikeMaster bike = bikeMasterRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Bike master entry not found"));
@@ -156,7 +168,6 @@ public class BikeRegistryService {
         return BikeMasterResponse.from(bikeMasterRepository.save(bike));
     }
 
-    @CacheEvict(value = { "bike_brands", "bike_models", "bike_variants", "bike_search" }, allEntries = true)
     public BikeMasterResponse deactivateBike(Long id) {
         BikeMaster bike = bikeMasterRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Bike master entry not found"));
@@ -259,7 +270,6 @@ public class BikeRegistryService {
                 bike.isVerified());
     }
 
-    @CacheEvict(value = { "bike_brands", "bike_models", "bike_variants", "bike_search" }, allEntries = true)
     public int seedIfEmpty(List<BikeMasterAdminRequest> bikes) {
         if (bikeMasterRepository.count() > 0) {
             return 0;
@@ -275,7 +285,6 @@ public class BikeRegistryService {
         return entities.size();
     }
 
-    @CacheEvict(value = { "bike_brands", "bike_models", "bike_variants", "bike_search" }, allEntries = true)
     public int importCatalog(List<BikeMasterAdminRequest> bikes) {
         List<BikeMaster> toSave = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
@@ -389,6 +398,40 @@ public class BikeRegistryService {
 
     private String normalizeQuery(String query) {
         return query == null ? "" : query.trim();
+    }
+
+    private String normalizeLookupValue(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ENGLISH);
+    }
+
+    private String buildVariantSearchTerm(String brand, String model, String query) {
+        StringBuilder builder = new StringBuilder();
+        if (!isBlank(brand)) {
+            builder.append(brand.trim());
+        }
+        if (!isBlank(model)) {
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(model.trim());
+        }
+        if (!isBlank(query)) {
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(query.trim());
+        }
+        return builder.toString();
+    }
+
+    private boolean matchesVariantQuery(String variant, String query) {
+        if (isBlank(query)) {
+            return true;
+        }
+        return normalizeLookupValue(variant).contains(normalizeLookupValue(query));
     }
 
     private boolean isBlank(String value) {
