@@ -131,6 +131,10 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     if (step == 2) {
+      final catalogBikeTouched =
+          selectedBrand.isNotEmpty ||
+          selectedModel.isNotEmpty ||
+          selectedVariant != null;
       final customBikeTouched =
           bikeBrandController.text.trim().isNotEmpty ||
           bikeModelController.text.trim().isNotEmpty ||
@@ -142,6 +146,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
       final shouldSubmitCatalogBike = !useCustomBike && selectedVariant != null;
       final shouldSubmitCustomBike = useCustomBike && customBikeTouched;
+
+      if (catalogBikeTouched && !shouldSubmitCatalogBike) {
+        showError("Select brand, model, and variant or clear the bike fields");
+        return;
+      }
 
       if (shouldSubmitCustomBike) {
         if (customBikeCategory.isEmpty ||
@@ -169,6 +178,12 @@ class _SignupScreenState extends State<SignupScreen> {
               parsedBikeYear < 1950 ||
               parsedBikeYear > 2100)) {
         showError("Enter a valid bike year");
+        return;
+      }
+
+      if ((shouldSubmitCatalogBike || shouldSubmitCustomBike) &&
+          parsedBikeYear == null) {
+        showError("Enter the year of purchase");
         return;
       }
 
