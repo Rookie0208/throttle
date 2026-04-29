@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:latlong2/latlong.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
@@ -37,19 +39,17 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   List<Map<String, dynamic>> inviteOptions = [];
   bool isLoadingInviteOptions = false;
   bool isLoading = false;
+  bool isResolvingRoute = false;
 
   DateTime selectedStartTime = DateTime.now().add(
     const Duration(days: 1, hours: 1),
   );
-  double startLat = 0.0;
-  double startLng = 0.0;
-  double endLat = 0.0;
-  double endLng = 0.0;
+  LatLng? startPoint;
+  LatLng? endPoint;
+  String? resolvedStartQuery;
+  String? resolvedEndQuery;
 
   int currentStep = 0;
-
-  final String mapboxToken =
-      "sk.eyJ1IjoiYW1pdHJhd2F0MjYxMiIsImEiOiJjbW1jNmZhZjQwMnNnMnJxdzJzNjJ0amk2In0.7524zGVXx4-Qq41E_LKOTg";
 
   @override
   void initState() {
@@ -66,6 +66,24 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     maxRidersController.dispose();
     rulesController.dispose();
     super.dispose();
+  }
+
+  String get _mapboxPublicToken =>
+      dotenv.env["MAPBOX_PUBLIC_TOKEN"]?.trim() ?? "";
+
+  bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
+
+  String get _routeStatusLabel {
+    if (!_hasMapboxToken) {
+      return "Mapbox is required to resolve exact ride coordinates.";
+    }
+    if (startPoint != null && endPoint != null) {
+      return "Start and destination are resolved with exact coordinates.";
+    }
+    if (startPoint != null || endPoint != null) {
+      return "One location is resolved. Add the other end to complete the route.";
+    }
+    return "Start and destination will be shown on the ride map later in pre-ride info.";
   }
 
   Widget sectionTitle(String text, AppThemeConfig theme, {String? subtitle}) {
@@ -100,7 +118,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   }
 
   String _friendLabel(Map<String, dynamic> friend) {
-   final displayName = (friend["username"] ?? "").toString().trim();
+    final displayName = (friend["username"] ?? "").toString().trim();
     final riderId = (friend["riderId"] ?? "").toString().trim();
     if (displayName.isNotEmpty) return displayName;
     if (riderId.isNotEmpty) return "@$riderId";
@@ -450,34 +468,88 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     }
   }
 
-  Future<void> fetchCoordinates(String placeName, bool isStart) async {
-    if (placeName.trim().isEmpty) return;
+  Future<bool> fetchCoordinates(String placeName, bool isStart) async {
+    final query = placeName.trim();
+    if (query.isEmpty) return false;
+    if (!_hasMapboxToken) {
+      showError("Add a Mapbox public token to continue");
+      return false;
+    }
 
     final url =
-        'https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(placeName)}.json?access_token=$mapboxToken';
+        "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?access_token=$_mapboxPublicToken&limit=1&autocomplete=true";
 
     try {
       final response = await http.get(Uri.parse(url));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['features'] != null && data['features'].isNotEmpty) {
-          final coords = data['features'][0]['center'];
-          final lng = coords[0];
-          final lat = coords[1];
-
-          setState(() {
-            if (isStart) {
-              startLat = lat;
-              startLng = lng;
-            } else {
-              endLat = lat;
-              endLng = lng;
-            }
-          });
-        }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        showError("Failed to look up ${isStart ? "start" : "end"} location");
+        return false;
       }
-    } catch (e) {
+
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final features = data["features"];
+      if (features is! List || features.isEmpty) {
+        showError("No map result found for \"$query\"");
+        return false;
+      }
+
+      final center = (features.first as Map<String, dynamic>)["center"];
+      if (center is! List || center.length < 2) {
+        showError("Invalid map response for \"$query\"");
+        return false;
+      }
+
+      final point = LatLng(
+        (center[1] as num).toDouble(),
+        (center[0] as num).toDouble(),
+      );
+
+      if (!mounted) return false;
+      setState(() {
+        if (isStart) {
+          startPoint = point;
+          resolvedStartQuery = query;
+        } else {
+          endPoint = point;
+          resolvedEndQuery = query;
+        }
+      });
+      return true;
+    } catch (_) {
       showError("Failed to fetch coordinates");
+      return false;
+    }
+  }
+
+  Future<bool> _ensureRouteCoordinates() async {
+    final startName = startLocationController.text.trim();
+    final endName = endLocationController.text.trim();
+
+    if (startName.isEmpty || endName.isEmpty) {
+      showError("Start and End locations are required");
+      return false;
+    }
+
+    if (!_hasMapboxToken) {
+      showError("Mapbox is not configured yet");
+      return false;
+    }
+
+    setState(() => isResolvingRoute = true);
+    try {
+      final startOk = resolvedStartQuery == startName && startPoint != null
+          ? true
+          : await fetchCoordinates(startName, true);
+      if (!startOk) return false;
+
+      final endOk = resolvedEndQuery == endName && endPoint != null
+          ? true
+          : await fetchCoordinates(endName, false);
+      return endOk;
+    } finally {
+      if (mounted) {
+        setState(() => isResolvingRoute = false);
+      }
     }
   }
 
@@ -529,8 +601,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     return true;
   }
 
-  void nextStep() {
+  Future<void> nextStep() async {
     if (!validateCurrentStep()) return;
+    if (currentStep == 1) {
+      final routeReady = await _ensureRouteCoordinates();
+      if (!routeReady) return;
+    }
     if (currentStep < 4) {
       setState(() => currentStep++);
     }
@@ -566,6 +642,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       showError("Please choose a future date and time");
       return;
     }
+    final routeReady = await _ensureRouteCoordinates();
+    if (!routeReady) {
+      return;
+    }
 
     setState(() => isLoading = true);
 
@@ -591,13 +671,13 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       "invitedFriends": selectedFriends,
       "startLocation": {
         "name": startLocationController.text.trim(),
-        "latitude": startLat,
-        "longitude": startLng,
+        "latitude": startPoint?.latitude,
+        "longitude": startPoint?.longitude,
       },
       "endLocation": {
         "name": endLocationController.text.trim(),
-        "latitude": endLat,
-        "longitude": endLng,
+        "latitude": endPoint?.latitude,
+        "longitude": endPoint?.longitude,
       },
     };
 
@@ -776,6 +856,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 controller: startLocationController,
                 hint: "Enter start location",
                 onSubmitted: (val) => fetchCoordinates(val, true),
+                onChanged: (_) {
+                  setState(() {
+                    resolvedStartQuery = null;
+                    startPoint = null;
+                  });
+                },
                 icon: Icons.trip_origin,
                 primaryColor: theme.primary,
                 theme: theme,
@@ -785,23 +871,53 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 controller: endLocationController,
                 hint: "Enter end location",
                 onSubmitted: (val) => fetchCoordinates(val, false),
+                onChanged: (_) {
+                  setState(() {
+                    resolvedEndQuery = null;
+                    endPoint = null;
+                  });
+                },
                 icon: Icons.flag_outlined,
                 primaryColor: theme.primary,
                 theme: theme,
               ),
               const SizedBox(height: 12),
               Container(
-                height: 110,
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0x52B8C6DA)),
                 ),
-                child: const Center(
-                  child: Text(
-                    "Route preview goes here",
-                    style: TextStyle(color: Color(0xff8C95A8), fontSize: 13),
-                  ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.map_outlined, color: theme.primary, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _routeStatusLabel,
+                        style: TextStyle(
+                          color: theme.textPrimary.withValues(alpha: 0.65),
+                          fontSize: 12.5,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                    if (isResolvingRoute)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8, top: 2),
+                        child: SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: theme.primary,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -1326,6 +1442,7 @@ class _ModernInputField extends StatefulWidget {
   final TextInputType? keyboardType;
   final bool disabled;
   final Function(String)? onSubmitted;
+  final ValueChanged<String>? onChanged;
   final IconData? icon;
   final Color primaryColor;
   final AppThemeConfig theme;
@@ -1337,6 +1454,7 @@ class _ModernInputField extends StatefulWidget {
     this.keyboardType,
     this.disabled = false,
     this.onSubmitted,
+    this.onChanged,
     this.icon,
     required this.primaryColor,
     required this.theme,
@@ -1411,6 +1529,7 @@ class _ModernInputFieldState extends State<_ModernInputField> {
                     ),
                   ),
                   onSubmitted: widget.onSubmitted,
+                  onChanged: widget.onChanged,
                 ),
               ),
             ],

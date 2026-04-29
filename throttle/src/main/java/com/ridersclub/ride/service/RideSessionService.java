@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -12,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import lombok.extern.slf4j.Slf4j;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ridersclub.common.Utils.UserUtility;
 import com.ridersclub.common.enums.LocationType;
 import com.ridersclub.common.enums.MessageType;
@@ -50,6 +53,7 @@ public class RideSessionService {
     private final RideLiveLocationRepository rideLiveLocationRepository;
     private final GroupMessageRepository groupMessageRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public RideSessionService(
             RideRepository rideRepository,
@@ -107,6 +111,7 @@ public class RideSessionService {
                 .currentUserReturnRideDurationSeconds(resolveReturnRideDurationSeconds(actor))
                 .currentUserTotalRideDurationSeconds(resolveTotalRideDurationSeconds(actor, ride))
                 .meetingPoint(mainGroup.getPreRideMeetingPoint())
+                .meetingPointLocation(readJsonMap(mainGroup.getPreRideMeetingPointLocation()))
                 .fuelStops(mainGroup.getPreRideFuelStops())
                 .currentCheckpointIndex(ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0)
                 .latestBroadcastMessage(ride.getLatestBroadcastMessage())
@@ -142,6 +147,19 @@ public class RideSessionService {
                 .checkpoints(checkpoints)
                 .participants(participantDtos)
                 .build();
+    }
+
+    private Map<String, Object> readJsonMap(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception e) {
+            log.warn("Failed to parse ride session location JSON: {}", e.getMessage());
+            return null;
+        }
     }
 
     public RideSessionResponse partialStart(String rideUuid, String actorUserUuid) {
@@ -576,9 +594,28 @@ public class RideSessionService {
         if (!rideCheckpoints.isEmpty()) {
             int currentIndex = ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0;
             for (int i = 0; i < rideCheckpoints.size(); i++) {
+                RideLocation checkpoint = rideCheckpoints.get(i);
                 checkpoints.add(RideSessionCheckpointResponse.builder()
                         .sequence(i)
-                        .title(rideCheckpoints.get(i).getName())
+                        .title(checkpoint.getName())
+                        .latitude(checkpoint.getLatitude())
+                        .longitude(checkpoint.getLongitude())
+                        .checkpointStatus(resolveCheckpointStatus(i, currentIndex))
+                        .build());
+            }
+            return checkpoints;
+        }
+
+        List<Map<String, Object>> checkpointLocations = readJsonList(mainGroup.getPreRideCheckpointLocations());
+        if (!checkpointLocations.isEmpty()) {
+            int currentIndex = ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0;
+            for (int i = 0; i < checkpointLocations.size(); i++) {
+                Map<String, Object> checkpoint = checkpointLocations.get(i);
+                checkpoints.add(RideSessionCheckpointResponse.builder()
+                        .sequence(i)
+                        .title((checkpoint.get("name") != null ? checkpoint.get("name") : "Checkpoint").toString())
+                        .latitude(asDouble(checkpoint.get("latitude")))
+                        .longitude(asDouble(checkpoint.get("longitude")))
                         .checkpointStatus(resolveCheckpointStatus(i, currentIndex))
                         .build());
             }
@@ -605,6 +642,33 @@ public class RideSessionService {
         }
 
         return checkpoints;
+    }
+
+    private List<Map<String, Object>> readJsonList(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<List<Map<String, Object>>>() {
+            });
+        } catch (Exception e) {
+            log.warn("Failed to parse ride session checkpoint JSON: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private Double asDouble(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(value.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private String resolveCheckpointStatus(int checkpointIndex, int currentIndex) {

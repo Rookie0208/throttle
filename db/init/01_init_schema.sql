@@ -349,9 +349,17 @@ CREATE TABLE ride_groups (
 
     pre_ride_meeting_point VARCHAR(255),
 
+    pre_ride_start_location TEXT,
+
+    pre_ride_end_location TEXT,
+
+    pre_ride_meeting_point_location TEXT,
+
     pre_ride_fuel_stops VARCHAR(255),
 
     pre_ride_checkpoints TEXT,
+
+    pre_ride_checkpoint_locations TEXT,
 
     pre_ride_rules TEXT,
 

@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -86,6 +88,8 @@ public class RideService {
         private RideSessionService rideSessionService;
         @Autowired
         private RideParticipantService rideParticipantService;
+
+        private final ObjectMapper objectMapper = new ObjectMapper();
 
         public Ride createRide(CreateRideRequest request, String currentUserUUId) throws AccessDeniedException {
                 User currentUser = userRepository.findByUuid(currentUserUUId)
@@ -1066,9 +1070,30 @@ public class RideService {
                         throw new RuntimeException("Only captain/admin can update pre-ride info");
                 }
 
+                Map<String, Object> startLocation = sanitizeLocation(request.getStartLocation());
+                Map<String, Object> endLocation = sanitizeLocation(request.getEndLocation());
+                Map<String, Object> meetingPointLocation = sanitizeLocation(request.getMeetingPointLocation());
+                List<Map<String, Object>> checkpointLocations = sanitizeLocationList(request.getCheckpointLocations());
+                List<String> checkpointLabels = request.getCheckpointList();
+                if ((checkpointLabels == null || checkpointLabels.isEmpty()) && !checkpointLocations.isEmpty()) {
+                        checkpointLabels = checkpointLocations.stream()
+                                        .map(this::locationLabel)
+                                        .filter(Objects::nonNull)
+                                        .filter(label -> !label.isBlank())
+                                        .toList();
+                }
+
                 group.setPreRideMeetingPoint(trimToNull(request.getMeetingPoint()));
+                group.setPreRideStartLocation(writeJson(startLocation));
+                group.setPreRideEndLocation(writeJson(endLocation));
+                if ((group.getPreRideMeetingPoint() == null || group.getPreRideMeetingPoint().isBlank())
+                                && meetingPointLocation != null) {
+                        group.setPreRideMeetingPoint(trimToNull(locationLabel(meetingPointLocation)));
+                }
+                group.setPreRideMeetingPointLocation(writeJson(meetingPointLocation));
                 group.setPreRideFuelStops(trimToNull(request.getFuelStops()));
-                group.setPreRideCheckpoints(joinList(request.getCheckpointList()));
+                group.setPreRideCheckpoints(joinList(checkpointLabels));
+                group.setPreRideCheckpointLocations(writeJson(checkpointLocations));
                 group.setPreRideRules(joinList(request.getRuleList()));
                 group.setPreRideNotes(trimToNull(request.getNotes()));
                 group.setPreRideUpdatedAt(LocalDateTime.now());
@@ -1078,6 +1103,8 @@ public class RideService {
         }
 
         private PreRideInfoResponse buildPreRideInfoResponse(RideGroup group) {
+                RideLocation rideStartLocation = resolveRideLocation(group.getRide(), LocationType.START, 1);
+                RideLocation rideEndLocation = resolveRideLocation(group.getRide(), LocationType.END, 2);
                 return PreRideInfoResponse.builder()
                                 .title(group.getRide().getTitle())
                                 .description(group.getRide().getDescription())
@@ -1086,9 +1113,17 @@ public class RideService {
                                 .maxRiders(group.getRide().getMaxRiders())
                                 .visibility(group.getVisibility())
                                 .startTime(group.getRide().getStartTime())
+                                .startLocation(resolvePreRideLocation(
+                                                group.getPreRideStartLocation(),
+                                                rideStartLocation))
+                                .endLocation(resolvePreRideLocation(
+                                                group.getPreRideEndLocation(),
+                                                rideEndLocation))
                                 .meetingPoint(group.getPreRideMeetingPoint())
+                                .meetingPointLocation(readJsonMap(group.getPreRideMeetingPointLocation()))
                                 .fuelStops(group.getPreRideFuelStops())
                                 .checkpointList(splitList(group.getPreRideCheckpoints()))
+                                .checkpointLocations(readJsonList(group.getPreRideCheckpointLocations()))
                                 .ruleList(splitList(group.getPreRideRules()))
                                 .notes(group.getPreRideNotes())
                                 .updatedAt(group.getPreRideUpdatedAt())
@@ -1105,13 +1140,137 @@ public class RideService {
                 map.put("maxRiders", response.getMaxRiders());
                 map.put("visibility", response.getVisibility());
                 map.put("startTime", response.getStartTime());
+                map.put("startLocation", response.getStartLocation());
+                map.put("endLocation", response.getEndLocation());
                 map.put("meetingPoint", response.getMeetingPoint());
+                map.put("meetingPointLocation", response.getMeetingPointLocation());
                 map.put("fuelStops", response.getFuelStops());
                 map.put("checkpointList", response.getCheckpointList());
+                map.put("checkpointLocations", response.getCheckpointLocations());
                 map.put("ruleList", response.getRuleList());
                 map.put("notes", response.getNotes());
                 map.put("updatedAt", response.getUpdatedAt());
                 return map;
+        }
+
+        private RideLocation resolveRideLocation(Ride ride, LocationType locationType, int fallbackSequence) {
+                if (ride == null || ride.getLocations() == null) {
+                        return null;
+                }
+
+                return ride.getLocations().stream()
+                                .filter(location -> locationType.equals(location.getLocationType()))
+                                .findFirst()
+                                .orElseGet(() -> ride.getLocations().stream()
+                                                .filter(location -> location.getSequence() != null
+                                                                && location.getSequence() == fallbackSequence)
+                                                .findFirst()
+                                                .orElse(null));
+        }
+
+        private Map<String, Object> sanitizeLocation(Map<String, Object> value) {
+                if (value == null) {
+                        return null;
+                }
+
+                Map<String, Object> sanitized = new LinkedHashMap<>();
+                String name = locationLabel(value);
+                Object latitude = value.get("latitude");
+                Object longitude = value.get("longitude");
+
+                if (name != null && !name.isBlank()) {
+                        sanitized.put("name", name.trim());
+                }
+                if (latitude != null) {
+                        sanitized.put("latitude", latitude);
+                }
+                if (longitude != null) {
+                        sanitized.put("longitude", longitude);
+                }
+
+                return sanitized.isEmpty() ? null : sanitized;
+        }
+
+        private List<Map<String, Object>> sanitizeLocationList(List<Map<String, Object>> values) {
+                if (values == null) {
+                        return List.of();
+                }
+                return values.stream()
+                                .filter(Objects::nonNull)
+                                .map(this::sanitizeLocation)
+                                .filter(Objects::nonNull)
+                                .toList();
+        }
+
+        private Map<String, Object> resolvePreRideLocation(String serialized, RideLocation fallback) {
+                Map<String, Object> saved = readJsonMap(serialized);
+                if (saved != null && !saved.isEmpty()) {
+                        return saved;
+                }
+                if (fallback == null) {
+                        return null;
+                }
+                Map<String, Object> location = new LinkedHashMap<>();
+                location.put("name", fallback.getName());
+                location.put("latitude", fallback.getLatitude());
+                location.put("longitude", fallback.getLongitude());
+                return location;
+        }
+
+        private String locationLabel(Map<String, Object> location) {
+                if (location == null) {
+                        return null;
+                }
+                Object name = location.get("name");
+                if (name != null && !name.toString().isBlank()) {
+                        return name.toString().trim();
+                }
+                Object fullText = location.get("fullText");
+                if (fullText != null && !fullText.toString().isBlank()) {
+                        return fullText.toString().trim();
+                }
+                Object title = location.get("title");
+                if (title != null && !title.toString().isBlank()) {
+                        return title.toString().trim();
+                }
+                return null;
+        }
+
+        private String writeJson(Object value) {
+                if (value == null) {
+                        return null;
+                }
+                try {
+                        return objectMapper.writeValueAsString(value);
+                } catch (Exception e) {
+                        throw new RuntimeException("Failed to store pre-ride location data", e);
+                }
+        }
+
+        private Map<String, Object> readJsonMap(String value) {
+                if (value == null || value.isBlank()) {
+                        return null;
+                }
+                try {
+                        return objectMapper.readValue(value, new TypeReference<Map<String, Object>>() {
+                        });
+                } catch (Exception e) {
+                        log.warn("Failed to parse pre-ride location JSON: {}", e.getMessage());
+                        return null;
+                }
+        }
+
+        private List<Map<String, Object>> readJsonList(String value) {
+                if (value == null || value.isBlank()) {
+                        return List.of();
+                }
+                try {
+                        return objectMapper.readValue(value, new TypeReference<List<Map<String, Object>>>() {
+                        });
+                } catch (Exception e) {
+                        log.warn("Failed to parse pre-ride checkpoint JSON: {}", e.getMessage());
+                        return List.of();
+                }
         }
 
         private List<String> splitList(String value) {
