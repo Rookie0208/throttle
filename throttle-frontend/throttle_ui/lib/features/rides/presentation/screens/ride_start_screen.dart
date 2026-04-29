@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_realtime_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
@@ -34,13 +39,18 @@ class RideStartScreen extends StatefulWidget {
 class _RideStartScreenState extends State<RideStartScreen> {
   final RideRealtimeService _rideRealtimeService = RideRealtimeService();
 
-  bool _expanded = false;
   bool _loading = false;
   bool _fetching = false;
   bool _isDragging = false;
   bool _navigatingToLiveRide = false;
   double _dragPosition = 0;
   Map<String, dynamic>? _session;
+  Timer? _clockTimer;
+  Timer? _locationSyncTimer;
+  Timer? _topToastTimer;
+  LatLng? _currentMapLocation;
+  bool _showTopToast = false;
+  String? _topToastMessage;
 
   String get _title =>
       (_session?["title"] ?? widget.groupName).toString().trim().isEmpty
@@ -146,6 +156,11 @@ class _RideStartScreenState extends State<RideStartScreen> {
           _currentUserState == "IN_RIDE" ||
           _session?["rideStartedAt"] != null);
 
+  bool get _isOngoingToMeeting =>
+      !_isRideClosed &&
+      (_currentUserState == "EN_ROUTE" ||
+          _currentUserState == "AT_START_POINT");
+
   bool get _showRideManagementAction => _canManageRide && !_isRideClosed;
 
   String get _rideManagementTitle =>
@@ -169,15 +184,67 @@ class _RideStartScreenState extends State<RideStartScreen> {
   int? get _currentUserTimeToMeetingSeconds =>
       _toInt(_session?["currentUserTimeToMeetingSeconds"]);
 
+  Map<String, dynamic>? get _meetingPointLocation {
+    final raw = _session?["meetingPointLocation"];
+    if (raw is! Map) return null;
+    final latitude = _toDouble(raw["latitude"]);
+    final longitude = _toDouble(raw["longitude"]);
+    if (latitude == null || longitude == null) return null;
+    return {
+      "name": (raw["name"] ?? _meetingPoint).toString(),
+      "latitude": latitude,
+      "longitude": longitude,
+    };
+  }
+
+  LatLng? get _sessionCurrentUserLocation {
+    final participants = _session?["participants"];
+    if (participants is! List) return null;
+    final currentUserUuid = (_session?["currentUserUuid"] ?? "").toString();
+    for (final item in participants) {
+      if (item is! Map) continue;
+      if ((item["userUuid"] ?? "").toString() != currentUserUuid) continue;
+      final latitude = _toDouble(item["lastLatitude"]);
+      final longitude = _toDouble(item["lastLongitude"]);
+      if (latitude != null && longitude != null) {
+        return LatLng(latitude, longitude);
+      }
+    }
+    return null;
+  }
+
+  LatLng? get _mapCurrentLocation =>
+      _currentMapLocation ?? _sessionCurrentUserLocation;
+
+  String get _phaseTitle {
+    switch (_currentUserState) {
+      case "EN_ROUTE":
+        return "On the way to the meeting point";
+      case "AT_START_POINT":
+        return "Arrived at the meeting point";
+      default:
+        return "Get ready for the ride";
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _connectRealtime();
     _loadSession();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_currentUserRideStartedAt != null) {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
+    _locationSyncTimer?.cancel();
+    _topToastTimer?.cancel();
     _rideRealtimeService.disconnect();
     super.dispose();
   }
@@ -196,6 +263,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
   Future<void> _loadSession() async {
     setState(() => _fetching = true);
     try {
+      final previousState = _currentUserState;
       final session = await RideService.fetchRideSession(
         widget.token,
         widget.rideUuid,
@@ -204,6 +272,8 @@ class _RideStartScreenState extends State<RideStartScreen> {
       setState(() {
         _session = session;
       });
+      _handleTopToast(previousState, _currentUserState);
+      _ensureEnRouteLocationSync();
       _maybeOpenLiveRide(session);
     } catch (e) {
       if (!mounted) return;
@@ -241,6 +311,50 @@ class _RideStartScreenState extends State<RideStartScreen> {
           ),
         ),
       );
+    }
+  }
+
+  void _ensureEnRouteLocationSync() {
+    if (!_isOngoingToMeeting) {
+      _locationSyncTimer?.cancel();
+      _locationSyncTimer = null;
+      return;
+    }
+
+    if (_locationSyncTimer != null) {
+      return;
+    }
+
+    unawaited(_captureAndSyncLocation());
+    _locationSyncTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => unawaited(_captureAndSyncLocation()),
+    );
+  }
+
+  Future<void> _captureAndSyncLocation() async {
+    final position = await LocationService.getCurrentLocation();
+    if (position == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _currentMapLocation = LatLng(position.latitude, position.longitude);
+    });
+
+    try {
+      final session = await RideService.updateRideLocation(
+        widget.token,
+        widget.rideUuid,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+      });
+    } catch (_) {
+      // Best-effort sync. The local position still drives the route view.
     }
   }
 
@@ -344,6 +458,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
       setState(() {
         _session = session;
       });
+      _ensureEnRouteLocationSync();
       _maybeOpenLiveRide(session);
     } catch (e) {
       if (!mounted) return;
@@ -361,6 +476,95 @@ class _RideStartScreenState extends State<RideStartScreen> {
   void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message.replaceFirst("Exception: ", ""))),
+    );
+  }
+
+  void _handleTopToast(String previousState, String nextState) {
+    if (previousState == nextState) {
+      return;
+    }
+
+    if (nextState == "AT_START_POINT") {
+      _showTopBanner("You are at the meeting point");
+      return;
+    }
+
+    if (nextState == "EN_ROUTE") {
+      _showTopBanner("Ride to meetup is live");
+    }
+  }
+
+  void _showTopBanner(String message) {
+    _topToastTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _topToastMessage = message;
+      _showTopToast = true;
+    });
+    _topToastTimer = Timer(const Duration(seconds: 4), () {
+      if (!mounted) return;
+      setState(() {
+        _showTopToast = false;
+      });
+    });
+  }
+
+  void _showRideHelp(AppThemeConfig theme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.lightbulb_outline, color: theme.primary),
+                  const SizedBox(width: 10),
+                  Text(
+                    "Ride Flow",
+                    style: GoogleFonts.bebasNeue(
+                      fontSize: 22,
+                      letterSpacing: 1.1,
+                      color: theme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _HelpItem(
+                number: 1,
+                title: "Leave Home",
+                desc:
+                    "Slide start when you head to the meeting point. Your personal timer starts here.",
+                theme: theme,
+              ),
+              const SizedBox(height: 16),
+              _HelpItem(
+                number: 2,
+                title: "Follow Live Route",
+                desc:
+                    "The live map keeps your current position and meetup target in focus while you travel.",
+                theme: theme,
+              ),
+              const SizedBox(height: 16),
+              _HelpItem(
+                number: 3,
+                title: "Check In",
+                desc:
+                    "When you reach the meeting point, slide again to mark arrival and wait for the main ride start.",
+                theme: theme,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -396,6 +600,12 @@ class _RideStartScreenState extends State<RideStartScreen> {
     return int.tryParse(value?.toString() ?? "");
   }
 
+  double? _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? "");
+  }
+
   String _formatDurationSeconds(int seconds) {
     final duration = Duration(seconds: seconds);
     final hours = duration.inHours;
@@ -409,6 +619,13 @@ class _RideStartScreenState extends State<RideStartScreen> {
       return "${minutes}m ${remainingSeconds}s";
     }
     return "${remainingSeconds}s";
+  }
+
+  String _formatElapsedDuration(DateTime startedAt, [DateTime? endedAt]) {
+    final end = endedAt ?? DateTime.now();
+    return _formatDurationSeconds(
+      end.difference(startedAt).inSeconds.clamp(0, 2147483647),
+    );
   }
 
   void _manageRide(AppThemeConfig theme) {
@@ -463,6 +680,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
                 onPressed: _fetching ? null : _loadSession,
                 icon: Icon(Icons.refresh, color: theme.textPrimary),
               ),
+              IconButton(
+                onPressed: () => _showRideHelp(theme),
+                icon: Icon(Icons.lightbulb_outline, color: theme.textPrimary),
+              ),
               if (_showRideManagementAction)
                 IconButton(
                   onPressed: _loading ? null : () => _manageRide(theme),
@@ -472,30 +693,120 @@ class _RideStartScreenState extends State<RideStartScreen> {
           ),
           body: _fetching && _session == null
               ? Center(child: CircularProgressIndicator(color: theme.primary))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _rideCard(theme),
-                      const SizedBox(height: 20),
-                      _liveProgress(theme),
-                      const SizedBox(height: 20),
-                      _slider(theme),
-                      if (_currentUserRideStartedAt != null) ...[
-                        const SizedBox(height: 16),
-                        _individualRideTimer(theme),
-                      ],
-                      if (_currentUserState == "AT_START_POINT") ...[
-                        const SizedBox(height: 20),
-                        _arrivalMessage(theme),
-                      ],
-                      const SizedBox(height: 20),
-                      _accordion(theme),
-                    ],
-                  ),
+              : Stack(
+                  children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: _isOngoingToMeeting
+                          ? _ongoingRideContent(theme)
+                          : _preStartContent(theme),
+                    ),
+                    if (_topToastMessage != null)
+                      IgnorePointer(
+                        ignoring: true,
+                        child: SafeArea(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                            child: AnimatedSlide(
+                              offset: _showTopToast
+                                  ? Offset.zero
+                                  : const Offset(0, -0.25),
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeOutCubic,
+                              child: AnimatedOpacity(
+                                opacity: _showTopToast ? 1 : 0,
+                                duration: const Duration(milliseconds: 350),
+                                child: _topToastBanner(
+                                  theme,
+                                  _topToastMessage!,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
         );
       },
+    );
+  }
+
+  Widget _preStartContent(AppThemeConfig theme) {
+    return Column(
+      children: [
+        _rideCard(theme),
+        const SizedBox(height: 20),
+        _liveProgress(theme),
+        const SizedBox(height: 20),
+        _slider(theme),
+        if (_currentUserRideStartedAt != null) ...[
+          const SizedBox(height: 16),
+          _individualRideTimer(theme),
+        ],
+      ],
+    );
+  }
+
+  Widget _ongoingRideContent(AppThemeConfig theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: theme.surface,
+            border: Border.all(color: theme.primary.withValues(alpha: 0.24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _phaseTitle,
+                      style: GoogleFonts.bebasNeue(
+                        fontSize: 22,
+                        letterSpacing: 1.1,
+                        color: theme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _statusColor().withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _statusLabel(),
+                      style: TextStyle(
+                        color: _statusColor(),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _liveProgress(theme),
+        const SizedBox(height: 12),
+        _liveRouteMap(theme),
+        const SizedBox(height: 14),
+        _slider(theme),
+      ],
     );
   }
 
@@ -617,12 +928,14 @@ class _RideStartScreenState extends State<RideStartScreen> {
 
   Widget _liveProgress(AppThemeConfig theme) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.18)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -638,31 +951,84 @@ class _RideStartScreenState extends State<RideStartScreen> {
               CircleAvatar(radius: 4, backgroundColor: theme.primary),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
+          _personalTimerSummary(theme),
+          const SizedBox(height: 10),
           Row(
             children: [
               _progressTile(
-                Icons.navigation,
+                Icons.navigation_outlined,
                 "En Route",
                 _enRouteCount,
                 theme.secondary,
                 theme,
               ),
               _progressTile(
-                Icons.location_on,
+                Icons.location_on_outlined,
                 "At Start",
                 _atStartCount,
                 Colors.amber,
                 theme,
               ),
               _progressTile(
-                Icons.navigation,
+                Icons.two_wheeler,
                 "In Ride",
                 _inRideCount,
                 theme.primary,
                 theme,
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _personalTimerSummary(AppThemeConfig theme) {
+    final startedAt = _currentUserRideStartedAt;
+    final arrivedAt = _currentUserArrivedAtStartAt;
+    final loggedDuration = _currentUserTimeToMeetingSeconds;
+
+    String timerValue = "--";
+
+    if (startedAt != null && arrivedAt != null && loggedDuration != null) {
+      timerValue = _formatDurationSeconds(loggedDuration);
+    } else if (startedAt != null) {
+      timerValue = _formatElapsedDuration(startedAt);
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.timer_outlined, color: theme.primary, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                "Personal Ride Timer",
+                style: TextStyle(
+                  color: theme.textPrimary.withValues(alpha: 0.72),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            timerValue,
+            style: GoogleFonts.bebasNeue(
+              fontSize: 26,
+              letterSpacing: 1.1,
+              color: theme.textPrimary,
+            ),
           ),
         ],
       ),
@@ -679,7 +1045,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: theme.background,
           borderRadius: BorderRadius.circular(12),
@@ -691,7 +1057,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
             Text(
               "$count",
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: theme.textPrimary,
                 fontFamily: 'Inter',
@@ -700,7 +1066,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 color: theme.textPrimary.withValues(alpha: 0.65),
               ),
             ),
@@ -710,48 +1076,238 @@ class _RideStartScreenState extends State<RideStartScreen> {
     );
   }
 
-  Widget _arrivalMessage(AppThemeConfig theme) {
-    final subtitle = _canManageRide
-        ? "Start the full ride when everyone is ready"
-        : "Waiting for the captain to begin the journey";
+  Widget _liveRouteMap(AppThemeConfig theme) {
+    final current = _mapCurrentLocation;
+    final meeting = _meetingPointLocation;
+    final meetingLat = _toDouble(meeting?["latitude"]);
+    final meetingLng = _toDouble(meeting?["longitude"]);
+    final meetingTarget = meetingLat != null && meetingLng != null
+        ? LatLng(meetingLat, meetingLng)
+        : null;
 
+    if (meetingTarget == null) {
+      return _mapFallbackCard(
+        theme,
+        title: "Live Route",
+        message: "Meeting point coordinates are not available yet.",
+      );
+    }
+
+    if (current == null) {
+      return _mapFallbackCard(
+        theme,
+        title: "Live Route",
+        message:
+            "Enable location access to see your live route to $_meetingPoint.",
+      );
+    }
+
+    return Container(
+      height: 380,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.18)),
+      ),
+      child: Stack(
+        children: [
+          FlutterMap(
+            options: MapOptions(
+              initialCenter: current,
+              initialZoom: 13.5,
+              initialCameraFit: CameraFit.coordinates(
+                coordinates: [current, meetingTarget],
+                padding: const EdgeInsets.all(44),
+                maxZoom: 14.5,
+              ),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                userAgentPackageName: "com.ridersclub.throttle_ui",
+              ),
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: [current, meetingTarget],
+                    strokeWidth: 5,
+                    color: theme.primary,
+                  ),
+                ],
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: current,
+                    width: 48,
+                    height: 48,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: theme.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.primary.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.navigation,
+                        color: Colors.white,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                  Marker(
+                    point: meetingTarget,
+                    width: 48,
+                    height: 48,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x55FF5252),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const RichAttributionWidget(
+                popupInitialDisplayDuration: Duration.zero,
+                attributions: [TextSourceAttribution("© OpenStreetMap")],
+              ),
+            ],
+          ),
+          Positioned(
+            top: 14,
+            left: 14,
+            right: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.64),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.navigation_outlined, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Live Route",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          "Heading to $_meetingPoint",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapFallbackCard(
+    AppThemeConfig theme, {
+    required String title,
+    required String message,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.1),
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.bebasNeue(
+              fontSize: 22,
+              letterSpacing: 1.1,
+              color: theme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.7),
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _topToastBanner(AppThemeConfig theme, String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F2015).withValues(alpha: 0.96),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.green.withValues(alpha: 0.5),
-          width: 2,
-        ),
+        border: Border.all(color: const Color(0xFF4ADE80), width: 1.5),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3322C55E),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 24),
-          const SizedBox(width: 12),
+          Icon(
+            Icons.check_circle_outline,
+            color: const Color(0xFF4ADE80),
+            size: 22,
+          ),
+          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "You are at the meeting point",
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: theme.textPrimary.withValues(alpha: 0.65),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
+            child: Text(
+              message,
+              style: GoogleFonts.bebasNeue(
+                color: const Color(0xFF86EFAC),
+                fontSize: 20,
+                letterSpacing: 1.05,
+              ),
             ),
           ),
         ],
@@ -927,76 +1483,6 @@ class _RideStartScreenState extends State<RideStartScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _accordion(AppThemeConfig theme) {
-    return Column(
-      children: [
-        ListTile(
-          tileColor: theme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          onTap: () => setState(() => _expanded = !_expanded),
-          leading: Icon(Icons.info, color: theme.primary),
-          title: Text(
-            "How this works",
-            style: GoogleFonts.bebasNeue(
-              fontSize: 18,
-              letterSpacing: 1.1,
-              color: theme.textPrimary,
-            ),
-          ),
-          subtitle: Text(
-            _expanded ? "Tap to hide" : "Tap to learn more",
-            style: TextStyle(
-              color: theme.textPrimary.withValues(alpha: 0.65),
-              fontFamily: 'Inter',
-            ),
-          ),
-          trailing: Icon(
-            _expanded ? Icons.expand_less : Icons.expand_more,
-            color: theme.textPrimary,
-          ),
-        ),
-        if (_expanded)
-          Container(
-            margin: const EdgeInsets.only(top: 10),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                _HelpItem(
-                  number: 1,
-                  title: "Start Ride",
-                  theme: theme,
-                  desc:
-                      "Slide \"Start Ride\" when you're leaving home. This updates the shared ride session for everyone.",
-                ),
-                const SizedBox(height: 16),
-                _HelpItem(
-                  number: 2,
-                  title: "Mark Arrived",
-                  theme: theme,
-                  desc:
-                      "Once you reach the meetup point, slide \"Mark Arrived\" so the ride status is synced for the group.",
-                ),
-                const SizedBox(height: 16),
-                _HelpItem(
-                  number: 3,
-                  title: "Begin Journey",
-                  theme: theme,
-                  desc:
-                      "When the group is ready, the ride captain can start the full ride and everyone moves into the live console.",
-                ),
-              ],
-            ),
-          ),
-      ],
     );
   }
 }

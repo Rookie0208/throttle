@@ -10,6 +10,7 @@ import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dar
 import 'package:throttle_ui/features/groups/presentation/screens/invite_member_screen.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_preview_map_screen.dart';
 import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
@@ -51,11 +52,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
   }
 
   bool get _isRideStarted {
-    final rideStatus = (widget.rideGroup["rideStatus"] ??
-            widget.rideGroup["status"] ??
-            "")
-        .toString()
-        .toUpperCase();
+    final rideStatus =
+        (widget.rideGroup["rideStatus"] ?? widget.rideGroup["status"] ?? "")
+            .toString()
+            .toUpperCase();
     return {
       "PARTIAL_STARTED",
       "READY_TO_START",
@@ -721,9 +721,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
             const SizedBox(height: 8),
             ...requests.map((request) {
               final requestId = request["requestId"] as int?;
-              final name =
-                  (request["username"] ?? "").toString()
-                      .trim();
+              final name = (request["username"] ?? "").toString().trim();
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 padding: const EdgeInsets.all(12),
@@ -901,72 +899,353 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     );
   }
 
+  double? _toCoordinate(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? "");
+  }
+
+  Map<String, dynamic>? _normalizeLocation(
+    dynamic raw, {
+    String? fallbackName,
+  }) {
+    if (raw is! Map) return null;
+    final data = Map<String, dynamic>.from(raw);
+    final latitude = _toCoordinate(
+      data["latitude"] ?? data["lat"] ?? data["y"],
+    );
+    final longitude = _toCoordinate(
+      data["longitude"] ?? data["lng"] ?? data["lon"] ?? data["x"],
+    );
+    final name = data["name"]?.toString().trim().isNotEmpty == true
+        ? data["name"].toString().trim()
+        : data["fullText"]?.toString().trim().isNotEmpty == true
+        ? data["fullText"].toString().trim()
+        : data["title"]?.toString().trim().isNotEmpty == true
+        ? data["title"].toString().trim()
+        : fallbackName?.trim();
+
+    if ((name == null || name.isEmpty) &&
+        (latitude == null || longitude == null)) {
+      return null;
+    }
+
+    return {
+      ...data,
+      "name": name ?? fallbackName ?? "Pinned location",
+      "latitude": latitude,
+      "longitude": longitude,
+    };
+  }
+
+  List<Map<String, dynamic>> _normalizeLocationList(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((item) => _normalizeLocation(item))
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  Map<String, dynamic>? _serializeLocation(Map<String, dynamic>? location) {
+    final normalized = _normalizeLocation(location);
+    if (normalized == null) return null;
+    return {
+      "name": _locationName(normalized),
+      "latitude": normalized["latitude"],
+      "longitude": normalized["longitude"],
+    };
+  }
+
+  List<Map<String, dynamic>> _serializeLocationList(
+    List<Map<String, dynamic>> locations,
+  ) {
+    return locations
+        .map(_serializeLocation)
+        .whereType<Map<String, dynamic>>()
+        .toList();
+  }
+
+  bool _hasCoordinates(Map<String, dynamic>? location) =>
+      location != null &&
+      location["latitude"] is num &&
+      location["longitude"] is num;
+
+  String _locationName(Map<String, dynamic>? location) {
+    final name = location?["name"]?.toString().trim() ?? "";
+    if (name.isNotEmpty) return name;
+    if (_hasCoordinates(location)) {
+      return "${location!["latitude"]}, ${location["longitude"]}";
+    }
+    return "Unknown location";
+  }
+
+  Map<String, dynamic> _suggestionToLocation(Map<String, String> suggestion) {
+    return {
+      "placeId": suggestion["placeId"],
+      "title": suggestion["title"],
+      "subtitle": suggestion["subtitle"],
+      "fullText": suggestion["fullText"],
+      "name": suggestion["fullText"]?.trim().isNotEmpty == true
+          ? suggestion["fullText"]!.trim()
+          : (suggestion["title"] ?? "").trim(),
+      "latitude": _toCoordinate(suggestion["latitude"]),
+      "longitude": _toCoordinate(suggestion["longitude"]),
+    };
+  }
+
+  List<RidePreviewPoint> _buildRidePreviewPoints({
+    Map<String, dynamic>? startLocation,
+    Map<String, dynamic>? endLocation,
+    Map<String, dynamic>? meetingPointLocation,
+    List<Map<String, dynamic>> checkpointLocations = const [],
+    bool includeMeetingPoint = true,
+  }) {
+    final points = <RidePreviewPoint>[];
+    if (_hasCoordinates(startLocation)) {
+      points.add(
+        RidePreviewPoint(
+          title: _locationName(startLocation),
+          latitude: (startLocation!["latitude"] as num).toDouble(),
+          longitude: (startLocation["longitude"] as num).toDouble(),
+          kind: "start",
+        ),
+      );
+    }
+    for (final checkpoint in checkpointLocations) {
+      if (_hasCoordinates(checkpoint)) {
+        points.add(
+          RidePreviewPoint(
+            title: _locationName(checkpoint),
+            latitude: (checkpoint["latitude"] as num).toDouble(),
+            longitude: (checkpoint["longitude"] as num).toDouble(),
+            kind: "checkpoint",
+          ),
+        );
+      }
+    }
+    if (_hasCoordinates(endLocation)) {
+      points.add(
+        RidePreviewPoint(
+          title: _locationName(endLocation),
+          latitude: (endLocation!["latitude"] as num).toDouble(),
+          longitude: (endLocation["longitude"] as num).toDouble(),
+          kind: "end",
+        ),
+      );
+    }
+    if (includeMeetingPoint && _hasCoordinates(meetingPointLocation)) {
+      points.add(
+        RidePreviewPoint(
+          title: _locationName(meetingPointLocation),
+          latitude: (meetingPointLocation!["latitude"] as num).toDouble(),
+          longitude: (meetingPointLocation["longitude"] as num).toDouble(),
+          kind: "meeting",
+        ),
+      );
+    }
+    return points;
+  }
+
+  Future<void> _openLocationPreview(
+    String title,
+    Map<String, dynamic>? location,
+  ) async {
+    if (!_hasCoordinates(location)) {
+      _showMessage("Exact coordinates are not available for this location");
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RidePreviewMapScreen(
+          title: title,
+          subtitle: _locationName(location),
+          points: [
+            RidePreviewPoint(
+              title: _locationName(location),
+              latitude: (location!["latitude"] as num).toDouble(),
+              longitude: (location["longitude"] as num).toDouble(),
+              kind: "meeting",
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRidePreviewMap({
+    required String title,
+    Map<String, dynamic>? startLocation,
+    Map<String, dynamic>? endLocation,
+    Map<String, dynamic>? meetingPointLocation,
+    List<Map<String, dynamic>> checkpointLocations = const [],
+  }) async {
+    final points = _buildRidePreviewPoints(
+      startLocation: startLocation,
+      endLocation: endLocation,
+      meetingPointLocation: meetingPointLocation,
+      checkpointLocations: checkpointLocations,
+    );
+
+    if (points.isEmpty) {
+      _showMessage("No exact ride locations are available yet");
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RidePreviewMapScreen(
+          title: title,
+          subtitle: "Start, destination, checkpoints, and meeting point",
+          points: points,
+        ),
+      ),
+    );
+  }
+
+  Widget _locationPreviewTile({
+    required String label,
+    required String value,
+    required AppThemeConfig theme,
+    VoidCallback? onTap,
+    IconData icon = Icons.place_outlined,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0x52B8C6DA)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: theme.primary, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      color: theme.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              Icon(
+                Icons.map_outlined,
+                color: theme.textPrimary.withValues(alpha: 0.55),
+                size: 18,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _preRideHeroCard(
     Map<String, dynamic> preRideInfo,
-    AppThemeConfig theme,
-  ) {
-    final meetingPoint =
-        (preRideInfo["meetingPoint"] ?? "No meeting point added").toString();
+    AppThemeConfig theme, {
+    VoidCallback? onTap,
+  }) {
+    final meetingPointLocation = _normalizeLocation(
+      preRideInfo["meetingPointLocation"],
+      fallbackName: preRideInfo["meetingPoint"]?.toString(),
+    );
+    final meetingPoint = _locationName(meetingPointLocation).trim().isNotEmpty
+        ? _locationName(meetingPointLocation)
+        : (preRideInfo["meetingPoint"] ?? "No meeting point added").toString();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0x337D39EB), Color(0x22C6FF33)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0x337D39EB), Color(0x22C6FF33)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: theme.primary.withValues(alpha: 0.35)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 14,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.primary.withValues(alpha: 0.35)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x22000000),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: theme.primary.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(Icons.place_rounded, color: theme.primary),
             ),
-            child: Icon(Icons.place_rounded, color: theme.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Meeting Point",
-                  style: TextStyle(
-                    color: theme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    letterSpacing: 0.2,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Meeting Point",
+                    style: TextStyle(
+                      color: theme.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      letterSpacing: 0.2,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  meetingPoint,
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
+                  const SizedBox(height: 8),
+                  Text(
+                    meetingPoint,
+                    style: TextStyle(
+                      color: theme.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+            if (onTap != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, top: 4),
+                child: Icon(
+                  Icons.map_outlined,
+                  color: theme.textPrimary.withValues(alpha: 0.55),
+                  size: 18,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -986,8 +1265,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) {
-        final String name =
-            (member["username"] ?? "").toString().trim();
+        final String name = (member["username"] ?? "").toString().trim();
         final String role = member["role"] ?? "RIDER";
 
         return Padding(
@@ -1359,8 +1637,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         widget.rideGroup["title"] ?? widget.rideGroup["name"] ?? "Ride";
     final creatorUser = widget.rideGroup["createdByUser"];
     final creatorName = creatorUser != null
-        ? (creatorUser["username"] ?? "").toString()
-              .trim()
+        ? (creatorUser["username"] ?? "").toString().trim()
         : (widget.rideGroup["createdByName"]?.toString().trim().isNotEmpty ??
               false)
         ? widget.rideGroup["createdByName"].toString().trim()
@@ -1493,6 +1770,14 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
           _preRideHeroCard(
             Map<String, dynamic>.from(widget.rideGroup["preRideInfo"]),
             theme,
+            onTap: () => _openLocationPreview(
+              "Meeting Point",
+              _normalizeLocation(
+                widget.rideGroup["preRideInfo"]["meetingPointLocation"],
+                fallbackName: widget.rideGroup["preRideInfo"]["meetingPoint"]
+                    ?.toString(),
+              ),
+            ),
           ),
         ],
       ],
@@ -1508,13 +1793,27 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     final preRideInfo = Map<String, dynamic>.from(
       widget.rideGroup["preRideInfo"] ?? {},
     );
+    final startLocation = _normalizeLocation(
+      preRideInfo["startLocation"] ?? widget.rideGroup["startLocation"],
+    );
+    final endLocation = _normalizeLocation(
+      preRideInfo["endLocation"] ?? widget.rideGroup["endLocation"],
+    );
+    final meetingPointLocation = _normalizeLocation(
+      preRideInfo["meetingPointLocation"],
+      fallbackName: preRideInfo["meetingPoint"]?.toString(),
+    );
+    final checkpointLocations = _normalizeLocationList(
+      preRideInfo["checkpointLocations"],
+    );
     final canEditPreRide = _canEditPreRide(currentUserRole);
-    final checkpoints =
-        (preRideInfo["checkpointList"] as List?)
-            ?.whereType<String>()
-            .where((item) => item.trim().isNotEmpty)
-            .toList() ??
-        [];
+    final checkpoints = checkpointLocations.isNotEmpty
+        ? checkpointLocations.map(_locationName).toList()
+        : (preRideInfo["checkpointList"] as List?)
+                  ?.whereType<String>()
+                  .where((item) => item.trim().isNotEmpty)
+                  .toList() ??
+              [];
     final rules =
         (preRideInfo["ruleList"] as List?)
             ?.whereType<String>()
@@ -1563,6 +1862,25 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                         ),
                     ],
                   ),
+                  if (preRideInfo.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => _openRidePreviewMap(
+                          title: "Ride Preview",
+                          startLocation: startLocation,
+                          endLocation: endLocation,
+                          meetingPointLocation: meetingPointLocation,
+                          checkpointLocations: checkpointLocations,
+                        ),
+                        icon: const Icon(Icons.map_outlined, size: 18),
+                        label: const Text("See Ride Preview"),
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.primary,
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 6),
                   if (_isGroupLocked)
                     Text(
@@ -1604,7 +1922,44 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                         if ((preRideInfo["meetingPoint"] ?? "")
                             .toString()
                             .isNotEmpty)
-                          _preRideHeroCard(preRideInfo, theme),
+                          _preRideHeroCard(
+                            preRideInfo,
+                            theme,
+                            onTap: () => _openLocationPreview(
+                              "Meeting Point",
+                              meetingPointLocation,
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                        _locationPreviewTile(
+                          label: "Start Location",
+                          value: startLocation == null
+                              ? "Not available"
+                              : _locationName(startLocation),
+                          theme: theme,
+                          onTap: startLocation == null
+                              ? null
+                              : () => _openLocationPreview(
+                                  "Start Location",
+                                  startLocation,
+                                ),
+                          icon: Icons.trip_origin,
+                        ),
+                        const SizedBox(height: 10),
+                        _locationPreviewTile(
+                          label: "Destination",
+                          value: endLocation == null
+                              ? "Not available"
+                              : _locationName(endLocation),
+                          theme: theme,
+                          onTap: endLocation == null
+                              ? null
+                              : () => _openLocationPreview(
+                                  "Destination",
+                                  endLocation,
+                                ),
+                          icon: Icons.flag_outlined,
+                        ),
                         const SizedBox(height: 14),
                         GridView.count(
                           crossAxisCount: 2,
@@ -1688,42 +2043,54 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: checkpoints
-                                .map(
-                                  (item) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: theme.surface,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: const Color(0x52B8C6DA),
+                            children: checkpoints.asMap().entries.map((entry) {
+                              final label = entry.value;
+                              final location =
+                                  checkpointLocations.length > entry.key
+                                  ? checkpointLocations[entry.key]
+                                  : null;
+                              return InkWell(
+                                onTap: location == null
+                                    ? null
+                                    : () => _openLocationPreview(
+                                        "Checkpoint",
+                                        location,
                                       ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.place_outlined,
-                                          size: 16,
-                                          color: theme.primary,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          item,
-                                          style: TextStyle(
-                                            color: theme.textPrimary.withValues(
-                                              alpha: 0.65,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: const Color(0x52B8C6DA),
                                     ),
                                   ),
-                                )
-                                .toList(),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.place_outlined,
+                                        size: 16,
+                                        color: theme.primary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        label,
+                                        style: TextStyle(
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.65,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
                           ),
                         ],
                         if (rules.isNotEmpty) ...[
@@ -1800,18 +2167,85 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       text: existingPreRide["notes"]?.toString() ?? "",
     );
     final meetingFocusNode = FocusNode();
+    final checkpointFocusNode = FocusNode();
     Timer? meetingSearchDebounce;
+    Timer? checkpointSearchDebounce;
     int meetingSearchRequestId = 0;
+    int checkpointSearchRequestId = 0;
     bool isMeetingSearchLoading = false;
+    bool isCheckpointSearchLoading = false;
     String? meetingSearchError;
+    String? checkpointSearchError;
     List<Map<String, String>> meetingSuggestions = [];
-
-    List<String> checkpoints = List<String>.from(
-      existingPreRide["checkpointList"] ??
-          (existingPreRide["checkpoints"]?.toString().split(",") ?? [])
-              .map((item) => item.trim())
-              .where((item) => item.isNotEmpty),
+    List<Map<String, String>> checkpointSuggestions = [];
+    final startLocationController = TextEditingController(
+      text:
+          _locationName(
+                _normalizeLocation(
+                  existingPreRide["startLocation"] ??
+                      widget.rideGroup["startLocation"],
+                ),
+              ) ==
+              "Unknown location"
+          ? ""
+          : _locationName(
+              _normalizeLocation(
+                existingPreRide["startLocation"] ??
+                    widget.rideGroup["startLocation"],
+              ),
+            ),
     );
+    final endLocationController = TextEditingController(
+      text:
+          _locationName(
+                _normalizeLocation(
+                  existingPreRide["endLocation"] ??
+                      widget.rideGroup["endLocation"],
+                ),
+              ) ==
+              "Unknown location"
+          ? ""
+          : _locationName(
+              _normalizeLocation(
+                existingPreRide["endLocation"] ??
+                    widget.rideGroup["endLocation"],
+              ),
+            ),
+    );
+    final startFocusNode = FocusNode();
+    final endFocusNode = FocusNode();
+    Timer? startSearchDebounce;
+    Timer? endSearchDebounce;
+    int startSearchRequestId = 0;
+    int endSearchRequestId = 0;
+    bool isStartSearchLoading = false;
+    bool isEndSearchLoading = false;
+    String? startSearchError;
+    String? endSearchError;
+    List<Map<String, String>> startSuggestions = [];
+    List<Map<String, String>> endSuggestions = [];
+    Map<String, dynamic>? selectedStartLocation = _normalizeLocation(
+      existingPreRide["startLocation"] ?? widget.rideGroup["startLocation"],
+    );
+    Map<String, dynamic>? selectedEndLocation = _normalizeLocation(
+      existingPreRide["endLocation"] ?? widget.rideGroup["endLocation"],
+    );
+    Map<String, dynamic>? selectedMeetingLocation = _normalizeLocation(
+      existingPreRide["meetingPointLocation"],
+      fallbackName: existingPreRide["meetingPoint"]?.toString(),
+    );
+
+    List<Map<String, dynamic>> checkpointLocations = _normalizeLocationList(
+      existingPreRide["checkpointLocations"],
+    );
+    List<String> checkpoints = checkpointLocations.isNotEmpty
+        ? checkpointLocations.map(_locationName).toList()
+        : List<String>.from(
+            existingPreRide["checkpointList"] ??
+                (existingPreRide["checkpoints"]?.toString().split(",") ?? [])
+                    .map((item) => item.trim())
+                    .where((item) => item.isNotEmpty),
+          );
     List<String> selectedRules = List<String>.from(
       existingPreRide["ruleList"] ??
           (existingPreRide["rules"]?.toString().split(",") ?? [])
@@ -1829,11 +2263,19 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
     void disposePreRideControllers() {
       meetingSearchDebounce?.cancel();
+      checkpointSearchDebounce?.cancel();
+      startSearchDebounce?.cancel();
+      endSearchDebounce?.cancel();
       meetingController.dispose();
+      startLocationController.dispose();
+      endLocationController.dispose();
       fuelController.dispose();
       checkpointController.dispose();
       notesController.dispose();
       meetingFocusNode.dispose();
+      checkpointFocusNode.dispose();
+      startFocusNode.dispose();
+      endFocusNode.dispose();
     }
 
     void clearMeetingSuggestions(StateSetter setModalState) {
@@ -1844,10 +2286,35 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       });
     }
 
+    void clearCheckpointSuggestions(StateSetter setModalState) {
+      setModalState(() {
+        isCheckpointSearchLoading = false;
+        checkpointSearchError = null;
+        checkpointSuggestions = [];
+      });
+    }
+
+    void clearStartSuggestions(StateSetter setModalState) {
+      setModalState(() {
+        isStartSearchLoading = false;
+        startSearchError = null;
+        startSuggestions = [];
+      });
+    }
+
+    void clearEndSuggestions(StateSetter setModalState) {
+      setModalState(() {
+        isEndSearchLoading = false;
+        endSearchError = null;
+        endSuggestions = [];
+      });
+    }
+
     void selectMeetingSuggestion(
       StateSetter setModalState,
       Map<String, String> suggestion,
     ) {
+      selectedMeetingLocation = _suggestionToLocation(suggestion);
       meetingController.text =
           suggestion["fullText"] ?? suggestion["title"] ?? "";
       meetingController.selection = TextSelection.collapsed(
@@ -1855,6 +2322,59 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       );
       meetingFocusNode.unfocus();
       clearMeetingSuggestions(setModalState);
+    }
+
+    void addCheckpointSuggestion(
+      StateSetter setModalState,
+      Map<String, String> suggestion,
+    ) {
+      final location = _suggestionToLocation(suggestion);
+      final label = _locationName(location);
+      final duplicate = checkpointLocations.any(
+        (item) =>
+            _locationName(item).toLowerCase() == label.toLowerCase() &&
+            item["latitude"] == location["latitude"] &&
+            item["longitude"] == location["longitude"],
+      );
+      if (duplicate) {
+        _showMessage("Checkpoint already added");
+        return;
+      }
+      setModalState(() {
+        checkpointLocations.add(location);
+        checkpoints = checkpointLocations.map(_locationName).toList();
+        checkpointController.clear();
+        checkpointFocusNode.unfocus();
+      });
+      clearCheckpointSuggestions(setModalState);
+    }
+
+    void selectStartSuggestion(
+      StateSetter setModalState,
+      Map<String, String> suggestion,
+    ) {
+      selectedStartLocation = _suggestionToLocation(suggestion);
+      startLocationController.text =
+          suggestion["fullText"] ?? suggestion["title"] ?? "";
+      startLocationController.selection = TextSelection.collapsed(
+        offset: startLocationController.text.length,
+      );
+      startFocusNode.unfocus();
+      clearStartSuggestions(setModalState);
+    }
+
+    void selectEndSuggestion(
+      StateSetter setModalState,
+      Map<String, String> suggestion,
+    ) {
+      selectedEndLocation = _suggestionToLocation(suggestion);
+      endLocationController.text =
+          suggestion["fullText"] ?? suggestion["title"] ?? "";
+      endLocationController.selection = TextSelection.collapsed(
+        offset: endLocationController.text.length,
+      );
+      endFocusNode.unfocus();
+      clearEndSuggestions(setModalState);
     }
 
     void scheduleMeetingSearch(StateSetter setModalState, String rawQuery) {
@@ -1903,6 +2423,113 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       );
     }
 
+    void scheduleCheckpointSearch(StateSetter setModalState, String rawQuery) {
+      checkpointSearchDebounce?.cancel();
+      final query = rawQuery.trim();
+
+      if (query.length < 3) {
+        clearCheckpointSuggestions(setModalState);
+        return;
+      }
+
+      checkpointSearchDebounce = Timer(
+        const Duration(milliseconds: 900),
+        () async {
+          final requestId = ++checkpointSearchRequestId;
+          setModalState(() {
+            isCheckpointSearchLoading = true;
+            checkpointSearchError = null;
+          });
+
+          try {
+            final suggestions = await PlaceService.searchPlaces(query);
+            if (!mounted || requestId != checkpointSearchRequestId) return;
+            setModalState(() {
+              isCheckpointSearchLoading = false;
+              checkpointSuggestions = suggestions;
+              checkpointSearchError = suggestions.isEmpty
+                  ? "No places found"
+                  : null;
+            });
+          } catch (error) {
+            if (!mounted || requestId != checkpointSearchRequestId) return;
+            setModalState(() {
+              isCheckpointSearchLoading = false;
+              checkpointSuggestions = [];
+              checkpointSearchError = error.toString().replaceFirst(
+                "Exception: ",
+                "",
+              );
+            });
+          }
+        },
+      );
+    }
+
+    void scheduleStartSearch(StateSetter setModalState, String rawQuery) {
+      startSearchDebounce?.cancel();
+      final query = rawQuery.trim();
+      if (query.length < 3) {
+        clearStartSuggestions(setModalState);
+        return;
+      }
+      startSearchDebounce = Timer(const Duration(milliseconds: 900), () async {
+        final requestId = ++startSearchRequestId;
+        setModalState(() {
+          isStartSearchLoading = true;
+          startSearchError = null;
+        });
+        try {
+          final suggestions = await PlaceService.searchPlaces(query);
+          if (!mounted || requestId != startSearchRequestId) return;
+          setModalState(() {
+            isStartSearchLoading = false;
+            startSuggestions = suggestions;
+            startSearchError = suggestions.isEmpty ? "No places found" : null;
+          });
+        } catch (error) {
+          if (!mounted || requestId != startSearchRequestId) return;
+          setModalState(() {
+            isStartSearchLoading = false;
+            startSuggestions = [];
+            startSearchError = error.toString().replaceFirst("Exception: ", "");
+          });
+        }
+      });
+    }
+
+    void scheduleEndSearch(StateSetter setModalState, String rawQuery) {
+      endSearchDebounce?.cancel();
+      final query = rawQuery.trim();
+      if (query.length < 3) {
+        clearEndSuggestions(setModalState);
+        return;
+      }
+      endSearchDebounce = Timer(const Duration(milliseconds: 900), () async {
+        final requestId = ++endSearchRequestId;
+        setModalState(() {
+          isEndSearchLoading = true;
+          endSearchError = null;
+        });
+        try {
+          final suggestions = await PlaceService.searchPlaces(query);
+          if (!mounted || requestId != endSearchRequestId) return;
+          setModalState(() {
+            isEndSearchLoading = false;
+            endSuggestions = suggestions;
+            endSearchError = suggestions.isEmpty ? "No places found" : null;
+          });
+        } catch (error) {
+          if (!mounted || requestId != endSearchRequestId) return;
+          setModalState(() {
+            isEndSearchLoading = false;
+            endSuggestions = [];
+            endSearchError = error.toString().replaceFirst("Exception: ", "");
+          });
+        }
+      });
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1921,6 +2548,244 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Text(
+                    "Start Location",
+                    style: TextStyle(color: theme.textPrimary, fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: startLocationController,
+                    focusNode: startFocusNode,
+                    style: TextStyle(color: theme.textPrimary),
+                    decoration: _inputDecoration("Search start location", theme)
+                        .copyWith(
+                          prefixIcon: Icon(Icons.search, color: theme.primary),
+                          suffixIcon: isStartSearchLoading
+                              ? Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: theme.primary,
+                                    ),
+                                  ),
+                                )
+                              : (startLocationController.text.trim().isNotEmpty
+                                    ? IconButton(
+                                        onPressed: () {
+                                          startLocationController.clear();
+                                          selectedStartLocation = null;
+                                          clearStartSuggestions(setModalState);
+                                        },
+                                        icon: Icon(
+                                          Icons.close,
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                        ),
+                                      )
+                                    : null),
+                        ),
+                    onChanged: (value) {
+                      selectedStartLocation = null;
+                      scheduleStartSearch(setModalState, value);
+                    },
+                  ),
+                  if (selectedStartLocation != null) ...[
+                    const SizedBox(height: 10),
+                    _locationPreviewTile(
+                      label: "Selected Start Location",
+                      value: _locationName(selectedStartLocation),
+                      theme: theme,
+                      onTap: _hasCoordinates(selectedStartLocation)
+                          ? () => _openLocationPreview(
+                              "Start Location",
+                              selectedStartLocation,
+                            )
+                          : null,
+                      icon: Icons.trip_origin,
+                    ),
+                  ],
+                  if (startSearchError != null &&
+                      startLocationController.text.trim().length >= 3) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      startSearchError!,
+                      style: const TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  if (startSuggestions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.white12),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: startSuggestions.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1, color: AppColors.white12),
+                        itemBuilder: (context, index) {
+                          final suggestion = startSuggestions[index];
+                          final subtitle = suggestion["subtitle"] ?? "";
+                          return ListTile(
+                            dense: true,
+                            leading: const Icon(
+                              Icons.location_on_outlined,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              suggestion["title"] ?? "",
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: subtitle.isEmpty
+                                ? null
+                                : Text(
+                                    subtitle,
+                                    style: TextStyle(
+                                      color: theme.textPrimary.withValues(
+                                        alpha: 0.65,
+                                      ),
+                                    ),
+                                  ),
+                            onTap: () => selectStartSuggestion(
+                              setModalState,
+                              suggestion,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Text(
+                    "Destination",
+                    style: TextStyle(color: theme.textPrimary, fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: endLocationController,
+                    focusNode: endFocusNode,
+                    style: TextStyle(color: theme.textPrimary),
+                    decoration: _inputDecoration("Search destination", theme)
+                        .copyWith(
+                          prefixIcon: Icon(Icons.search, color: theme.primary),
+                          suffixIcon: isEndSearchLoading
+                              ? Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: theme.primary,
+                                    ),
+                                  ),
+                                )
+                              : (endLocationController.text.trim().isNotEmpty
+                                    ? IconButton(
+                                        onPressed: () {
+                                          endLocationController.clear();
+                                          selectedEndLocation = null;
+                                          clearEndSuggestions(setModalState);
+                                        },
+                                        icon: Icon(
+                                          Icons.close,
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.6,
+                                          ),
+                                        ),
+                                      )
+                                    : null),
+                        ),
+                    onChanged: (value) {
+                      selectedEndLocation = null;
+                      scheduleEndSearch(setModalState, value);
+                    },
+                  ),
+                  if (selectedEndLocation != null) ...[
+                    const SizedBox(height: 10),
+                    _locationPreviewTile(
+                      label: "Selected Destination",
+                      value: _locationName(selectedEndLocation),
+                      theme: theme,
+                      onTap: _hasCoordinates(selectedEndLocation)
+                          ? () => _openLocationPreview(
+                              "Destination",
+                              selectedEndLocation,
+                            )
+                          : null,
+                      icon: Icons.flag_outlined,
+                    ),
+                  ],
+                  if (endSearchError != null &&
+                      endLocationController.text.trim().length >= 3) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      endSearchError!,
+                      style: const TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                  if (endSuggestions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.white12),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: endSuggestions.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1, color: AppColors.white12),
+                        itemBuilder: (context, index) {
+                          final suggestion = endSuggestions[index];
+                          final subtitle = suggestion["subtitle"] ?? "";
+                          return ListTile(
+                            dense: true,
+                            leading: const Icon(
+                              Icons.flag_outlined,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              suggestion["title"] ?? "",
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: subtitle.isEmpty
+                                ? null
+                                : Text(
+                                    subtitle,
+                                    style: TextStyle(
+                                      color: theme.textPrimary.withValues(
+                                        alpha: 0.65,
+                                      ),
+                                    ),
+                                  ),
+                            onTap: () =>
+                                selectEndSuggestion(setModalState, suggestion),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
                   Text(
                     "Meeting Point",
                     style: TextStyle(color: theme.textPrimary, fontSize: 16),
@@ -1952,6 +2817,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                                     ? IconButton(
                                         onPressed: () {
                                           meetingController.clear();
+                                          selectedMeetingLocation = null;
                                           clearMeetingSuggestions(
                                             setModalState,
                                           );
@@ -1965,12 +2831,29 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                                       )
                                     : null),
                         ),
-                    onChanged: (value) =>
-                        scheduleMeetingSearch(setModalState, value),
+                    onChanged: (value) {
+                      selectedMeetingLocation = null;
+                      scheduleMeetingSearch(setModalState, value);
+                    },
                   ),
+                  if (selectedMeetingLocation != null) ...[
+                    const SizedBox(height: 10),
+                    _locationPreviewTile(
+                      label: "Selected Meeting Point",
+                      value: _locationName(selectedMeetingLocation),
+                      theme: theme,
+                      onTap: _hasCoordinates(selectedMeetingLocation)
+                          ? () => _openLocationPreview(
+                              "Meeting Point",
+                              selectedMeetingLocation,
+                            )
+                          : null,
+                      icon: Icons.people_alt_outlined,
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Text(
-                    "Suggestions are powered by OpenStreetMap search and may take a moment to appear.",
+                    "Search and pin the exact meeting point. Riders will be able to open it directly on the map.",
                     style: TextStyle(
                       color: theme.textPrimary.withValues(alpha: 0.6),
                       fontSize: 12,
@@ -2066,68 +2949,156 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     decoration: _inputDecoration("Estimated fuel stops", theme),
                   ),
                   const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: checkpointController,
-                          style: TextStyle(color: theme.textPrimary),
-                          decoration: _inputDecoration(
-                            "Add checkpoint location",
-                            theme,
-                          ),
+                  TextField(
+                    controller: checkpointController,
+                    focusNode: checkpointFocusNode,
+                    style: TextStyle(color: theme.textPrimary),
+                    decoration:
+                        _inputDecoration(
+                          "Search checkpoint location",
+                          theme,
+                        ).copyWith(
+                          prefixIcon: Icon(Icons.search, color: theme.primary),
+                          suffixIcon: isCheckpointSearchLoading
+                              ? Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: theme.primary,
+                                    ),
+                                  ),
+                                )
+                              : null,
                         ),
+                    onChanged: (value) =>
+                        scheduleCheckpointSearch(setModalState, value),
+                  ),
+                  if (checkpointSearchError != null &&
+                      checkpointController.text.trim().length >= 3) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      checkpointSearchError!,
+                      style: const TextStyle(
+                        color: Colors.orangeAccent,
+                        fontSize: 12,
                       ),
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          if (checkpointController.text.isNotEmpty) {
-                            setModalState(() {
-                              checkpoints.add(checkpointController.text);
-                              checkpointController.clear();
-                            });
-                          }
+                    ),
+                  ],
+                  if (checkpointSuggestions.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.white12),
+                      ),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: checkpointSuggestions.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1, color: AppColors.white12),
+                        itemBuilder: (context, index) {
+                          final suggestion = checkpointSuggestions[index];
+                          final subtitle = suggestion["subtitle"] ?? "";
+                          return ListTile(
+                            dense: true,
+                            leading: const Icon(
+                              Icons.route_outlined,
+                              color: AppColors.primary,
+                            ),
+                            title: Text(
+                              suggestion["title"] ?? "",
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            subtitle: subtitle.isEmpty
+                                ? null
+                                : Text(
+                                    subtitle,
+                                    style: TextStyle(
+                                      color: theme.textPrimary.withValues(
+                                        alpha: 0.65,
+                                      ),
+                                    ),
+                                  ),
+                            onTap: () => addCheckpointSuggestion(
+                              setModalState,
+                              suggestion,
+                            ),
+                          );
                         },
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: theme.primary,
-                          child: Icon(Icons.add, color: Colors.white, size: 18),
-                        ),
                       ),
-                    ],
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Text(
+                    "Search and choose exact checkpoints. Tap any saved checkpoint later to open it on the map.",
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: checkpoints.asMap().entries.map((entry) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0x52B8C6DA)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 14,
-                              color: theme.primary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              entry.value,
-                              style: TextStyle(
-                                color: theme.textPrimary,
-                                fontSize: 12,
+                    children: checkpointLocations.asMap().entries.map((entry) {
+                      final checkpoint = entry.value;
+                      return InkWell(
+                        onTap: () =>
+                            _openLocationPreview("Checkpoint", checkpoint),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0x52B8C6DA)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.location_on,
+                                size: 14,
+                                color: theme.primary,
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                _locationName(checkpoint),
+                                style: TextStyle(
+                                  color: theme.textPrimary,
+                                  fontSize: 12,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              GestureDetector(
+                                onTap: () {
+                                  setModalState(() {
+                                    checkpointLocations.removeAt(entry.key);
+                                    checkpoints = checkpointLocations
+                                        .map(_locationName)
+                                        .toList();
+                                  });
+                                },
+                                child: Icon(
+                                  Icons.close,
+                                  size: 14,
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.55,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     }).toList(),
@@ -2206,7 +3177,27 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       style: TextStyle(color: theme.textPrimary, fontSize: 16),
                     ),
                     const SizedBox(height: 12),
-                    _preview("Meeting Point", meetingController.text, theme),
+                    _preview(
+                      "Meeting Point",
+                      selectedMeetingLocation != null
+                          ? _locationName(selectedMeetingLocation)
+                          : meetingController.text,
+                      theme,
+                    ),
+                    _preview(
+                      "Start",
+                      selectedStartLocation == null
+                          ? "-"
+                          : _locationName(selectedStartLocation),
+                      theme,
+                    ),
+                    _preview(
+                      "Destination",
+                      selectedEndLocation == null
+                          ? "-"
+                          : _locationName(selectedEndLocation),
+                      theme,
+                    ),
                     _preview(
                       "Ride Type",
                       widget.rideGroup["rideType"] ?? "",
@@ -2233,22 +3224,71 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     ),
                     const SizedBox(height: 6),
                     Column(
-                      children: checkpoints
-                          .map(
-                            (c) => ListTile(
-                              dense: true,
-                              leading: Icon(
-                                Icons.place,
-                                color: theme.primary,
-                                size: 18,
-                              ),
-                              title: Text(
-                                c,
-                                style: TextStyle(color: theme.textPrimary),
-                              ),
-                            ),
-                          )
-                          .toList(),
+                      children: (checkpointLocations.isNotEmpty
+                          ? checkpointLocations
+                                .map<Widget>(
+                                  (checkpoint) => ListTile(
+                                    dense: true,
+                                    leading: Icon(
+                                      Icons.place,
+                                      color: theme.primary,
+                                      size: 18,
+                                    ),
+                                    title: Text(
+                                      _locationName(checkpoint),
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                      ),
+                                    ),
+                                    trailing: IconButton(
+                                      onPressed: () => _openLocationPreview(
+                                        "Checkpoint",
+                                        checkpoint,
+                                      ),
+                                      icon: Icon(
+                                        Icons.map_outlined,
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList()
+                          : checkpoints
+                                .map<Widget>(
+                                  (checkpoint) => ListTile(
+                                    dense: true,
+                                    leading: Icon(
+                                      Icons.place,
+                                      color: theme.primary,
+                                      size: 18,
+                                    ),
+                                    title: Text(
+                                      checkpoint,
+                                      style: TextStyle(
+                                        color: theme.textPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                                .toList()),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton.icon(
+                      onPressed: () => _openRidePreviewMap(
+                        title: "Ride Preview",
+                        startLocation: selectedStartLocation,
+                        endLocation: selectedEndLocation,
+                        meetingPointLocation: selectedMeetingLocation,
+                        checkpointLocations: checkpointLocations,
+                      ),
+                      icon: const Icon(Icons.map_outlined, size: 18),
+                      label: const Text("See Ride Preview"),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.primary,
+                        padding: EdgeInsets.zero,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -2325,6 +3365,40 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           if (step < 3) {
                             setModalState(() => step++);
                           } else {
+                            final hasTypedStart = startLocationController.text
+                                .trim()
+                                .isNotEmpty;
+                            final hasTypedEnd = endLocationController.text
+                                .trim()
+                                .isNotEmpty;
+                            final hasTypedMeeting = meetingController.text
+                                .trim()
+                                .isNotEmpty;
+
+                            if (hasTypedStart &&
+                                selectedStartLocation == null) {
+                              _showMessage(
+                                "Pick the exact start location from search results",
+                                isError: true,
+                              );
+                              return;
+                            }
+                            if (hasTypedEnd && selectedEndLocation == null) {
+                              _showMessage(
+                                "Pick the exact destination from search results",
+                                isError: true,
+                              );
+                              return;
+                            }
+                            if (hasTypedMeeting &&
+                                selectedMeetingLocation == null) {
+                              _showMessage(
+                                "Pick the exact meeting point from search results",
+                                isError: true,
+                              );
+                              return;
+                            }
+
                             final previousPreRide = Map<String, dynamic>.from(
                               widget.rideGroup["preRideInfo"] ?? {},
                             );
@@ -2337,9 +3411,21 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                                     .isNotEmpty;
 
                             final requestPayload = {
+                              "startLocation": _serializeLocation(
+                                selectedStartLocation,
+                              ),
+                              "endLocation": _serializeLocation(
+                                selectedEndLocation,
+                              ),
                               "meetingPoint": meetingController.text.trim(),
+                              "meetingPointLocation": _serializeLocation(
+                                selectedMeetingLocation,
+                              ),
                               "fuelStops": fuelController.text.trim(),
                               "checkpointList": checkpoints,
+                              "checkpointLocations": _serializeLocationList(
+                                checkpointLocations,
+                              ),
                               "ruleList": selectedRules,
                               "notes": notesController.text.trim(),
                             };
@@ -2690,7 +3776,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
 
               if (searchQuery.isNotEmpty) {
                 members = members.where((m) {
-                  final name = (m["username"] ?? "").toString().trim().toLowerCase();
+                  final name = (m["username"] ?? "")
+                      .toString()
+                      .trim()
+                      .toLowerCase();
                   return name.contains(searchQuery.toLowerCase());
                 }).toList();
               }
@@ -2843,9 +3932,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       children: members.map((m) {
                         final member = Map<String, dynamic>.from(m);
 
-                        final name =
-                            (member["username"] ?? "").toString()
-                                .trim();
+                        final name = (member["username"] ?? "")
+                            .toString()
+                            .trim();
 
                         return ListTile(
                           onTap: () => _openMemberSheet(
