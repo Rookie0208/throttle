@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart' as latlng;
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
@@ -363,9 +366,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       setState(() {
         _session = session;
       });
-      _showSnack(
-        resolution == "ACCEPTED" ? "SOS accepted" : "SOS rejected",
-      );
+      _showSnack(resolution == "ACCEPTED" ? "SOS accepted" : "SOS rejected");
     });
   }
 
@@ -517,13 +518,15 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
         );
     final totalCheckpoints = checkpoints.length;
     final currentIndex = currentCheckpoint["sequence"] ?? 0;
-    final emergencyMessage = (session["activeSosMessage"] ?? "").toString().trim();
+    final emergencyMessage = (session["activeSosMessage"] ?? "")
+        .toString()
+        .trim();
     final activeSosAt = (session["activeSosAt"] ?? "").toString();
     final activeSosRaisedByName =
         (session["activeSosRaisedByName"] ?? "A rider").toString();
     final currentUserUuid = (session["currentUserUuid"] ?? "").toString();
-    final activeSosRaisedByUuid =
-        (session["activeSosRaisedByUuid"] ?? "").toString();
+    final activeSosRaisedByUuid = (session["activeSosRaisedByUuid"] ?? "")
+        .toString();
     final activeSosRaisedByLabel =
         currentUserUuid.isNotEmpty && currentUserUuid == activeSosRaisedByUuid
         ? "you"
@@ -531,10 +534,15 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     final activeSosResolution = (session["activeSosResolution"] ?? "")
         .toString()
         .trim();
-    final activeSosResolvedByName =
-        (session["activeSosResolvedByName"] ?? "").toString().trim();
+    final activeSosResolvedByName = (session["activeSosResolvedByName"] ?? "")
+        .toString()
+        .trim();
     final participants = List<Map<String, dynamic>>.from(
       session["participants"] ?? const [],
+    );
+    final currentUserLocation = _currentUserLocation(
+      participants,
+      currentUserUuid,
     );
     final ridersWithLocation = participants
         .where(
@@ -543,9 +551,14 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
               participant["lastLongitude"] != null,
         )
         .length;
+    final remainingDistanceLabel = _remainingDistanceLabel(
+      currentCheckpoint,
+      currentUserLocation,
+    );
 
     // Calculate duration
-    final startTimeStr = session["rideStartedAt"] ?? session["scheduledStartTime"];
+    final startTimeStr =
+        session["rideStartedAt"] ?? session["scheduledStartTime"];
     DateTime? startTime;
     if (startTimeStr != null) {
       try {
@@ -668,7 +681,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                 ),
               ),
               Container(
-                height: 220,
+                height: 260,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: theme.surface,
@@ -677,11 +690,13 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                     color: theme.primary.withValues(alpha: 0.1),
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    "Map Preview\n$ridersWithLocation rider locations synced",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0xff8C95A8)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _buildLiveRideMap(
+                    theme,
+                    participants: participants,
+                    checkpoints: checkpoints,
+                    ridersWithLocation: ridersWithLocation,
                   ),
                 ),
               ),
@@ -928,7 +943,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "Distance to $checkpointLabelText: ${currentCheckpoint["estimatedTime"] ?? "N/A"}",
+                            "Distance to $checkpointLabelText: $remainingDistanceLabel",
                             style: TextStyle(
                               color: theme.textPrimary.withValues(alpha: 0.65),
                             ),
@@ -1233,5 +1248,228 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
         ),
       ),
     );
+  }
+
+  double? _toDouble(dynamic value) {
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? "");
+  }
+
+  Widget _buildLiveRideMap(
+    AppThemeConfig theme, {
+    required List<Map<String, dynamic>> participants,
+    required List<Map<String, dynamic>> checkpoints,
+    required int ridersWithLocation,
+  }) {
+    final routePoints = <latlng.LatLng>[];
+    final markers = <Marker>[];
+
+    for (final checkpoint in checkpoints) {
+      final latitude = _toDouble(checkpoint["latitude"]);
+      final longitude = _toDouble(checkpoint["longitude"]);
+      if (latitude == null || longitude == null) {
+        continue;
+      }
+
+      final point = latlng.LatLng(latitude, longitude);
+      routePoints.add(point);
+      final status = (checkpoint["checkpointStatus"] ?? "")
+          .toString()
+          .toUpperCase();
+      final title = (checkpoint["title"] ?? "Checkpoint").toString();
+      final color = switch (status) {
+        "CURRENT" => theme.primary,
+        "REACHED" => Colors.green,
+        _ => Colors.redAccent,
+      };
+
+      markers.add(
+        Marker(
+          point: point,
+          width: 44,
+          height: 44,
+          child: Container(
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.28),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Tooltip(
+              message: title,
+              child: const Icon(
+                Icons.location_on,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    for (final participant in participants) {
+      final latitude = _toDouble(participant["lastLatitude"]);
+      final longitude = _toDouble(participant["lastLongitude"]);
+      if (latitude == null || longitude == null) {
+        continue;
+      }
+
+      final name =
+          (participant["username"] ??
+                  participant["firstName"] ??
+                  participant["riderId"] ??
+                  "Rider")
+              .toString();
+      final isCurrentUser =
+          (participant["userUuid"] ?? "").toString() ==
+          (_session?["currentUserUuid"] ?? "").toString();
+
+      markers.add(
+        Marker(
+          point: latlng.LatLng(latitude, longitude),
+          width: 42,
+          height: 42,
+          child: Container(
+            decoration: BoxDecoration(
+              color: isCurrentUser ? theme.primary : const Color(0xFF18202D),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: Tooltip(
+              message: isCurrentUser ? "You" : name,
+              child: Icon(
+                isCurrentUser ? Icons.navigation : Icons.two_wheeler,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final initialPoints = <latlng.LatLng>[
+      ...routePoints,
+      ...markers.map((marker) => marker.point),
+    ];
+
+    if (initialPoints.isEmpty) {
+      return Center(
+        child: Text(
+          "Map Preview\n$ridersWithLocation rider locations synced",
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xff8C95A8)),
+        ),
+      );
+    }
+
+    return Stack(
+      children: [
+        FlutterMap(
+          options: MapOptions(
+            initialCenter: initialPoints.first,
+            initialZoom: 12.5,
+            initialCameraFit: initialPoints.length > 1
+                ? CameraFit.coordinates(
+                    coordinates: initialPoints,
+                    padding: const EdgeInsets.all(36),
+                    maxZoom: 14.5,
+                  )
+                : null,
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+              userAgentPackageName: "com.ridersclub.throttle_ui",
+            ),
+            if (routePoints.length > 1)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: routePoints,
+                    strokeWidth: 5,
+                    color: theme.primary,
+                  ),
+                ],
+              ),
+            MarkerLayer(markers: markers),
+            const RichAttributionWidget(
+              popupInitialDisplayDuration: Duration.zero,
+              attributions: [TextSourceAttribution("© OpenStreetMap")],
+            ),
+          ],
+        ),
+        Positioned(
+          top: 12,
+          left: 12,
+          right: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              "Live Map • $ridersWithLocation rider locations synced",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  latlng.LatLng? _currentUserLocation(
+    List<Map<String, dynamic>> participants,
+    String currentUserUuid,
+  ) {
+    for (final participant in participants) {
+      if ((participant["userUuid"] ?? "").toString() != currentUserUuid) {
+        continue;
+      }
+      final latitude = _toDouble(participant["lastLatitude"]);
+      final longitude = _toDouble(participant["lastLongitude"]);
+      if (latitude != null && longitude != null) {
+        return latlng.LatLng(latitude, longitude);
+      }
+    }
+    return null;
+  }
+
+  String _remainingDistanceLabel(
+    Map<String, dynamic> currentCheckpoint,
+    latlng.LatLng? currentUserLocation,
+  ) {
+    if (currentCheckpoint.isEmpty || currentUserLocation == null) {
+      return "Locating rider...";
+    }
+
+    final checkpointLat = _toDouble(currentCheckpoint["latitude"]);
+    final checkpointLng = _toDouble(currentCheckpoint["longitude"]);
+    if (checkpointLat == null || checkpointLng == null) {
+      return "Unavailable";
+    }
+
+    final meters = const latlng.Distance().as(
+      latlng.LengthUnit.Meter,
+      currentUserLocation,
+      latlng.LatLng(checkpointLat, checkpointLng),
+    );
+
+    if (meters >= 1000) {
+      return "${(meters / 1000).toStringAsFixed(meters >= 10000 ? 0 : 1)} km";
+    }
+    return "${meters.round()} m";
   }
 }

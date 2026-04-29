@@ -82,11 +82,23 @@ public class RideGroup {
     @Column(name = "pre_ride_meeting_point", length = 255)
     private String preRideMeetingPoint;
 
+    @Column(name = "pre_ride_start_location", columnDefinition = "TEXT")
+    private String preRideStartLocation;
+
+    @Column(name = "pre_ride_end_location", columnDefinition = "TEXT")
+    private String preRideEndLocation;
+
+    @Column(name = "pre_ride_meeting_point_location", columnDefinition = "TEXT")
+    private String preRideMeetingPointLocation;
+
     @Column(name = "pre_ride_fuel_stops", length = 255)
     private String preRideFuelStops;
 
     @Column(name = "pre_ride_checkpoints", columnDefinition = "TEXT")
     private String preRideCheckpoints;
+
+    @Column(name = "pre_ride_checkpoint_locations", columnDefinition = "TEXT")
+    private String preRideCheckpointLocations;
 
     @Column(name = "pre_ride_rules", columnDefinition = "TEXT")
     private String preRideRules;

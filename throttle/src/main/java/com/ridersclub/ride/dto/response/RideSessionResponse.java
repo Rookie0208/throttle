@@ -2,6 +2,7 @@ package com.ridersclub.ride.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -32,6 +33,7 @@ public class RideSessionResponse {
     private Long currentUserReturnRideDurationSeconds;
     private Long currentUserTotalRideDurationSeconds;
     private String meetingPoint;
+    private Map<String, Object> meetingPointLocation;
     private String fuelStops;
     private Integer currentCheckpointIndex;
     private String latestBroadcastMessage;
