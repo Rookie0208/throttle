@@ -23,7 +23,11 @@ CREATE TABLE users (
     active BOOLEAN DEFAULT TRUE,
     subscription_active BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT now(),
-    experience_years INT DEFAULT 0
+    experience_years INT DEFAULT 0,
+    emergency_contacts JSONB NOT NULL DEFAULT '[]'::jsonb,
+    blood_group VARCHAR(10),
+    allergies VARCHAR(1000),
+    current_medication VARCHAR(1000)
 );
 
 CREATE INDEX idx_users_uuid ON users(uuid);

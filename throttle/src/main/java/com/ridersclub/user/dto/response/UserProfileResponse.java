@@ -2,6 +2,7 @@ package com.ridersclub.user.dto.response;
 
 import java.util.List;
 
+import com.ridersclub.user.dto.common.EmergencyContactPayload;
 import com.ridersclub.user.entity.User;
 
 import lombok.AllArgsConstructor;
@@ -23,6 +24,10 @@ public class UserProfileResponse {
     private String email;
     private String bio;
     private String profileImage;
+    private List<EmergencyContactPayload> emergencyContacts;
+    private String bloodGroup;
+    private String allergies;
+    private String currentMedication;
 
     // Stats
     private int totalRides;
@@ -50,6 +55,10 @@ public class UserProfileResponse {
         this.email = user.getEmail();
         this.bio = user.getBio();
         this.profileImage = user.getProfileImage();
+        this.emergencyContacts = user.getEmergencyContacts();
+        this.bloodGroup = user.getBloodGroup();
+        this.allergies = user.getAllergies();
+        this.currentMedication = user.getCurrentMedication();
         this.subscriptionActive = user.isSubscriptionActive();
         this.bikeLimit = user.isSubscriptionActive() ? 999 : 3;
     }
