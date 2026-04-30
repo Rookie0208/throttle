@@ -271,6 +271,18 @@ public class UserService {
         if (request.getProfileImage() != null)
             user.setProfileImage(request.getProfileImage());
 
+        if (request.getEmergencyContacts() != null)
+            user.setEmergencyContacts(request.getEmergencyContacts());
+
+        if (request.getBloodGroup() != null)
+            user.setBloodGroup(request.getBloodGroup());
+
+        if (request.getAllergies() != null)
+            user.setAllergies(request.getAllergies());
+
+        if (request.getCurrentMedication() != null)
+            user.setCurrentMedication(request.getCurrentMedication());
+
         userRepository.save(user);
 
         return new UserProfileResponse(user);

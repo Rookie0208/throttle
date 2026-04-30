@@ -25,6 +25,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import com.ridersclub.user.dto.common.EmergencyContactPayload;
 
 @Entity
 @Table(name = "users")
@@ -74,6 +75,19 @@ public class User {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private int experienceYears;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private List<EmergencyContactPayload> emergencyContacts = new ArrayList<>();
+
+    @Column(length = 10)
+    private String bloodGroup;
+
+    @Column(length = 1000)
+    private String allergies;
+
+    @Column(length = 1000)
+    private String currentMedication;
 
     public boolean hasRole(String string) {
         return role.name().equals(string);
