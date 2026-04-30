@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/friends_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/bike_management_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/emergency_contacts_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/medical_info_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/message_settings_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/notification_preferences_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/privacy_settings_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/privacy_policy_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/onboarding_screen.dart';
@@ -19,6 +24,30 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   ThemeController get _themeController => ThemeController.instance;
+
+  Future<void> _openWhatsAppCommunity() async {
+    final link = AppConstants.whatsappCommunityUrl.trim();
+    if (link.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("WhatsApp community link is not configured."),
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(link);
+    if (uri == null ||
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Unable to open WhatsApp community link."),
+        ),
+      );
+    }
+  }
 
   Future<void> _openThemePicker() async {
     final theme = _themeController.theme;
@@ -407,7 +436,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       _settingsTile(
                         icon: Icons.people_outline_rounded,
-                        title: "Followers",
+                        title: "Friends",
                         subtitle: "Manage connections",
                         theme: theme,
                         onTap: () {
@@ -415,6 +444,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const FriendsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _settingsTile(
+                        icon: Icons.contact_phone_outlined,
+                        title: "Emergency Contacts",
+                        subtitle: "Add up to 3 contacts",
+                        theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const EmergencyContactsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _settingsTile(
+                        icon: Icons.medical_information_outlined,
+                        title: "Medical Info",
+                        subtitle: "Blood group, allergies, medication",
+                        theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MedicalInfoScreen(),
                             ),
                           );
                         },
@@ -434,6 +491,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       ),
                       _settingsTile(
+                        icon: Icons.groups_2_outlined,
+                        title: "Join our WhatsApp community",
+                        subtitle: "Open rider community link",
+                        theme: theme,
+                        onTap: _openWhatsAppCommunity,
+                      ),
+                      _settingsTile(
                         icon: Icons.shield_outlined,
                         title: "Privacy",
                         subtitle: "Data & security",
@@ -443,6 +507,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => const PrivacySettingsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _settingsTile(
+                        icon: Icons.policy_outlined,
+                        title: "Privacy Policy",
+                        subtitle: "Read how your data is handled",
+                        theme: theme,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PrivacyPolicyScreen(),
                             ),
                           );
                         },

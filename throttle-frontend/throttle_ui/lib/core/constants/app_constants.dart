@@ -24,4 +24,8 @@ class AppConstants {
     }
     return 'http://localhost:8080/api/v1';
   }
+
+  static String get whatsappCommunityUrl =>
+      dotenv.env['WHATSAPP_COMMUNITY_URL'] ??
+      'https://chat.whatsapp.com/BvFnvej1Oup4bSxulL5c6U';
 }
