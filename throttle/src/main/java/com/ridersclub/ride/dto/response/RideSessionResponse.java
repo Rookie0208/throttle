@@ -52,6 +52,7 @@ public class RideSessionResponse {
     private Integer inRideCount;
     private Integer returnRideStartedCount;
     private Integer returnRideCompletedCount;
+    private List<RideBroadcastResponse> broadcasts;
     private List<RideSessionCheckpointResponse> checkpoints;
     private List<RideParticipantDto> participants;
 }

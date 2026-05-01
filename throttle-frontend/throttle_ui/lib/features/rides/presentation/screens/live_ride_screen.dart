@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart' as latlng;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
@@ -57,6 +58,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
   void initState() {
     super.initState();
     if (_hasRideSession) {
+      unawaited(_restorePauseState());
       _connectRealtime();
       _loadSession();
     }
@@ -82,6 +84,75 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
         _loadSession();
       },
     );
+  }
+
+  String? get _pauseStateKeyPrefix =>
+      _hasRideSession ? "live_ride_pause_${widget.rideUuid}" : null;
+
+  Future<void> _restorePauseState() async {
+    final keyPrefix = _pauseStateKeyPrefix;
+    if (keyPrefix == null) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final isPaused = prefs.getBool("${keyPrefix}_is_paused") ?? false;
+    final totalPausedMs = prefs.getInt("${keyPrefix}_total_paused_ms") ?? 0;
+    final pauseStartIso = prefs.getString("${keyPrefix}_pause_started_at");
+
+    DateTime? pauseStartTime;
+    if (pauseStartIso != null && pauseStartIso.isNotEmpty) {
+      try {
+        pauseStartTime = DateTime.parse(pauseStartIso);
+      } catch (_) {
+        pauseStartTime = null;
+      }
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isPaused = isPaused;
+      _totalPausedTime = Duration(milliseconds: totalPausedMs);
+      _pauseStartTime = isPaused ? pauseStartTime : null;
+    });
+  }
+
+  Future<void> _persistPauseState() async {
+    final keyPrefix = _pauseStateKeyPrefix;
+    if (keyPrefix == null) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("${keyPrefix}_is_paused", _isPaused);
+    await prefs.setInt(
+      "${keyPrefix}_total_paused_ms",
+      _totalPausedTime.inMilliseconds,
+    );
+
+    if (_pauseStartTime != null) {
+      await prefs.setString(
+        "${keyPrefix}_pause_started_at",
+        _pauseStartTime!.toIso8601String(),
+      );
+    } else {
+      await prefs.remove("${keyPrefix}_pause_started_at");
+    }
+  }
+
+  Future<void> _clearPauseState() async {
+    final keyPrefix = _pauseStateKeyPrefix;
+    if (keyPrefix == null) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove("${keyPrefix}_is_paused");
+    await prefs.remove("${keyPrefix}_total_paused_ms");
+    await prefs.remove("${keyPrefix}_pause_started_at");
   }
 
   Future<void> _loadSession() async {
@@ -201,6 +272,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     _rideClosedHandled = true;
     _locationSyncTimer?.cancel();
     _locationSyncTimer = null;
+    unawaited(_clearPauseState());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -1070,7 +1142,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: () {
+                            onPressed: () async {
                               setState(() {
                                 _isPaused = !_isPaused;
                                 if (_isPaused) {
@@ -1082,6 +1154,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                                   _pauseStartTime = null;
                                 }
                               });
+                              await _persistPauseState();
                             },
                             icon: Icon(
                               _isPaused ? Icons.play_arrow : Icons.pause,
