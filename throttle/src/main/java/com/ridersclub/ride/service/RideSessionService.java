@@ -27,6 +27,7 @@ import com.ridersclub.message.repository.GroupMessageRepository;
 import com.ridersclub.ride.dto.request.RideLocationUpdateRequest;
 import com.ridersclub.ride.dto.request.RideSosRequest;
 import com.ridersclub.ride.dto.request.RideSosResolutionRequest;
+import com.ridersclub.ride.dto.response.RideBroadcastResponse;
 import com.ridersclub.ride.dto.response.RideParticipantDto;
 import com.ridersclub.ride.dto.response.RideSessionCheckpointResponse;
 import com.ridersclub.ride.dto.response.RideSessionResponse;
@@ -88,6 +89,15 @@ public class RideSessionService {
                 .toList();
 
         List<RideSessionCheckpointResponse> checkpoints = buildCheckpoints(ride, mainGroup);
+        List<RideBroadcastResponse> broadcasts = groupMessageRepository
+                .findByGroup_IdAndMessageTypeOrderByCreatedAtAsc(mainGroup.getId(), MessageType.SYSTEM)
+                .stream()
+                .filter(message -> isBroadcastMessage(message.getMessage()))
+                .map(message -> RideBroadcastResponse.builder()
+                        .message(message.getMessage())
+                        .createdAt(message.getCreatedAt())
+                        .build())
+                .toList();
 
         return RideSessionResponse.builder()
                 .rideUuid(ride.getUuid())
@@ -144,6 +154,7 @@ public class RideSessionService {
                 .returnRideCompletedCount((int) participants.stream()
                         .filter(participant -> resolveRideState(participant, ride) == RideParticipantState.RETURN_RIDE_COMPLETED)
                         .count())
+                .broadcasts(broadcasts)
                 .checkpoints(checkpoints)
                 .participants(participantDtos)
                 .build();
@@ -400,6 +411,13 @@ public class RideSessionService {
         ride.setActiveSosResolution(resolution);
         ride.setActiveSosResolvedAt(now);
         ride.setActiveSosResolvedBy(actor.getUser());
+
+        if ("ACCEPTED".equals(resolution)) {
+            ride.setLatestBroadcastMessage("SOS accepted by " + formatUserName(actor.getUser()) + ".");
+            ride.setLatestBroadcastAt(now);
+            clearActiveSos(ride);
+        }
+
         rideRepository.save(ride);
 
         createSystemGroupMessage(
@@ -410,6 +428,24 @@ public class RideSessionService {
         RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
         publishSessionUpdate(rideUuid);
         return session;
+    }
+
+    private void clearActiveSos(Ride ride) {
+        ride.setActiveSosMessage(null);
+        ride.setActiveSosAt(null);
+        ride.setActiveSosRaisedBy(null);
+        ride.setActiveSosResolution(null);
+        ride.setActiveSosResolvedAt(null);
+        ride.setActiveSosResolvedBy(null);
+    }
+
+    private boolean isBroadcastMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return false;
+        }
+
+        return message.startsWith("Captain broadcast:")
+                || message.startsWith("SOS accepted by ");
     }
 
     public void syncCompletionState(Ride ride) {
