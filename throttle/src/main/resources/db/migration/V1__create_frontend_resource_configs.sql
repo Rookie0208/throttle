@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS frontend_resource_configs (
+    id BIGSERIAL PRIMARY KEY,
+    resource_key VARCHAR(128) NOT NULL UNIQUE,
+    payload TEXT NOT NULL,
+    updated_by VARCHAR(255),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
