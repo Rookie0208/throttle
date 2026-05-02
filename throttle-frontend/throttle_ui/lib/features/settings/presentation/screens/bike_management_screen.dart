@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:throttle_ui/core/resources/frontend_resource_config.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
@@ -36,7 +37,12 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
       (_userData?['subscriptionActive'] ?? false) == true;
 
   int get _bikeLimit =>
-      int.tryParse((_userData?['bikeLimit'] ?? 3).toString()) ?? 3;
+      int.tryParse(
+        (_userData?['bikeLimit'] ??
+                FrontendResourceConfig.instance.limits.freePlanMaxBikes)
+            .toString(),
+      ) ??
+      FrontendResourceConfig.instance.limits.freePlanMaxBikes;
 
   @override
   void initState() {
@@ -55,14 +61,17 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
   }
 
   void _openSubscriptionScreen() {
+    final subscriptionResource = FrontendResourceConfig.instance.subscriptions;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => SubscriptionScreen(
           onClose: () => Navigator.pop(context),
-          title: 'Need More Bike Slots?',
-          description:
-              'Free riders can keep up to 3 bikes. Upgrade to Premium for more bike slots, or remove an existing bike to add another one.',
+          title: subscriptionResource.bikeUpsellTitle,
+          description: subscriptionResource.formatLimitText(
+            subscriptionResource.bikeUpsellDescription,
+            _bikeLimit,
+          ),
         ),
       ),
     );
@@ -70,19 +79,21 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
 
   Future<void> _showBikeLimitDialog() async {
     final theme = ThemeController.instance.theme;
+    final subscriptionResource = FrontendResourceConfig.instance.subscriptions;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: theme.surface,
         title: Text(
-          'Bike limit reached',
+          subscriptionResource.bikeLimitDialogTitle,
           style: TextStyle(color: theme.textPrimary),
         ),
         content: Text(
-          'You can keep up to $_bikeLimit bikes on the free plan. Remove an existing bike or upgrade your subscription to add more.',
-          style: TextStyle(
-            color: theme.textPrimary.withValues(alpha: 0.7),
+          subscriptionResource.formatLimitText(
+            subscriptionResource.bikeLimitDialogMessage,
+            _bikeLimit,
           ),
+          style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.7)),
         ),
         actions: [
           TextButton(
@@ -107,9 +118,12 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
         .toString();
     final model = (bike['model'] ?? '').toString();
     final variant = (bike['variant'] ?? '').toString();
-    return [year, brand, model, variant]
-        .where((part) => part.trim().isNotEmpty)
-        .join(' ');
+    return [
+      year,
+      brand,
+      model,
+      variant,
+    ].where((part) => part.trim().isNotEmpty).join(' ');
   }
 
   String _bikeSubtitle(Map<String, dynamic> bike) {
@@ -574,11 +588,10 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
                         }
                         final model = await _pickStringOption(
                           title: 'Select Model',
-                          loader: (query) =>
-                              BikeRegistryService.fetchModels(
-                                selectedBrand,
-                                query,
-                              ),
+                          loader: (query) => BikeRegistryService.fetchModels(
+                            selectedBrand,
+                            query,
+                          ),
                         );
                         if (model == null) return;
                         setModalState(() {
@@ -665,7 +678,9 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
                             label: Text(category),
                             selected: customBikeCategory == category,
                             onSelected: (_) {
-                              setModalState(() => customBikeCategory = category);
+                              setModalState(
+                                () => customBikeCategory = category,
+                              );
                             },
                           );
                         }).toList(),
@@ -800,7 +815,10 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: ThemeController.instance,
+      listenable: Listenable.merge([
+        ThemeController.instance,
+        FrontendResourceConfig.instance,
+      ]),
       builder: (context, _) {
         final theme = ThemeController.instance.theme;
         return Scaffold(
@@ -880,7 +898,9 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
                             decoration: BoxDecoration(
                               color: theme.surface,
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: const Color(0x52B8C6DA)),
+                              border: Border.all(
+                                color: const Color(0x52B8C6DA),
+                              ),
                             ),
                             child: Text(
                               'No bikes registered yet. Use Add Bike to build your garage.',
@@ -989,7 +1009,11 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
     );
   }
 
-  Widget _pill(AppThemeConfig theme, {required String text, required Color color}) {
+  Widget _pill(
+    AppThemeConfig theme, {
+    required String text,
+    required Color color,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
