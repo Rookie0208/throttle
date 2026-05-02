@@ -297,7 +297,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     children: [
                       _buildTabButton("Analytics", "analytics", theme),
                       const SizedBox(width: 8),
-                      _buildTabButton("Gamification", "gamification", theme),
+                      _buildTabButton("Ranking", "gamification", theme),
                     ],
                   ),
                 ),
