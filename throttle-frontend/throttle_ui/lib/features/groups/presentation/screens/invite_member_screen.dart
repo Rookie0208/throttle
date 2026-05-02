@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/groups/data/services/group_service.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
@@ -157,6 +158,19 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
     }).toList();
   }
 
+  Future<void> _copyInviteLink() async {
+    final link = "throttle://groups/${widget.rideUuid}";
+    await Clipboard.setData(ClipboardData(text: link));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          "Invite link copied. Share it anywhere to invite riders.",
+        ),
+      ),
+    );
+  }
+
   Future<void> _inviteFriend(Map<String, dynamic> friend) async {
     if (widget.preRideFrozen) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -251,6 +265,9 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
       builder: (context, _) {
         final theme = ThemeController.instance.theme;
         final candidates = _filteredCandidates;
+        final hasInviteCandidates = _candidates.isNotEmpty;
+        final showInviteLinkEmptyState =
+            widget.isRideInviteMode && !hasInviteCandidates;
 
         return Scaffold(
           backgroundColor: theme.background,
@@ -298,14 +315,40 @@ class _InviteMemberScreenState extends State<InviteMemberScreen> {
                       Expanded(
                         child: candidates.isEmpty
                             ? Center(
-                                child: Text(
-                                  widget.isRideInviteMode
-                                      ? 'No friends available to invite.'
-                                      : 'No ride members available to add.',
-                                  style: TextStyle(
-                                    color: theme.textPrimary.withValues(
-                                      alpha: 0.7,
-                                    ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        showInviteLinkEmptyState
+                                            ? 'No friends available to invite yet.'
+                                            : widget.isRideInviteMode
+                                            ? 'No riders match your search.'
+                                            : 'No ride members available to add.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: theme.textPrimary.withValues(
+                                            alpha: 0.7,
+                                          ),
+                                        ),
+                                      ),
+                                      if (showInviteLinkEmptyState) ...[
+                                        const SizedBox(height: 14),
+                                        TextButton(
+                                          onPressed: _copyInviteLink,
+                                          child: Text(
+                                            "Invite through link",
+                                            style: GoogleFonts.lexend(
+                                              color: theme.primary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                 ),
                               )

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/main_screen.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
+import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
@@ -63,6 +63,18 @@ class _SignupScreenState extends State<SignupScreen> {
     "Group Rides",
     "Casual Riding",
   ];
+
+  AppThemeConfig get _theme => ThemeController.instance.theme;
+  bool get _isDarkTheme => _theme.brightness == Brightness.dark;
+  Color get _textSecondary => _theme.textPrimary.withValues(alpha: 0.68);
+  Color get _textMuted => _theme.textPrimary.withValues(alpha: 0.56);
+  Color get _borderColor =>
+      _theme.textPrimary.withValues(alpha: _isDarkTheme ? 0.18 : 0.12);
+  Color get _cardColor => Color.lerp(
+    _theme.surface,
+    _theme.background,
+    _isDarkTheme ? 0.15 : 0.35,
+  )!;
 
   @override
   void initState() {
@@ -349,7 +361,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: _theme.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -377,7 +389,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     Text(
                       title,
                       style: GoogleFonts.lexend(
-                        color: AppColors.textPrimary,
+                        color: _theme.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
@@ -457,7 +469,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final result = await showModalBottomSheet<BikeCatalogItem>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.background,
+      backgroundColor: _theme.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -485,7 +497,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     Text(
                       "Select Variant",
                       style: GoogleFonts.lexend(
-                        color: AppColors.textPrimary,
+                        color: _theme.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
@@ -560,16 +572,16 @@ class _SignupScreenState extends State<SignupScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : AppColors.surface,
+              color: isSelected ? _theme.primary : _theme.surface,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isSelected ? AppColors.primary : AppColors.border,
+                color: isSelected ? _theme.primary : _borderColor,
               ),
             ),
             child: Text(
               e,
               style: GoogleFonts.lexend(
-                color: isSelected ? AppColors.white : AppColors.textSecondary,
+                color: isSelected ? Colors.white : _textSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -590,15 +602,15 @@ class _SignupScreenState extends State<SignupScreen> {
       keyboardType: type,
       readOnly: hint == "Email" && widget.isGoogleRegistration,
       obscureText: isPassword ? obscurePassword : false,
-      style: GoogleFonts.plusJakartaSans(color: AppColors.textPrimary),
+      style: GoogleFonts.plusJakartaSans(color: _theme.textPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        fillColor: AppColors.card,
+        fillColor: _cardColor,
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
                   obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: AppColors.textMuted,
+                  color: _textMuted,
                 ),
                 onPressed: () {
                   setState(() {
@@ -619,9 +631,9 @@ class _SignupScreenState extends State<SignupScreen> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.card,
+          color: _cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: _borderColor),
         ),
         child: Row(
           children: [
@@ -632,7 +644,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   Text(
                     label,
                     style: GoogleFonts.plusJakartaSans(
-                      color: AppColors.textMuted,
+                      color: _textMuted,
                       fontSize: 12,
                     ),
                   ),
@@ -640,9 +652,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   Text(
                     value.isEmpty ? "Select $label" : value,
                     style: GoogleFonts.plusJakartaSans(
-                      color: value.isEmpty
-                          ? AppColors.textMuted
-                          : AppColors.textPrimary,
+                      color: value.isEmpty ? _textMuted : _theme.textPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -662,7 +672,7 @@ class _SignupScreenState extends State<SignupScreen> {
       children: [
         const Text(
           "Register your first bike now, or leave it blank and add it later from your profile.",
-          style: TextStyle(color: AppColors.textSecondary, height: 1.4),
+          style: TextStyle(height: 1.4),
         ),
         const SizedBox(height: 24),
         if (!useCustomBike) ...[
@@ -736,13 +746,7 @@ class _SignupScreenState extends State<SignupScreen> {
           const SizedBox(height: 20),
           thinInput("Bike Variant", bikeVariantController),
           const SizedBox(height: 20),
-          const Text(
-            "Category",
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          const Text("Category", style: TextStyle(fontWeight: FontWeight.w500)),
           const SizedBox(height: 15),
           optionGrid(
             bikeCategories,
@@ -752,10 +756,7 @@ class _SignupScreenState extends State<SignupScreen> {
           const SizedBox(height: 20),
           const Text(
             "Bike Type",
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 15),
           optionGrid(
@@ -813,111 +814,115 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            LinearProgressIndicator(
-              value: (step + 1) / 3,
-              backgroundColor: AppColors.surface,
-              color: colorScheme.primary,
-            ),
-            Expanded(
-              child: PageView(
-                controller: controller,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  buildStep(
-                    "Tell us about you",
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        thinInput("First Name", firstNameController),
-                        const SizedBox(height: 20),
-                        thinInput("Last Name", surNameController),
-                        const SizedBox(height: 20),
-                        thinInput("Rider ID", riderIdController),
-                        const SizedBox(height: 20),
-                        thinInput(
-                          "Email",
-                          emailController,
-                          type: TextInputType.emailAddress,
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: _theme.background,
+          body: SafeArea(
+            child: Column(
+              children: [
+                LinearProgressIndicator(
+                  value: (step + 1) / 3,
+                  backgroundColor: _theme.surface,
+                  color: _theme.primary,
+                ),
+                Expanded(
+                  child: PageView(
+                    controller: controller,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      buildStep(
+                        "Tell us about you",
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            thinInput("First Name", firstNameController),
+                            const SizedBox(height: 20),
+                            thinInput("Last Name", surNameController),
+                            const SizedBox(height: 20),
+                            thinInput("Rider ID", riderIdController),
+                            const SizedBox(height: 20),
+                            thinInput(
+                              "Email",
+                              emailController,
+                              type: TextInputType.emailAddress,
+                            ),
+                            const SizedBox(height: 20),
+                            if (!widget.isGoogleRegistration) ...[
+                              thinInput(
+                                "Password",
+                                passwordController,
+                                isPassword: true,
+                              ),
+                              const SizedBox(height: 30),
+                            ],
+                            Text(
+                              "Pronoun",
+                              style: TextStyle(
+                                color: _textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            optionGrid(
+                              pronouns,
+                              pronoun,
+                              (v) => setState(() => pronoun = v),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 20),
-                        if (!widget.isGoogleRegistration) ...[
-                          thinInput(
-                            "Password",
-                            passwordController,
-                            isPassword: true,
-                          ),
-                          const SizedBox(height: 30),
-                        ],
-                        const Text(
-                          "Pronoun",
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 15),
+                      ),
+                      buildStep(
+                        "Your Riding Style",
                         optionGrid(
-                          pronouns,
-                          pronoun,
-                          (v) => setState(() => pronoun = v),
-                        ),
-                      ],
-                    ),
-                  ),
-                  buildStep(
-                    "Your Riding Style",
-                    optionGrid(
-                      preferences,
-                      preference,
-                      (v) => setState(() => preference = v),
-                    ),
-                  ),
-                  buildStep("Your Bike", _bikeStep()),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      onPressed: next,
-                      child: Text(
-                        "CONTINUE",
-                        style: GoogleFonts.lexend(
-                          color: AppColors.white,
-                          fontWeight: FontWeight.w700,
+                          preferences,
+                          preference,
+                          (v) => setState(() => preference = v),
                         ),
                       ),
-                    ),
+                      buildStep("Your Bike", _bikeStep()),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  if (step > 0)
-                    TextButton(
-                      onPressed: back,
-                      child: Text(
-                        "Back",
-                        style: GoogleFonts.lexend(
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w700,
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: ElevatedButton(
+                          onPressed: next,
+                          child: Text(
+                            "CONTINUE",
+                            style: GoogleFonts.lexend(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      const SizedBox(height: 10),
+                      if (step > 0)
+                        TextButton(
+                          onPressed: back,
+                          child: Text(
+                            "Back",
+                            style: GoogleFonts.lexend(
+                              color: _textMuted,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -934,7 +939,7 @@ class _SignupScreenState extends State<SignupScreen> {
               style: GoogleFonts.lexend(
                 fontSize: 24,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: _theme.textPrimary,
               ),
             ),
             const SizedBox(height: 40),
