@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
-import { Home, Users, Bike, LogOut, Menu, X, Flag, History, Database, Sun, Moon } from 'lucide-react';
+import { Home, Users, Bike, LogOut, Menu, X, Flag, History, Database, Sun, Moon, FileJson2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -27,6 +27,7 @@ export const Layout = () => {
   ];
 
   if (role === 'ADMIN') {
+    navItems.push({ name: 'Resource', path: '/resources', icon: FileJson2 });
     navItems.push({ name: 'Query Executor', path: '/query-executor', icon: Database });
   }
 

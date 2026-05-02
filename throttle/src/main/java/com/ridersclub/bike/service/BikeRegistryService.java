@@ -19,6 +19,7 @@ import com.ridersclub.bike.dto.response.BikeMasterResponse;
 import com.ridersclub.bike.entity.BikeMaster;
 import com.ridersclub.bike.repository.BikeMasterRepository;
 import com.ridersclub.common.exception.UserNotFoundException;
+import com.ridersclub.config.BackendResourceConfig;
 import com.ridersclub.user.dto.request.UserBikeRequest;
 import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.entity.User;
@@ -32,13 +33,13 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional
 public class BikeRegistryService {
-    private static final int FREE_PLAN_BIKE_LIMIT = 3;
     private static final int DEFAULT_LIMIT = 25;
 
     private final BikeMasterRepository bikeMasterRepository;
     private final UserRepository userRepository;
     private final UserBikeRepository userBikeRepository;
     private final PlatformTransactionManager transactionManager;
+    private final BackendResourceConfig backendResourceConfig;
 
     public int ensureSeedData() {
         TransactionTemplate seedTemplate = new TransactionTemplate(transactionManager);
@@ -363,9 +364,11 @@ public class BikeRegistryService {
 
     private void validateBikeLimit(User user) {
         long bikeCount = userBikeRepository.countByUserId(user.getId());
-        if (!user.isSubscriptionActive() && bikeCount >= FREE_PLAN_BIKE_LIMIT) {
+        int freePlanMaxBikes = backendResourceConfig.getSubscription().getFreePlanMaxBikes();
+        if (!user.isSubscriptionActive() && bikeCount >= freePlanMaxBikes) {
             throw new IllegalArgumentException(
-                    "You can add up to 3 bikes on the free plan. Remove an existing bike or upgrade your subscription.");
+                    "You can add up to " + freePlanMaxBikes
+                            + " bikes on the free plan. Remove an existing bike or upgrade your subscription.");
         }
     }
 

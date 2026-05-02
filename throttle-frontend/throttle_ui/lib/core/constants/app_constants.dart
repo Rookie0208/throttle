@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:throttle_ui/core/resources/frontend_resource_config.dart';
 
 class AppConstants {
   static const String appName = 'Throttle';
@@ -9,7 +10,8 @@ class AppConstants {
       'A powerful tool for managing and optimizing your network traffic.';
 
   static String get apiBaseUrl =>
-      dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1';
+      dotenv.env['API_BASE_URL'] ??
+      FrontendResourceConfig.instance.urls.apiBaseUrl;
 
   static String get baseUrl {
     final configuredBaseUrl = apiBaseUrl.trim();
@@ -27,5 +29,5 @@ class AppConstants {
 
   static String get whatsappCommunityUrl =>
       dotenv.env['WHATSAPP_COMMUNITY_URL'] ??
-      'https://chat.whatsapp.com/BvFnvej1Oup4bSxulL5c6U';
+      FrontendResourceConfig.instance.urls.whatsappCommunityUrl;
 }
