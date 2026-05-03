@@ -10,7 +10,6 @@ import com.ridersclub.admin.dto.request.UpdateFrontendResourceRequest;
 import com.ridersclub.admin.security.AdminSecurityContext;
 import com.ridersclub.admin.service.AdminService;
 import com.ridersclub.admin.service.ElasticsearchAuditService;
-import com.ridersclub.admin.service.FrontendResourceConfigService;
 import com.ridersclub.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +34,11 @@ public class AdminController {
     private final AdminQueryService adminQueryService;
     private final FrontendResourceConfigService frontendResourceConfigService;
     private final AdminSecurityContext adminSecurityContext;
+
+    // A mock method to get current admin ID, typically derived from Security Context
+    private Long getCurrentAdminId() {
+        return 1L; // Hardcoded for MVP
+    }
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
@@ -139,30 +143,5 @@ public class AdminController {
     public ResponseEntity<ApiResponse<QueryResponseDTO>> executeQuery(@Valid @RequestBody QueryRequestDTO request) {
         QueryResponseDTO response = adminQueryService.executeQuery(adminSecurityContext.getCurrentAdminId(), request);
         return ResponseEntity.ok(ApiResponse.success(response, "Query executed"));
-    }
-
-    @GetMapping("/frontend-resources")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<FrontendResourceAdminDTO>> getFrontendResources() {
-        return ResponseEntity.ok(
-            ApiResponse.success(
-                frontendResourceConfigService.getAdminFrontendResourceConfig(),
-                "Frontend resource config retrieved successfully"
-            )
-        );
-    }
-
-    @PutMapping("/frontend-resources")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<FrontendResourceAdminDTO>> updateFrontendResources(
-        @Valid @RequestBody UpdateFrontendResourceRequest request
-    ) {
-        final String currentUserUuid = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ResponseEntity.ok(
-            ApiResponse.success(
-                frontendResourceConfigService.updateFrontendResourceConfig(request.getEntries(), currentUserUuid),
-                "Frontend resource config updated successfully"
-            )
-        );
     }
 }
