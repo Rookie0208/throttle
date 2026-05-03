@@ -1,0 +1,258 @@
+I am building a production-grade admin portal for my application "Throttle". Below is my complete system design. Based on this, generate clean, production-ready code for backend (Spring Boot) and frontend (Flutter Web).
+
+System Overview:
+
+Backend: Spring Boot running on port 8080
+Rider App: Flutter running on port 8081
+Admin Portal: Web app running on port 
+Architecture: Modular monolith with separate admin module
+
+Backend Details:
+
+Existing modules: auth, user, ride, friend, message, notification
+New module: admin
+Authentication: JWT-based
+Authorization: Role-based (RBAC)
+
+Roles:
+
+USER
+ADMIN
+DEVELOPER
+SUPPORT
+MODERATOR
+
+Requirements:
+
+Backend (Spring Boot):
+Implement RBAC using Spring Security
+Create admin module with:
+AdminController
+AdminService
+Secure endpoints using @PreAuthorize
+APIs:
+GET /admin/users
+PUT /admin/users/{id}/block
+GET /admin/rides
+PUT /admin/rides/{id}/cancel
+JWT should include roles
+Only ADMIN role can access /admin/** APIs
+Frontend (Admin Portal):
+Create login page
+Call /auth/login API
+Store JWT
+Validate ADMIN role
+Create dashboard page
+Create user management page
+Create ride management page
+Security:
+Unauthorized users should not access admin portal
+Backend must enforce role checks
+Observability (IMPORTANT):
+Add structured logging (JSON logs)
+Integrate Kafka for event streaming
+Expose metrics for Prometheus
+Create Grafana dashboards for system stats
+Implement audit logging for admin actions
+Design scalable logging pipeline (Kafka → Elasticsearch → Kibana)
+Code Quality:
+Follow clean architecture
+Use DTOs and service layers
+Write production-ready, optimized code
+
+Generate complete code structure and sample implementation.
+
+✅ FINAL NOTE
+
+This MVP is:
+
+Scalable
+Production-ready
+Clean architecture
+Industry-aligned
+
+You can now safely start building without rework later.
+
+
+
+Below is the complete document or you can say implementation Plan
+
+🧠 Overview
+The Throttle Admin Portal is an internal web-based system used to monitor, manage, and control the Throttle platform. It enables different internal roles (Admin, Developer, Support, Moderator) to perform operational tasks securely using role-based access control (RBAC).
+This document defines the MVP scope, architecture, backend design, frontend design, and deployment strategy.
+
+🎯 MVP GOALS
+The goal of MVP is to:
+Enable secure admin login
+Provide basic platform control
+Ensure production-ready architecture
+Keep system scalable for future features
+
+🏗️ SYSTEM ARCHITECTURE
+Backend
+Tech Stack: Java + Spring Boot
+Port: 8080
+Type: Modular Monolith
+Modules:
+auth/
+user/
+ride/
+friend/
+message/
+notification/
+admin/ ✅ (NEW)
+
+Frontend Applications
+1. Rider App
+Tech: Flutter
+Port: 8081
+Purpose: End-user (riders)
+2. Admin Portal (NEW)
+Tech: Flutter Web
+Port: 3000
+Purpose: Internal admin operations
+
+🔐 AUTHENTICATION & AUTHORIZATION
+Authentication
+JWT-based authentication
+Single login API:
+POST /auth/login
+Authorization (RBAC)
+Roles:
+USER
+ADMIN
+DEVELOPER
+SUPPORT
+MODERATOR
+
+📡 ADMIN API DESIGN
+Base Path:
+/admin/**
+
+👤 User Management
+GET /admin/users
+PUT /admin/users/{id}/block
+PUT /admin/users/{id}/unblock
+
+🏍️ Ride Management
+GET /admin/rides
+PUT /admin/rides/{id}/cancel
+
+🚨 Reports (Optional MVP+)
+GET /admin/reports
+PUT /admin/reports/{id}/resolve
+
+🧾 AUDIT LOGGING (IMPORTANT)
+Track:
+Admin actions
+Timestamp
+Entity affected
+Example:
+ADMIN blocked USER 123 at 2026-04-13T10:00
+
+📊 LOGGING, METRICS & OBSERVABILITY (PRODUCTION READY)
+🧠 Overview
+To operate Throttle as a production system, we need:
+Logs (what happened)
+Metrics (numbers over time)
+Audit logs (who did what)
+
+🔥 Recommended Tech Stack
+Kafka → Event streaming backbone
+Prometheus → Metrics collection
+Grafana → Dashboards & visualization
+Elasticsearch → Log storage
+Kibana → Log exploration UI
+
+📜 Logging Strategy
+Application Logs
+API requests
+Errors & exceptions
+Debug logs
+Flow: Spring Boot → Kafka → Elasticsearch → Kibana
+
+📊 Metrics to Track
+User Metrics
+Total users
+Daily active users (DAU)
+New signups
+Ride Metrics
+Total rides created
+Active rides
+Ride completion rate
+System Metrics
+API latency
+Requests per second (RPS)
+Error rate
+Engagement Metrics
+Messages sent
+Friend requests
+
+📈 Grafana Dashboards
+Admin dashboard should include:
+User growth graph
+Ride activity trends
+API performance graphs
+Error rate spikes
+
+🧾 Audit Logging (Advanced)
+Example:
+{
+"action": "BLOCK_USER",
+"adminId": 1,
+"targetUserId": 45,
+"timestamp": "2026-04-13T10:00"
+}
+Store in:
+Database (MVP)
+Kafka (Production scale)
+
+⚡ Implementation Phases
+Phase 1 (MVP)
+Basic logs (file/DB)
+Simple analytics (PostgreSQL queries)
+Admin dashboard stats
+Phase 2
+Introduce Kafka for events
+Phase 3
+Add Prometheus + Grafana
+Phase 4
+Add ELK stack (Elasticsearch + Kibana)
+
+🖥️ FRONTEND DESIGN (ADMIN PORTAL)
+Screens (MVP)
+1. Login Screen
+Email + Password
+Calls /auth/login
+Checks for ADMIN role
+
+2. Dashboard
+Total users
+Active rides
+System overview
+
+3. User Management
+List users
+Block/unblock
+
+4. Ride Management
+List rides
+Cancel ride
+
+🔐 SECURITY DESIGN
+Backend Protection
+@PreAuthorize("hasRole('ADMIN')")
+@GetMapping("/admin/users")
+
+Frontend Protection
+Restrict access if role != ADMIN
+Redirect unauthorized users
+
+⚙️ DEPLOYMENT (DEV SETUP)
+
+Component 						Port
+Backend 						8080
+Rider App						8081
+Admin Portal 					5173
+
+You have the access of whole codebase. If you want to make changes in 01_init_schema.sql or in docker-compose.yml file or anywhere in the whole codebase you can do that. But remember, use the most advanced and optimised approach which should be production ready and ready to deploy to the industry. Use the most modern way of coding.
