@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
+import 'package:throttle_ui/core/services/routing_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_realtime_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
@@ -36,8 +40,14 @@ class RideStartScreen extends StatefulWidget {
   State<RideStartScreen> createState() => _RideStartScreenState();
 }
 
-class _RideStartScreenState extends State<RideStartScreen> {
+class _RideStartScreenState extends State<RideStartScreen>
+    with TickerProviderStateMixin {
   final RideRealtimeService _rideRealtimeService = RideRealtimeService();
+  final MapController _mapController = MapController();
+  final Distance _distance = const Distance();
+
+  static const double _navigationZoom = 16.4;
+  static const double _routeSnapThresholdMeters = 80;
 
   bool _loading = false;
   bool _fetching = false;
@@ -48,7 +58,22 @@ class _RideStartScreenState extends State<RideStartScreen> {
   Timer? _clockTimer;
   Timer? _locationSyncTimer;
   Timer? _topToastTimer;
+  StreamSubscription<Position>? _positionSubscription;
+  AnimationController? _cameraAnimationController;
   LatLng? _currentMapLocation;
+  double _currentSpeedMps = 0;
+  double _currentHeading = 0;
+  bool _isFollowingUser = true;
+  bool _isVoiceMuted = false;
+  LatLng? _lastRouteOrigin;
+  LatLng? _cameraCenter;
+  double _cameraZoom = 13.5;
+  List<LatLng> _roadRoute = const <LatLng>[];
+  List<RoadRouteStep> _routeSteps = const <RoadRouteStep>[];
+  double _routeDistanceMeters = 0;
+  double _routeDurationSeconds = 0;
+  bool _routeLoading = false;
+  bool _routeUnavailable = false;
   bool _showTopToast = false;
   String? _topToastMessage;
 
@@ -216,6 +241,14 @@ class _RideStartScreenState extends State<RideStartScreen> {
   LatLng? get _mapCurrentLocation =>
       _currentMapLocation ?? _sessionCurrentUserLocation;
 
+  String get _mapboxPublicToken =>
+      dotenv.env['MAPBOX_PUBLIC_TOKEN']?.trim() ?? '';
+
+  String get _mapboxTileUrl =>
+      'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=$_mapboxPublicToken';
+
+  bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
+
   String get _phaseTitle {
     switch (_currentUserState) {
       case "EN_ROUTE":
@@ -230,6 +263,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
   @override
   void initState() {
     super.initState();
+    _startNavigationTracking();
     _connectRealtime();
     _loadSession();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -242,8 +276,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
 
   @override
   void dispose() {
+    _cameraAnimationController?.dispose();
     _clockTimer?.cancel();
     _locationSyncTimer?.cancel();
+    _positionSubscription?.cancel();
     _topToastTimer?.cancel();
     _rideRealtimeService.disconnect();
     super.dispose();
@@ -272,6 +308,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
       setState(() {
         _session = session;
       });
+      await _refreshMeetingRoute(force: true);
       _handleTopToast(previousState, _currentUserState);
       _ensureEnRouteLocationSync();
       _maybeOpenLiveRide(session);
@@ -338,9 +375,7 @@ class _RideStartScreenState extends State<RideStartScreen> {
       return;
     }
 
-    setState(() {
-      _currentMapLocation = LatLng(position.latitude, position.longitude);
-    });
+    _applyLivePosition(position, animateCamera: true);
 
     try {
       final session = await RideService.updateRideLocation(
@@ -353,9 +388,161 @@ class _RideStartScreenState extends State<RideStartScreen> {
       setState(() {
         _session = session;
       });
+      unawaited(_refreshMeetingRoute());
     } catch (_) {
       // Best-effort sync. The local position still drives the route view.
     }
+  }
+
+  Future<void> _startNavigationTracking() async {
+    final initialPosition = await LocationService.getCurrentLocation();
+    if (!mounted) {
+      return;
+    }
+
+    if (initialPosition != null) {
+      _applyLivePosition(initialPosition, animateCamera: true);
+      unawaited(_refreshMeetingRoute(force: true));
+    }
+
+    _positionSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 5,
+          ),
+        ).listen((position) {
+          if (!mounted) {
+            return;
+          }
+          _applyLivePosition(position, animateCamera: true);
+          if (_shouldRefreshMeetingRoute()) {
+            unawaited(_refreshMeetingRoute());
+          }
+        });
+  }
+
+  void _applyLivePosition(Position position, {required bool animateCamera}) {
+    final nextLocation = LatLng(position.latitude, position.longitude);
+    setState(() {
+      _currentMapLocation = nextLocation;
+      _currentSpeedMps = position.speed >= 0 ? position.speed : 0;
+      _currentHeading = _normalizedHeading(position.heading);
+    });
+
+    if (animateCamera && _isFollowingUser) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _animateCameraTo(nextLocation, zoom: _navigationZoom);
+      });
+    }
+  }
+
+  bool _shouldRefreshMeetingRoute() {
+    final currentLocation = _mapCurrentLocation;
+    if (currentLocation == null || _meetingPointLocation == null) {
+      return false;
+    }
+    if (_roadRoute.isEmpty || _routeUnavailable) {
+      return true;
+    }
+    final lastRouteOrigin = _lastRouteOrigin;
+    if (lastRouteOrigin == null) {
+      return true;
+    }
+    return _distance(currentLocation, lastRouteOrigin) >= 40;
+  }
+
+  Future<void> _refreshMeetingRoute({bool force = false}) async {
+    final current = _mapCurrentLocation;
+    final meeting = _meetingPointLocation;
+    final meetingLat = _toDouble(meeting?['latitude']);
+    final meetingLng = _toDouble(meeting?['longitude']);
+    if (current == null || meetingLat == null || meetingLng == null) {
+      return;
+    }
+
+    final meetingTarget = LatLng(meetingLat, meetingLng);
+    if (!force &&
+        _lastRouteOrigin != null &&
+        _distance(current, _lastRouteOrigin!) < 40 &&
+        _roadRoute.isNotEmpty &&
+        !_routeUnavailable) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _routeLoading = true;
+      });
+    }
+
+    final result = await RoutingService.fetchRoadRouteDetails([
+      current,
+      meetingTarget,
+    ]);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _roadRoute = result.points;
+      _routeSteps = result.steps;
+      _routeDistanceMeters = result.distanceMeters;
+      _routeDurationSeconds = result.durationSeconds;
+      _routeLoading = false;
+      _routeUnavailable = result.isFallback;
+      _lastRouteOrigin = current;
+    });
+  }
+
+  void _animateCameraTo(LatLng target, {required double zoom}) {
+    _cameraAnimationController?.stop();
+    _cameraAnimationController?.dispose();
+
+    final startCenter = _cameraCenter ?? target;
+    final startZoom = _cameraZoom;
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+    final curve = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+    );
+
+    controller.addListener(() {
+      final t = curve.value;
+      final center = LatLng(
+        startCenter.latitude + ((target.latitude - startCenter.latitude) * t),
+        startCenter.longitude +
+            ((target.longitude - startCenter.longitude) * t),
+      );
+      final nextZoom = startZoom + ((zoom - startZoom) * t);
+      _cameraCenter = center;
+      _cameraZoom = nextZoom;
+      _mapController.move(center, nextZoom);
+    });
+
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
+        _cameraCenter = target;
+        _cameraZoom = zoom;
+      }
+    });
+
+    _cameraAnimationController = controller;
+    unawaited(controller.forward());
+  }
+
+  double _normalizedHeading(double heading) {
+    if (heading.isNaN || heading.isInfinite || heading < 0) {
+      return 0;
+    }
+    return heading % 360;
   }
 
   Future<void> _completeRide() async {
@@ -628,6 +815,258 @@ class _RideStartScreenState extends State<RideStartScreen> {
     );
   }
 
+  int _nearestRouteIndex(LatLng point) {
+    if (_roadRoute.isEmpty) {
+      return -1;
+    }
+    var bestIndex = 0;
+    var bestDistance = double.infinity;
+    for (var i = 0; i < _roadRoute.length; i++) {
+      final currentDistance = _distance(point, _roadRoute[i]);
+      if (currentDistance < bestDistance) {
+        bestDistance = currentDistance;
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  }
+
+  List<LatLng> _completedRoutePoints() {
+    final current = _mapCurrentLocation;
+    if (_roadRoute.length < 2 || current == null) {
+      return const <LatLng>[];
+    }
+
+    final nearestIndex = _nearestRouteIndex(current);
+    if (nearestIndex <= 0) {
+      return const <LatLng>[];
+    }
+    if (_distance(current, _roadRoute[nearestIndex]) >
+        _routeSnapThresholdMeters) {
+      return const <LatLng>[];
+    }
+
+    return <LatLng>[..._roadRoute.take(nearestIndex), current];
+  }
+
+  List<LatLng> _upcomingRoutePoints() {
+    final current = _mapCurrentLocation;
+    if (_roadRoute.length < 2) {
+      return const <LatLng>[];
+    }
+    if (current == null) {
+      return _roadRoute;
+    }
+
+    final nearestIndex = _nearestRouteIndex(current);
+    if (nearestIndex < 0) {
+      return _roadRoute;
+    }
+    if (_distance(current, _roadRoute[nearestIndex]) >
+        _routeSnapThresholdMeters) {
+      return _roadRoute;
+    }
+
+    return <LatLng>[current, ..._roadRoute.skip(nearestIndex)];
+  }
+
+  double _remainingDistanceMeters() {
+    final current = _mapCurrentLocation;
+    if (current == null || _roadRoute.length < 2) {
+      return _routeDistanceMeters;
+    }
+
+    final nearestIndex = _nearestRouteIndex(current);
+    if (nearestIndex < 0) {
+      return _routeDistanceMeters;
+    }
+
+    var remaining = _distance(current, _roadRoute[nearestIndex]);
+    for (var i = nearestIndex; i < _roadRoute.length - 1; i++) {
+      remaining += _distance(_roadRoute[i], _roadRoute[i + 1]);
+    }
+    return remaining;
+  }
+
+  RoadRouteStep? _nextStep() {
+    final current = _mapCurrentLocation;
+    if (_routeSteps.isEmpty) {
+      return null;
+    }
+    if (current == null || _roadRoute.isEmpty) {
+      return _routeSteps.first;
+    }
+
+    final currentRouteIndex = _nearestRouteIndex(current);
+    RoadRouteStep? fallback;
+    for (final step in _routeSteps) {
+      final stepDistance = _distance(current, step.maneuverPoint);
+      if (stepDistance <= 25) {
+        continue;
+      }
+      final stepRouteIndex = _nearestRouteIndex(step.maneuverPoint);
+      if (stepRouteIndex >= currentRouteIndex) {
+        return step;
+      }
+      fallback ??= step;
+    }
+    return fallback;
+  }
+
+  String _formatDistance(double meters) {
+    if (meters <= 0) {
+      return "0 m";
+    }
+    if (meters >= 1000) {
+      return "${(meters / 1000).toStringAsFixed(meters >= 10000 ? 0 : 1)} km";
+    }
+    return "${meters.round()} m";
+  }
+
+  String _formatSpeed(double speedMps) {
+    final speedKph = speedMps * 3.6;
+    if (speedKph.isNaN || speedKph.isInfinite || speedKph < 0) {
+      return "0 km/h";
+    }
+    return "${speedKph.round()} km/h";
+  }
+
+  String _etaText(double remainingMeters) {
+    if (_routeDistanceMeters <= 0 || _routeDurationSeconds <= 0) {
+      return "--";
+    }
+    final secondsPerMeter = _routeDurationSeconds / _routeDistanceMeters;
+    final remainingSeconds = (remainingMeters * secondsPerMeter).round();
+    final eta = Duration(seconds: remainingSeconds);
+    if (eta.inHours > 0) {
+      return "${eta.inHours}h ${eta.inMinutes % 60}m";
+    }
+    return "${eta.inMinutes}m";
+  }
+
+  IconData _stepIcon(RoadRouteStep? step) {
+    final modifier = (step?.maneuverModifier ?? "").toLowerCase();
+    final type = (step?.maneuverType ?? "").toLowerCase();
+
+    if (type == "roundabout" || type == "rotary") {
+      return Icons.roundabout_right;
+    }
+    if (modifier.contains("left")) {
+      return Icons.turn_left;
+    }
+    if (modifier.contains("right")) {
+      return Icons.turn_right;
+    }
+    if (modifier == "straight") {
+      return Icons.straight;
+    }
+    if (modifier == "uturn") {
+      return Icons.u_turn_left;
+    }
+    return Icons.navigation;
+  }
+
+  Marker? _buildCurrentLocationMarker(AppThemeConfig theme) {
+    final current = _mapCurrentLocation;
+    if (current == null) {
+      return null;
+    }
+
+    return Marker(
+      point: current,
+      width: 90,
+      height: 90,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: theme.primary.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+          ),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Transform.rotate(
+              angle: (_currentHeading * math.pi) / 180,
+              child: Icon(Icons.navigation, color: theme.primary, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      elevation: 6,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: Icon(icon, color: Colors.black87, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _speedPill(String speed) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Text(
+        speed,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _navMetric({required String label, required String value}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.72),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
   void _manageRide(AppThemeConfig theme) {
     showDialog(
       context: context,
@@ -697,9 +1136,33 @@ class _RideStartScreenState extends State<RideStartScreen> {
                   children: [
                     SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
-                      child: _isOngoingToMeeting
-                          ? _ongoingRideContent(theme)
-                          : _preStartContent(theme),
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 450),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          final slide = Tween<Offset>(
+                            begin: const Offset(0, 0.04),
+                            end: Offset.zero,
+                          ).animate(animation);
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: slide,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: _isOngoingToMeeting
+                            ? KeyedSubtree(
+                                key: const ValueKey('ongoing-ride-content'),
+                                child: _ongoingRideContent(theme),
+                              )
+                            : KeyedSubtree(
+                                key: const ValueKey('prestart-ride-content'),
+                                child: _preStartContent(theme),
+                              ),
+                      ),
                     ),
                     if (_topToastMessage != null)
                       IgnorePointer(
@@ -752,6 +1215,8 @@ class _RideStartScreenState extends State<RideStartScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _liveRouteMap(theme),
+        const SizedBox(height: 14),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -803,8 +1268,6 @@ class _RideStartScreenState extends State<RideStartScreen> {
         const SizedBox(height: 12),
         _liveProgress(theme),
         const SizedBox(height: 12),
-        _liveRouteMap(theme),
-        const SizedBox(height: 14),
         _slider(theme),
       ],
     );
@@ -1079,6 +1542,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
   Widget _liveRouteMap(AppThemeConfig theme) {
     final current = _mapCurrentLocation;
     final meeting = _meetingPointLocation;
+    final participants = List<Map<String, dynamic>>.from(
+      _session?["participants"] ?? const [],
+    );
+    final currentUserUuid = (_session?["currentUserUuid"] ?? "").toString();
     final meetingLat = _toDouble(meeting?["latitude"]);
     final meetingLng = _toDouble(meeting?["longitude"]);
     final meetingTarget = meetingLat != null && meetingLng != null
@@ -1102,8 +1569,65 @@ class _RideStartScreenState extends State<RideStartScreen> {
       );
     }
 
+    final nextStep = _nextStep();
+    final nextStepDistance = nextStep != null
+        ? _distance(current, nextStep.maneuverPoint)
+        : 0.0;
+    final currentLocationMarker = _buildCurrentLocationMarker(theme);
+    final currentLocationMarkers = currentLocationMarker == null
+        ? const <Marker>[]
+        : <Marker>[currentLocationMarker];
+    final participantMarkers = <Marker>[];
+    var ridersWithLocation = 0;
+    for (final participant in participants) {
+      final latitude = _toDouble(participant["lastLatitude"]);
+      final longitude = _toDouble(participant["lastLongitude"]);
+      if (latitude == null || longitude == null) {
+        continue;
+      }
+      ridersWithLocation += 1;
+
+      final isCurrentUser =
+          (participant["userUuid"] ?? "").toString() == currentUserUuid;
+      if (isCurrentUser && _currentMapLocation != null) {
+        continue;
+      }
+
+      final name =
+          (participant["username"] ??
+                  participant["firstName"] ??
+                  participant["riderId"] ??
+                  "Rider")
+              .toString();
+      participantMarkers.add(
+        Marker(
+          point: LatLng(latitude, longitude),
+          width: 42,
+          height: 42,
+          child: Container(
+            decoration: BoxDecoration(
+              color: isCurrentUser ? theme.primary : const Color(0xFF18202D),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: Tooltip(
+              message: isCurrentUser ? "You" : name,
+              child: Icon(
+                isCurrentUser ? Icons.navigation : Icons.two_wheeler,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    final completedRoute = _completedRoutePoints();
+    final upcomingRoute = _upcomingRoutePoints();
+    final remainingDistance = _remainingDistanceMeters();
+
     return Container(
-      height: 380,
+      height: 510,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.surface,
@@ -1113,54 +1637,61 @@ class _RideStartScreenState extends State<RideStartScreen> {
       child: Stack(
         children: [
           FlutterMap(
+            mapController: _mapController,
             options: MapOptions(
               initialCenter: current,
-              initialZoom: 13.5,
+              initialZoom: _cameraZoom,
+              onPositionChanged: (camera, hasGesture) {
+                if (!hasGesture) {
+                  return;
+                }
+                if (_isFollowingUser) {
+                  setState(() {
+                    _isFollowingUser = false;
+                  });
+                }
+              },
               initialCameraFit: CameraFit.coordinates(
-                coordinates: [current, meetingTarget],
+                coordinates: [current, meetingTarget, ..._roadRoute],
                 padding: const EdgeInsets.all(44),
                 maxZoom: 14.5,
               ),
             ),
             children: [
               TileLayer(
-                urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                urlTemplate: _hasMapboxToken
+                    ? _mapboxTileUrl
+                    : "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 userAgentPackageName: "com.ridersclub.throttle_ui",
               ),
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: [current, meetingTarget],
-                    strokeWidth: 5,
-                    color: theme.primary,
-                  ),
-                ],
-              ),
+              if (completedRoute.length > 1)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: completedRoute,
+                      strokeWidth: 6,
+                      color: Colors.white.withValues(alpha: 0.32),
+                      strokeCap: StrokeCap.round,
+                      strokeJoin: StrokeJoin.round,
+                    ),
+                  ],
+                ),
+              if (!_routeUnavailable && upcomingRoute.length > 1)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: upcomingRoute,
+                      strokeWidth: 6,
+                      color: theme.primary,
+                      strokeCap: StrokeCap.round,
+                      strokeJoin: StrokeJoin.round,
+                    ),
+                  ],
+                ),
               MarkerLayer(
                 markers: [
-                  Marker(
-                    point: current,
-                    width: 48,
-                    height: 48,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: theme.primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.primary.withValues(alpha: 0.3),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.navigation,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-                    ),
-                  ),
+                  ...currentLocationMarkers,
+                  ...participantMarkers,
                   Marker(
                     point: meetingTarget,
                     width: 48,
@@ -1188,7 +1719,10 @@ class _RideStartScreenState extends State<RideStartScreen> {
               ),
               const RichAttributionWidget(
                 popupInitialDisplayDuration: Duration.zero,
-                attributions: [TextSourceAttribution("© OpenStreetMap")],
+                attributions: [
+                  TextSourceAttribution("© Mapbox"),
+                  TextSourceAttribution("© OpenStreetMap"),
+                ],
               ),
             ],
           ),
@@ -1197,39 +1731,140 @@ class _RideStartScreenState extends State<RideStartScreen> {
             left: 14,
             right: 14,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.64),
-                borderRadius: BorderRadius.circular(16),
+                color: Colors.black.withValues(alpha: 0.74),
+                borderRadius: BorderRadius.circular(18),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.navigation_outlined, color: Colors.white),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _stepIcon(nextStep),
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Live Route",
-                          style: TextStyle(
+                        Text(
+                          nextStep?.instruction ??
+                              (_routeLoading
+                                  ? "Building navigation route"
+                                  : "Heading to $_meetingPoint"),
+                          style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
-                          "Heading to $_meetingPoint",
+                          nextStep != null
+                              ? "In ${_formatDistance(nextStepDistance)}"
+                              : "Live guidance to $_meetingPoint",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.86),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+          ),
+          if (ridersWithLocation > 0)
+            Positioned(
+              top: 74,
+              left: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.64),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  "$ridersWithLocation riders visible",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            right: 14,
+            bottom: 116,
+            child: Column(
+              children: [
+                _mapActionButton(
+                  icon: _isVoiceMuted
+                      ? Icons.volume_off_rounded
+                      : Icons.volume_up_rounded,
+                  onTap: () {
+                    setState(() {
+                      _isVoiceMuted = !_isVoiceMuted;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                _mapActionButton(icon: Icons.layers_outlined, onTap: () {}),
+                if (!_isFollowingUser) ...[
+                  const SizedBox(height: 10),
+                  _mapActionButton(
+                    icon: Icons.my_location_rounded,
+                    onTap: () {
+                      setState(() {
+                        _isFollowingUser = true;
+                      });
+                      _animateCameraTo(current, zoom: _navigationZoom);
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Positioned(
+            left: 14,
+            bottom: 86,
+            child: _speedPill(_formatSpeed(_currentSpeedMps)),
+          ),
+          Positioned(
+            left: 14,
+            right: 14,
+            bottom: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.74),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _navMetric(
+                    label: "Remaining",
+                    value: _formatDistance(remainingDistance),
+                  ),
+                  _navMetric(label: "ETA", value: _etaText(remainingDistance)),
                 ],
               ),
             ),
