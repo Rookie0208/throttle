@@ -221,6 +221,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String rideStatus = "SCHEDULED",
   }) async {
     final group = {
+      ...ride,
       "uuid": ride["groupUuid"] ?? ride["uuid"] ?? ride["id"],
       "id": ride["groupUuid"] ?? ride["uuid"] ?? ride["id"],
       "rideUuid": ride["uuid"] ?? ride["id"],
