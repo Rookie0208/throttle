@@ -5,6 +5,8 @@ import com.ridersclub.admin.dto.response.AdminRideDTO;
 import com.ridersclub.admin.dto.response.AdminStatsDTO;
 import com.ridersclub.admin.dto.response.AdminReportDTO;
 import com.ridersclub.admin.dto.response.AdminAuditDTO;
+import com.ridersclub.admin.dto.response.AdminGrowthPointDTO;
+import com.ridersclub.admin.dto.response.AdminAnalyticsDTO;
 import com.ridersclub.admin.entity.Report;
 import com.ridersclub.admin.entity.ReportStatus;
 import com.ridersclub.admin.repository.ReportRepository;
@@ -25,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -128,6 +131,59 @@ public class AdminService {
             .build();
     }
 
+    /**
+     * Returns daily growth data points for users and rides over the last {@code days} days.
+     * Each list is ordered chronologically (oldest → newest) for direct use in front-end charts.
+     *
+     * @param days number of past days to include (e.g. 14 for a 2-week window)
+     */
+    public AdminStatsDTO.GrowthStats getGrowthStats(int days) {
+        LocalDateTime userSince = LocalDateTime.now().minusDays(days);
+        OffsetDateTime rideSince = OffsetDateTime.now().minusDays(days);
+
+        List<AdminGrowthPointDTO> userGrowth = userRepository.countUsersByDate(userSince);
+        List<AdminGrowthPointDTO> rideGrowth = rideRepository.countRidesByDate(rideSince);
+
+        return new AdminStatsDTO.GrowthStats(userGrowth, rideGrowth);
+    }
+
+    /**
+     * Returns a comprehensive analytics snapshot for the admin dashboard.
+     * All data is fetched via group-by JPQL queries — no entity-level iteration.
+     */
+    public AdminAnalyticsDTO getAnalytics() {
+        // ── User metrics ──────────────────────────────────────────────────────
+        long totalUsers   = userRepository.count();
+        long activeUsers  = userRepository.countActiveUsers();
+        long blockedUsers = totalUsers - activeUsers;
+
+        // ── Ride metrics ──────────────────────────────────────────────────────
+        long totalRides     = rideRepository.count();
+        long completedRides = rideRepository.countByStatusEnum(com.ridersclub.common.enums.Status.COMPLETED);
+        long activeRides    = rideRepository.countByStatusEnum(com.ridersclub.common.enums.Status.ACTIVE);
+
+        // ── Report metrics ────────────────────────────────────────────────────
+        long totalReports    = reportRepository.count();
+        long pendingReports  = reportRepository.countByStatusEnum(com.ridersclub.admin.entity.ReportStatus.PENDING);
+        long resolvedReports = reportRepository.countByStatusEnum(com.ridersclub.admin.entity.ReportStatus.RESOLVED);
+
+        return AdminAnalyticsDTO.builder()
+                .totalUsers(totalUsers)
+                .activeUsers(activeUsers)
+                .blockedUsers(blockedUsers)
+                .totalRides(totalRides)
+                .completedRides(completedRides)
+                .activeRides(activeRides)
+                .ridesByStatus(rideRepository.countByStatus())
+                .ridesByType(rideRepository.countByRideType())
+                .totalReports(totalReports)
+                .pendingReports(pendingReports)
+                .resolvedReports(resolvedReports)
+                .reportsByStatus(reportRepository.countByStatus())
+                .reportsByType(reportRepository.countByType())
+                .build();
+    }
+
     public List<AdminReportDTO> getAllReports() {
         return reportRepository.findAll().stream().map(r ->
             AdminReportDTO.builder()
@@ -159,7 +215,7 @@ public class AdminService {
 
     private void publishAudit(String action, Long adminId, Long targetId) {
         log.info("AUDIT_EVENT action={} adminId={} targetId={}", action, adminId, targetId);
-        String timestamp = LocalDateTime.now().toString();
+        String timestamp = java.time.Instant.now().toString();
         AuditLogEvent event = AuditLogEvent.builder()
             .action(action)
             .adminId(adminId)

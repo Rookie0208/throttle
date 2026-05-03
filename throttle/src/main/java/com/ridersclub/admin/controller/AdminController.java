@@ -75,6 +75,29 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(adminService.getDashboardStats(), "Stats retrieved successfully"));
     }
 
+    /**
+     * Returns daily growth time-series for users and rides.
+     *
+     * @param days  lookback window in days (clamped to [1, 90]); default 14
+     */
+    @GetMapping("/stats/growth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AdminStatsDTO.GrowthStats>> getGrowthStats(
+            @RequestParam(defaultValue = "14") int days) {
+        int clampedDays = Math.max(1, Math.min(days, 90));
+        return ResponseEntity.ok(ApiResponse.success(adminService.getGrowthStats(clampedDays), "Growth stats retrieved"));
+    }
+
+    /**
+     * Returns a comprehensive analytics snapshot: user/ride/report breakdowns.
+     * The frontend fetches this once on mount; no polling needed for stable counts.
+     */
+    @GetMapping("/stats/analytics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<com.ridersclub.admin.dto.response.AdminAnalyticsDTO>> getAnalytics() {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getAnalytics(), "Analytics retrieved"));
+    }
+
     @GetMapping("/reports")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<AdminReportDTO>>> getAllReports() {
