@@ -24,6 +24,7 @@ import com.ridersclub.common.dto.ApiErrors;
 import com.ridersclub.common.dto.ApiResponse;
 import com.ridersclub.ride.dto.request.AddGroupMembersRequest;
 import com.ridersclub.ride.dto.request.AssignRoleRequest;
+import com.ridersclub.ride.dto.request.CustomRideCheckpointRequest;
 import com.ridersclub.ride.dto.request.CreateRideRequest;
 import com.ridersclub.ride.dto.request.RideAnnouncementRequest;
 import com.ridersclub.ride.dto.request.CreateSubGroupRequest;
@@ -238,6 +239,17 @@ public class RideController {
         return ApiResponse.success(
                 rideSessionService.advanceCheckpoint(id, userUuid),
                 "Checkpoint advanced");
+    }
+
+    @PostMapping("/{id}/checkpoints/custom")
+    public ApiResponse<RideSessionResponse> addCustomCheckpoint(
+            @PathVariable String id,
+            @Valid @RequestBody CustomRideCheckpointRequest request,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.addCustomCheckpoint(id, userUuid, request),
+                "Checkpoint added");
     }
 
     @PostMapping("/{id}/sos")
