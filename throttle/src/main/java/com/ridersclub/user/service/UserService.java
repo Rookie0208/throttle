@@ -203,6 +203,8 @@ public class UserService {
                                 .orElse(null),
                         activeRide.getTitle(),
                         activeRide.getDescription(),
+                        activeRide.getRideType(),
+                        activeRide.getMaxRiders(),
                         ((activeRide.getCreatedBy().getFirstName() != null ? activeRide.getCreatedBy().getFirstName() : "")
                                 + " "
                                 + (activeRide.getCreatedBy().getLastName() != null ? activeRide.getCreatedBy().getLastName() : "")).trim(),
@@ -234,6 +236,8 @@ public class UserService {
                                     .orElse(null),
                             ur.getTitle(),
                             ur.getDescription(),
+                            ur.getRideType(),
+                            ur.getMaxRiders(),
                             ((ur.getCreatedBy().getFirstName() != null ? ur.getCreatedBy().getFirstName() : "")
                                     + " "
                                     + (ur.getCreatedBy().getLastName() != null ? ur.getCreatedBy().getLastName() : "")).trim(),
