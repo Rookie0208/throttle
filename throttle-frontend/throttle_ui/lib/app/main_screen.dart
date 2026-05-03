@@ -7,7 +7,6 @@ import 'package:throttle_ui/features/profile/presentation/screens/profile_screen
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
-import 'package:throttle_ui/core/resources/frontend_resource_config.dart';
 import 'package:throttle_ui/features/dashboard/presentation/screens/dashboard_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -18,7 +17,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  String _currentTabId = 'dashboard';
+  int _currentIndex = 0;
   String? _token;
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
@@ -44,36 +43,18 @@ class _MainScreenState extends State<MainScreen> {
     });
   }
 
-  List<FrontendNavigationTabResource> get _visibleTabs {
-    final tabs =
-        FrontendResourceConfig.instance.navigation.tabs
-            .where((tab) => tab.enabled && _screenBuilders.containsKey(tab.id))
-            .toList()
-          ..sort((a, b) => a.order.compareTo(b.order));
-    return tabs;
-  }
+  List<Widget> get _screens => [
+    DashboardScreen(userData: _userData, token: _token!),
+    GroupsScreen(token: _token!),
+    const ClubsScreen(),
+    const FriendsScreen(),
+    ProfileScreen(userData: _userData),
+  ];
 
-  Map<String, Widget Function()> get _screenBuilders => {
-    'dashboard': () => DashboardScreen(userData: _userData, token: _token!),
-    'rides': () => GroupsScreen(token: _token!),
-    'clubs': () => const ClubsScreen(),
-    'friends': () => const FriendsScreen(),
-    'profile': () => ProfileScreen(userData: _userData),
-  };
-
-  void _onTabChanged(List<FrontendNavigationTabResource> tabs, int index) {
-    if (index < 0 || index >= tabs.length) return;
+  void _onTabChanged(int index) {
     setState(() {
-      _currentTabId = tabs[index].id;
+      _currentIndex = index;
     });
-  }
-
-  void _ensureActiveTab(List<FrontendNavigationTabResource> tabs) {
-    if (tabs.isEmpty) return;
-    final hasActive = tabs.any((tab) => tab.id == _currentTabId);
-    if (!hasActive) {
-      _currentTabId = tabs.first.id;
-    }
   }
 
   Future<void> _openCreateRideSheet() async {
@@ -110,10 +91,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        ThemeController.instance,
-        FrontendResourceConfig.instance,
-      ]),
+      listenable: ThemeController.instance,
       builder: (context, _) {
         final theme = ThemeController.instance.theme;
 
@@ -138,82 +116,68 @@ class _MainScreenState extends State<MainScreen> {
           );
         }
 
-        final tabs = _visibleTabs;
-        if (tabs.isEmpty) {
-          return Scaffold(
-            backgroundColor: theme.background,
-            body: Center(
-              child: Text(
-                'No navigation items are enabled in the frontend resource config.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: theme.textPrimary),
-              ),
-            ),
-          );
-        }
-
-        _ensureActiveTab(tabs);
-        final selectedIndex = tabs.indexWhere((tab) => tab.id == _currentTabId);
-        final screens = tabs
-            .map((tab) => _screenBuilders[tab.id]!())
-            .toList(growable: false);
-        final navActions = FrontendResourceConfig.instance.navigation.actions;
-
         return Scaffold(
           backgroundColor: theme.background,
-          body: IndexedStack(index: selectedIndex, children: screens),
+          body: IndexedStack(index: _currentIndex, children: _screens),
           bottomNavigationBar: Padding(
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(28),
               child: NavigationBar(
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (index) => _onTabChanged(tabs, index),
-                destinations: tabs
-                    .map(
-                      (tab) => NavigationDestination(
-                        icon: Icon(
-                          FrontendResourceConfig.resolveIcon(tab.icon),
-                        ),
-                        selectedIcon: Icon(
-                          FrontendResourceConfig.resolveIcon(tab.selectedIcon),
-                        ),
-                        label: tab.label,
-                      ),
-                    )
-                    .toList(growable: false),
+                selectedIndex: _currentIndex,
+                onDestinationSelected: _onTabChanged,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.space_dashboard_outlined),
+                    selectedIcon: Icon(Icons.space_dashboard_rounded),
+                    label: "Dashboard",
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.two_wheeler_outlined),
+                    selectedIcon: Icon(Icons.two_wheeler_rounded),
+                    label: "Rides",
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.groups_2_outlined),
+                    selectedIcon: Icon(Icons.groups_2_rounded),
+                    label: "Clubs",
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.diversity_3_outlined),
+                    selectedIcon: Icon(Icons.diversity_3_rounded),
+                    label: "Friends",
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(Icons.person_rounded),
+                    label: "Profile",
+                  ),
+                ],
               ),
             ),
           ),
-          floatingActionButton: navActions.createRideFabEnabled
-              ? Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [theme.primary, theme.secondary],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.primary.withValues(alpha: 0.3),
-                        blurRadius: 15,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: FloatingActionButton(
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    highlightElevation: 0,
-                    onPressed: _openCreateRideSheet,
-                    child: Icon(
-                      FrontendResourceConfig.resolveIcon(
-                        navActions.createRideFabIcon,
-                      ),
-                      color: Colors.white,
-                    ),
-                  ),
-                )
-              : null,
+          floatingActionButton: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [theme.primary, theme.secondary],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.primary.withValues(alpha: 0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: FloatingActionButton(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              highlightElevation: 0,
+              onPressed: _openCreateRideSheet,
+              child: const Icon(Icons.add_rounded, color: Colors.white),
+            ),
+          ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         );
       },

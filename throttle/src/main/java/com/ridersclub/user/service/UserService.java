@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import com.ridersclub.bike.service.BikeRegistryService;
 import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.enums.Status;
-import com.ridersclub.config.BackendResourceConfig;
 import com.ridersclub.user.dto.request.UpdateProfileRequest;
 import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.entity.User;
@@ -45,16 +44,6 @@ public class UserService {
 
     @Autowired
     private BikeRegistryService bikeRegistryService;
-
-    @Autowired
-    private BackendResourceConfig backendResourceConfig;
-
-    private UserProfileResponse buildUserProfileResponse(User user) {
-        return new UserProfileResponse(
-                user,
-                backendResourceConfig.getSubscription().getFreePlanMaxBikes(),
-                backendResourceConfig.getSubscription().getActivePlanBikeLimit());
-    }
 
     // --- helper methods used by other services ---
     @Transactional(readOnly = true)
@@ -102,7 +91,7 @@ public class UserService {
     public UserProfileResponse getProfile(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
-        return buildUserProfileResponse(user);
+        return new UserProfileResponse(user);
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +99,7 @@ public class UserService {
         User user = userRepository.findByUuid(uuidStr)
                 .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
 
-        UserProfileResponse response = buildUserProfileResponse(user);
+        UserProfileResponse response = new UserProfileResponse(user);
 
         // Fetch bikes
         List<com.ridersclub.user.entity.UserBike> bikes = userBikeRepository.findByUserId(user.getId());
@@ -296,7 +285,7 @@ public class UserService {
 
         userRepository.save(user);
 
-        return buildUserProfileResponse(user);
+        return new UserProfileResponse(user);
     }
 
 }
