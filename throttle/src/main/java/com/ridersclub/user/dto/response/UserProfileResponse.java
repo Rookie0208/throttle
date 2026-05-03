@@ -47,10 +47,6 @@ public class UserProfileResponse {
     private int bikeLimit;
 
     public UserProfileResponse(User user) {
-        this(user, 3, 999);
-    }
-
-    public UserProfileResponse(User user, int freePlanBikeLimit, int activePlanBikeLimit) {
         this.id = user.getUuid().toString();
         this.firstName = user.getFirstName();
         this.lastName = user.getLastName();
@@ -64,7 +60,7 @@ public class UserProfileResponse {
         this.allergies = user.getAllergies();
         this.currentMedication = user.getCurrentMedication();
         this.subscriptionActive = user.isSubscriptionActive();
-        this.bikeLimit = user.isSubscriptionActive() ? activePlanBikeLimit : freePlanBikeLimit;
+        this.bikeLimit = user.isSubscriptionActive() ? 999 : 3;
     }
 
     @Data
