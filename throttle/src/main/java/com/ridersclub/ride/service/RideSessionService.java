@@ -27,6 +27,7 @@ import com.ridersclub.message.repository.GroupMessageRepository;
 import com.ridersclub.ride.dto.request.RideLocationUpdateRequest;
 import com.ridersclub.ride.dto.request.RideSosRequest;
 import com.ridersclub.ride.dto.request.RideSosResolutionRequest;
+import com.ridersclub.ride.dto.request.CustomRideCheckpointRequest;
 import com.ridersclub.ride.dto.response.RideBroadcastResponse;
 import com.ridersclub.ride.dto.response.RideParticipantDto;
 import com.ridersclub.ride.dto.response.RideSessionCheckpointResponse;
@@ -89,6 +90,8 @@ public class RideSessionService {
                 .toList();
 
         List<RideSessionCheckpointResponse> checkpoints = buildCheckpoints(ride, mainGroup);
+        int currentCheckpointIndex = ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0;
+        int boundedCurrentCheckpointIndex = Math.min(currentCheckpointIndex, checkpoints.size());
         List<RideBroadcastResponse> broadcasts = groupMessageRepository
                 .findByGroup_IdAndMessageTypeOrderByCreatedAtAsc(mainGroup.getId(), MessageType.SYSTEM)
                 .stream()
@@ -120,10 +123,12 @@ public class RideSessionService {
                 .currentUserGroupRideDurationSeconds(resolveGroupRideDurationSeconds(actor, ride))
                 .currentUserReturnRideDurationSeconds(resolveReturnRideDurationSeconds(actor))
                 .currentUserTotalRideDurationSeconds(resolveTotalRideDurationSeconds(actor, ride))
+                .startLocation(resolveRouteLocation(mainGroup.getPreRideStartLocation(), ride, LocationType.START, 1))
+                .endLocation(resolveRouteLocation(mainGroup.getPreRideEndLocation(), ride, LocationType.END, 2))
                 .meetingPoint(mainGroup.getPreRideMeetingPoint())
                 .meetingPointLocation(readJsonMap(mainGroup.getPreRideMeetingPointLocation()))
                 .fuelStops(mainGroup.getPreRideFuelStops())
-                .currentCheckpointIndex(ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0)
+                .currentCheckpointIndex(boundedCurrentCheckpointIndex)
                 .latestBroadcastMessage(ride.getLatestBroadcastMessage())
                 .latestBroadcastAt(ride.getLatestBroadcastAt())
                 .activeSosMessage(ride.getActiveSosMessage())
@@ -358,10 +363,62 @@ public class RideSessionService {
         }
 
         int currentIndex = ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0;
-        if (currentIndex < checkpoints.size() - 1) {
+        if (currentIndex < checkpoints.size()) {
             ride.setCurrentCheckpointIndex(currentIndex + 1);
             rideRepository.save(ride);
         }
+
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
+    }
+
+    public RideSessionResponse addCustomCheckpoint(
+            String rideUuid,
+            String actorUserUuid,
+            CustomRideCheckpointRequest request) {
+        Ride ride = getRide(rideUuid);
+        RideParticipant actor = getActiveParticipant(rideUuid, actorUserUuid);
+        ensureActorCanManage(actor);
+        ensureRideMutable(ride);
+
+        String title = request.getTitle() != null ? request.getTitle().trim() : "";
+        if (title.isEmpty()) {
+            throw new RuntimeException("Checkpoint title is required");
+        }
+
+        Double latitude = request.getLatitude();
+        Double longitude = request.getLongitude();
+
+        if (latitude == null || longitude == null) {
+            RideLiveLocation latestLocation = rideLiveLocationRepository
+                    .findTopByRide_IdAndUser_IdOrderByRecordedAtDesc(ride.getId(), actor.getUser().getId())
+                    .orElseThrow(() -> new RuntimeException("Current location unavailable. Please try again in a moment."));
+            latitude = latestLocation.getLatitude();
+            longitude = latestLocation.getLongitude();
+        }
+
+        int nextSequence = ride.getLocations().stream()
+                .map(RideLocation::getSequence)
+                .filter(sequence -> sequence != null)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+
+        RideLocation checkpoint = new RideLocation();
+        checkpoint.setRide(ride);
+        checkpoint.setUser(actor.getUser());
+        checkpoint.setLocationType(LocationType.CHECKPOINT);
+        checkpoint.setName(title);
+        checkpoint.setLatitude(latitude);
+        checkpoint.setLongitude(longitude);
+        checkpoint.setSequence(nextSequence);
+        ride.addLocation(checkpoint);
+        rideRepository.save(ride);
+
+        createSystemGroupMessage(
+                ride,
+                actor.getUser(),
+                formatUserName(actor.getUser()) + " added checkpoint: " + title + ".");
 
         RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
         publishSessionUpdate(rideUuid);
@@ -375,6 +432,24 @@ public class RideSessionService {
 
         LocalDateTime now = LocalDateTime.now();
         String message = request.getMessage().trim();
+
+        if (isRideManager(participant.getRole())) {
+            String broadcastMessage = message.startsWith("SOS:")
+                    ? message
+                    : "SOS: " + message;
+            ride.setLatestBroadcastMessage(broadcastMessage);
+            ride.setLatestBroadcastAt(now);
+            rideRepository.save(ride);
+
+            createSystemGroupMessage(
+                    ride,
+                    participant.getUser(),
+                    "Captain broadcast: " + broadcastMessage);
+
+            RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+            publishSessionUpdate(rideUuid);
+            return session;
+        }
 
         ride.setActiveSosMessage(message);
         ride.setActiveSosAt(now);
@@ -621,63 +696,103 @@ public class RideSessionService {
 
     private List<RideSessionCheckpointResponse> buildCheckpoints(Ride ride, RideGroup mainGroup) {
         List<RideSessionCheckpointResponse> checkpoints = new ArrayList<>();
+        List<Map<String, Object>> routePoints = new ArrayList<>();
+        Map<String, Object> startLocation = resolveRouteLocation(mainGroup.getPreRideStartLocation(), ride, LocationType.START, 1);
+        if (startLocation != null && !startLocation.isEmpty()) {
+            routePoints.add(startLocation);
+        }
+
+        List<Map<String, Object>> plannedCheckpointLocations = new ArrayList<>();
+        List<Map<String, Object>> checkpointLocations = readJsonList(mainGroup.getPreRideCheckpointLocations());
+        if (!checkpointLocations.isEmpty()) {
+            plannedCheckpointLocations.addAll(checkpointLocations);
+        } else {
+            String rawCheckpoints = mainGroup.getPreRideCheckpoints();
+            if (rawCheckpoints != null && !rawCheckpoints.isBlank()) {
+                String[] names = rawCheckpoints.split(",");
+                for (String name : names) {
+                    String title = name.trim();
+                    if (title.isEmpty()) {
+                        continue;
+                    }
+                    plannedCheckpointLocations.add(toLocationMap(title, null, null));
+                }
+            }
+        }
+        routePoints.addAll(plannedCheckpointLocations);
 
         List<RideLocation> rideCheckpoints = ride.getLocations().stream()
                 .filter(location -> location.getLocationType() == LocationType.CHECKPOINT)
                 .sorted(Comparator.comparing(location -> location.getSequence() == null ? Integer.MAX_VALUE : location.getSequence()))
                 .toList();
-
-        if (!rideCheckpoints.isEmpty()) {
-            int currentIndex = ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0;
-            for (int i = 0; i < rideCheckpoints.size(); i++) {
-                RideLocation checkpoint = rideCheckpoints.get(i);
-                checkpoints.add(RideSessionCheckpointResponse.builder()
-                        .sequence(i)
-                        .title(checkpoint.getName())
-                        .latitude(checkpoint.getLatitude())
-                        .longitude(checkpoint.getLongitude())
-                        .checkpointStatus(resolveCheckpointStatus(i, currentIndex))
-                        .build());
-            }
-            return checkpoints;
+        for (int i = 0; i < rideCheckpoints.size(); i++) {
+            RideLocation checkpoint = rideCheckpoints.get(i);
+            routePoints.add(toLocationMap(checkpoint.getName(), checkpoint.getLatitude(), checkpoint.getLongitude()));
         }
 
-        List<Map<String, Object>> checkpointLocations = readJsonList(mainGroup.getPreRideCheckpointLocations());
-        if (!checkpointLocations.isEmpty()) {
-            int currentIndex = ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0;
-            for (int i = 0; i < checkpointLocations.size(); i++) {
-                Map<String, Object> checkpoint = checkpointLocations.get(i);
-                checkpoints.add(RideSessionCheckpointResponse.builder()
-                        .sequence(i)
-                        .title((checkpoint.get("name") != null ? checkpoint.get("name") : "Checkpoint").toString())
-                        .latitude(asDouble(checkpoint.get("latitude")))
-                        .longitude(asDouble(checkpoint.get("longitude")))
-                        .checkpointStatus(resolveCheckpointStatus(i, currentIndex))
-                        .build());
-            }
-            return checkpoints;
+        Map<String, Object> endLocation = resolveRouteLocation(mainGroup.getPreRideEndLocation(), ride, LocationType.END, 2);
+        if (endLocation != null && !endLocation.isEmpty()) {
+            routePoints.add(endLocation);
         }
 
-        String rawCheckpoints = mainGroup.getPreRideCheckpoints();
-        if (rawCheckpoints == null || rawCheckpoints.isBlank()) {
-            return checkpoints;
-        }
-
-        String[] names = rawCheckpoints.split(",");
         int currentIndex = ride.getCurrentCheckpointIndex() != null ? ride.getCurrentCheckpointIndex() : 0;
-        for (int i = 0; i < names.length; i++) {
-            String title = names[i].trim();
-            if (title.isEmpty()) {
-                continue;
-            }
+        for (int i = 0; i < routePoints.size(); i++) {
+            Map<String, Object> routePoint = routePoints.get(i);
+            String locationType = i == 0
+                    ? LocationType.START.name()
+                    : (i == routePoints.size() - 1 ? LocationType.END.name() : LocationType.CHECKPOINT.name());
             checkpoints.add(RideSessionCheckpointResponse.builder()
-                    .sequence(checkpoints.size())
-                    .title(title)
-                    .checkpointStatus(resolveCheckpointStatus(checkpoints.size(), currentIndex))
+                    .sequence(i)
+                    .title((routePoint.get("name") != null ? routePoint.get("name") : locationType).toString())
+                    .locationType(locationType)
+                    .latitude(asDouble(routePoint.get("latitude")))
+                    .longitude(asDouble(routePoint.get("longitude")))
+                    .checkpointStatus(resolveCheckpointStatus(i, currentIndex, routePoints.size()))
                     .build());
         }
 
         return checkpoints;
+    }
+
+    private Map<String, Object> resolveRouteLocation(
+            String serializedLocation,
+            Ride ride,
+            LocationType locationType,
+            int fallbackSequence) {
+        Map<String, Object> savedLocation = readJsonMap(serializedLocation);
+        if (savedLocation != null && !savedLocation.isEmpty()) {
+            return savedLocation;
+        }
+
+        RideLocation fallbackLocation = ride.getLocations().stream()
+                .filter(location -> locationType.equals(location.getLocationType()))
+                .findFirst()
+                .orElseGet(() -> ride.getLocations().stream()
+                        .filter(location -> location.getSequence() != null && location.getSequence() == fallbackSequence)
+                        .findFirst()
+                        .orElse(null));
+        if (fallbackLocation == null) {
+            return null;
+        }
+
+        return toLocationMap(
+                fallbackLocation.getName(),
+                fallbackLocation.getLatitude(),
+                fallbackLocation.getLongitude());
+    }
+
+    private Map<String, Object> toLocationMap(String name, Double latitude, Double longitude) {
+        Map<String, Object> location = new java.util.LinkedHashMap<>();
+        if (name != null && !name.isBlank()) {
+            location.put("name", name.trim());
+        }
+        if (latitude != null) {
+            location.put("latitude", latitude);
+        }
+        if (longitude != null) {
+            location.put("longitude", longitude);
+        }
+        return location;
     }
 
     private List<Map<String, Object>> readJsonList(String value) {
@@ -707,7 +822,10 @@ public class RideSessionService {
         }
     }
 
-    private String resolveCheckpointStatus(int checkpointIndex, int currentIndex) {
+    private String resolveCheckpointStatus(int checkpointIndex, int currentIndex, int totalCheckpoints) {
+        if (currentIndex >= totalCheckpoints) {
+            return "COMPLETED";
+        }
         if (checkpointIndex < currentIndex) {
             return "COMPLETED";
         }

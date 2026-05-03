@@ -456,8 +456,10 @@ class RideService {
   static Future<void> addRideCheckpoint(
     String token,
     String rideUuid,
-    String title,
-  ) async {
+    String title, {
+    double? latitude,
+    double? longitude,
+  }) async {
     final baseUrl = _apiBaseUrl;
     final response = await http.post(
       Uri.parse('$baseUrl/rides/$rideUuid/checkpoints/custom'),
@@ -467,7 +469,8 @@ class RideService {
       },
       body: jsonEncode({
         'title': title,
-        // You could also send current coordinates here if your API supports it
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       }),
     );
 

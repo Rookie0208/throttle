@@ -10,6 +10,7 @@ import lombok.Setter;
 public class RideSessionCheckpointResponse {
     private Integer sequence;
     private String title;
+    private String locationType;
     private Double latitude;
     private Double longitude;
     private String checkpointStatus;

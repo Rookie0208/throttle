@@ -318,10 +318,13 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       await _withLoading(() async {
         // Logic: Captain adds to ride stats, Normal Rider adds to personal stats
         if (_canManageRide) {
+          final position = await LocationService.getCurrentLocation();
           await RideService.addRideCheckpoint(
             widget.token!,
             widget.rideUuid!,
             title,
+            latitude: position?.latitude,
+            longitude: position?.longitude,
           );
           _showSnack("Checkpoint '$title' added to group ride");
           await _loadSession(); // Refresh to show new point
@@ -456,28 +459,46 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     });
   }
 
-  void _endRide(AppThemeConfig theme) {
+  Future<void> _holdToEndRide() async {
+    await _completeRide();
+  }
+
+  Future<void> _cancelRide() async {
+    if (!_canManageRide) {
+      _showSnack("Only captain/admin can cancel this ride");
+      return;
+    }
+
+    await _withLoading(() async {
+      await RideService.cancelRide(widget.token!, widget.rideUuid!);
+      RideRefreshNotifier.notify();
+      if (!mounted) return;
+      Navigator.pop(context);
+    });
+  }
+
+  void _showCancelRideDialog(AppThemeConfig theme) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: theme.surface,
-        title: Text("End Ride", style: TextStyle(color: theme.textPrimary)),
+        title: Text("Cancel Ride", style: TextStyle(color: theme.textPrimary)),
         content: Text(
-          "Are you sure you want to end this ride?",
+          "Are you sure you want to cancel this ride?",
           style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+            child: const Text("Keep Ride"),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(context);
-              _completeRide();
+              _cancelRide();
             },
-            child: const Text("End Ride"),
+            child: const Text("Cancel Ride"),
           ),
         ],
       ),
@@ -549,7 +570,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                       icon: Icon(Icons.refresh, color: theme.textPrimary),
                     ),
                     IconButton(
-                      onPressed: _loading ? null : () => _endRide(theme),
+                      onPressed:
+                          _loading ? null : () => _showCancelRideDialog(theme),
                       icon: const Icon(Icons.stop_circle, color: Colors.red),
                     ),
                   ],
@@ -581,15 +603,17 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
           (c["checkpointStatus"] ?? "").toString().toUpperCase() == "CURRENT",
       orElse: () => const <String, dynamic>{},
     );
-    final bool allReached =
-        checkpoints.isNotEmpty &&
-        checkpoints.every(
-          (c) =>
-              (c["checkpointStatus"] ?? "").toString().toUpperCase() ==
-              "REACHED",
-        );
     final totalCheckpoints = checkpoints.length;
-    final currentIndex = currentCheckpoint["sequence"] ?? 0;
+    final reachedCount =
+        ((session["currentCheckpointIndex"] as num?)?.toInt() ?? 0).clamp(
+          0,
+          totalCheckpoints,
+        );
+    final bool allReached = totalCheckpoints > 0 && reachedCount >= totalCheckpoints;
+    final currentIndex = allReached
+        ? reachedCount
+        : (((currentCheckpoint["sequence"] as num?)?.toInt() ?? reachedCount) +
+              1);
     final emergencyMessage = (session["activeSosMessage"] ?? "")
         .toString()
         .trim();
@@ -662,9 +686,12 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
 
     // Determine descriptive labels
     String checkpointLabelText = "Checkpoint";
-    if (currentIndex == 1) {
+    final currentLocationType = (currentCheckpoint["locationType"] ?? "")
+        .toString()
+        .toUpperCase();
+    if (currentLocationType == "START") {
       checkpointLabelText = "Start Point";
-    } else if (currentIndex == totalCheckpoints && currentIndex > 1) {
+    } else if (currentLocationType == "END" || allReached) {
       checkpointLabelText = "Destination";
     } else if (currentIndex > 1) {
       checkpointLabelText = "Checkpoint ${currentIndex - 1}";
@@ -940,7 +967,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                         ),
                         Text(
                           allReached
-                              ? "FINISHED"
+                              ? "#$reachedCount/$totalCheckpoints"
                               : "#$currentIndex/$totalCheckpoints",
                           style: TextStyle(
                             color: theme.textPrimary.withValues(alpha: 0.65),
@@ -1069,21 +1096,38 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                       if (_canManageRide)
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => _endRide(theme),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                          child: GestureDetector(
+                            onLongPress:
+                                (_loading || _isPaused) ? null : _holdToEndRide,
+                            child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
+                              decoration: BoxDecoration(
+                                color: _loading
+                                    ? theme.textPrimary.withValues(alpha: 0.1)
+                                    : (_isPaused ? theme.surface : Colors.red),
                                 borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  if (!_loading && !_isPaused)
+                                    BoxShadow(
+                                      color: Colors.red.withValues(alpha: 0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                ],
                               ),
-                            ),
-                            child: Text(
-                              "END RIDE",
-                              style: GoogleFonts.bebasNeue(
-                                color: Colors.white,
-                                fontSize: 18,
-                                letterSpacing: 1.2,
+                              child: Center(
+                                child: Text(
+                                  _loading
+                                      ? "Ending..."
+                                      : (_isPaused
+                                            ? "Resume to End Ride"
+                                            : "Hold to End Ride"),
+                                  style: GoogleFonts.bebasNeue(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -1295,8 +1339,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     Color color = theme.primary;
 
     if (allReached) {
-      label = "RIDE COMPLETED";
-      color = Colors.green;
+      label = "DESTINATION REACHED";
+      color = Colors.redAccent;
     } else if (index == 1) {
       label = "START POINT";
       color = Colors.blue;
@@ -1353,7 +1397,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       final title = (checkpoint["title"] ?? "Checkpoint").toString();
       final color = switch (status) {
         "CURRENT" => theme.primary,
-        "REACHED" => Colors.green,
+        "COMPLETED" => Colors.green,
         _ => Colors.redAccent,
       };
 
