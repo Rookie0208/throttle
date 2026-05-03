@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart' as latlng;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
+import 'package:throttle_ui/core/services/routing_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_realtime_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
@@ -29,8 +33,14 @@ class LiveRideScreen extends StatefulWidget {
   State<LiveRideScreen> createState() => _LiveRideScreenState();
 }
 
-class _LiveRideScreenState extends State<LiveRideScreen> {
+class _LiveRideScreenState extends State<LiveRideScreen>
+    with TickerProviderStateMixin {
   final RideRealtimeService _rideRealtimeService = RideRealtimeService();
+  final MapController _mapController = MapController();
+  final latlng.Distance _distance = const latlng.Distance();
+
+  static const double _navigationZoom = 16.4;
+  static const double _routeSnapThresholdMeters = 80;
 
   bool _loading = false;
   bool _fetching = false;
@@ -43,8 +53,33 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
   Timer? _refreshTimer;
   Duration _totalPausedTime = Duration.zero;
   DateTime? _pauseStartTime;
+  List<latlng.LatLng> _roadRoutePoints = const <latlng.LatLng>[];
+  List<RoadRouteStep> _routeSteps = const <RoadRouteStep>[];
+  double _routeDistanceMeters = 0;
+  double _routeDurationSeconds = 0;
+  bool _routeUnavailable = false;
+  bool _routeLoading = false;
+  bool _routeLoaded = false;
+  latlng.LatLng? _currentLocation;
+  double _currentSpeedMps = 0;
+  double _currentHeading = 0;
+  bool _isFollowingUser = true;
+  bool _isVoiceMuted = false;
+  latlng.LatLng? _lastRouteOrigin;
+  StreamSubscription<Position>? _positionSubscription;
+  AnimationController? _cameraAnimationController;
+  latlng.LatLng? _cameraCenter;
+  double _cameraZoom = 12.5;
 
   bool get _hasRideSession => widget.token != null && widget.rideUuid != null;
+
+  String get _mapboxPublicToken =>
+      dotenv.env['MAPBOX_PUBLIC_TOKEN']?.trim() ?? '';
+
+  String get _mapboxTileUrl =>
+      'https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/256/{z}/{x}/{y}@2x?access_token=$_mapboxPublicToken';
+
+  bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
 
   bool get _canManageRide =>
       (_session?["currentUserCaptain"] == true) ||
@@ -57,9 +92,11 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
   @override
   void initState() {
     super.initState();
+    _cameraCenter = null;
     if (_hasRideSession) {
       unawaited(_restorePauseState());
       _connectRealtime();
+      _startNavigationTracking();
       _loadSession();
     }
     _refreshTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -69,6 +106,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
 
   @override
   void dispose() {
+    _cameraAnimationController?.dispose();
+    _positionSubscription?.cancel();
     _refreshTimer?.cancel();
     _locationSyncTimer?.cancel();
     _rideRealtimeService.disconnect();
@@ -166,6 +205,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       setState(() {
         _session = session;
       });
+      await _refreshNavigationRoute(force: true, sessionOverride: session);
       _ensureLocationSync();
       _handleCompletedRide(session);
     } catch (e) {
@@ -202,7 +242,222 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       setState(() {
         _session = session;
       });
+      await _refreshNavigationRoute(force: true, sessionOverride: session);
     });
+  }
+
+  Future<void> _startNavigationTracking() async {
+    final initialPosition = await LocationService.getCurrentLocation();
+    if (!mounted) {
+      return;
+    }
+
+    if (initialPosition != null) {
+      _applyLivePosition(initialPosition, animateCamera: true);
+      unawaited(_refreshNavigationRoute(force: true));
+    }
+
+    _positionSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 5,
+          ),
+        ).listen((position) {
+          if (!mounted) {
+            return;
+          }
+          _applyLivePosition(position, animateCamera: true);
+          if (_shouldRefreshNavigationRoute()) {
+            unawaited(_refreshNavigationRoute());
+          }
+        });
+  }
+
+  void _applyLivePosition(Position position, {required bool animateCamera}) {
+    final location = latlng.LatLng(position.latitude, position.longitude);
+    setState(() {
+      _currentLocation = location;
+      _currentSpeedMps = position.speed >= 0 ? position.speed : 0;
+      _currentHeading = _normalizedHeading(position.heading);
+    });
+
+    if (animateCamera && _isFollowingUser) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _animateCameraTo(location, zoom: _navigationZoom);
+      });
+    }
+  }
+
+  bool _shouldRefreshNavigationRoute() {
+    final currentLocation = _currentLocation;
+    if (currentLocation == null) {
+      return false;
+    }
+    if (!_routeLoaded || _roadRoutePoints.isEmpty || _routeUnavailable) {
+      return true;
+    }
+    final lastRouteOrigin = _lastRouteOrigin;
+    if (lastRouteOrigin == null) {
+      return true;
+    }
+    return _distance(currentLocation, lastRouteOrigin) >= 40;
+  }
+
+  Future<void> _refreshNavigationRoute({
+    bool force = false,
+    Map<String, dynamic>? sessionOverride,
+  }) async {
+    final session = sessionOverride ?? _session;
+    if (session == null) {
+      return;
+    }
+
+    final waypoints = _navigationWaypointsFromSession(session);
+    if (waypoints.length < 2) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _roadRoutePoints = const <latlng.LatLng>[];
+        _routeSteps = const <RoadRouteStep>[];
+        _routeDistanceMeters = 0;
+        _routeDurationSeconds = 0;
+        _routeLoaded = true;
+        _routeLoading = false;
+        _routeUnavailable = false;
+      });
+      return;
+    }
+
+    if (!force &&
+        _lastRouteOrigin != null &&
+        _currentLocation != null &&
+        _distance(_currentLocation!, _lastRouteOrigin!) < 40 &&
+        _roadRoutePoints.isNotEmpty &&
+        !_routeUnavailable) {
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _routeLoading = true;
+        _routeLoaded = false;
+      });
+    }
+
+    final result = await RoutingService.fetchRoadRouteDetails(waypoints);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _roadRoutePoints = result.points
+          .map((point) => latlng.LatLng(point.latitude, point.longitude))
+          .toList();
+      _routeSteps = result.steps;
+      _routeDistanceMeters = result.distanceMeters;
+      _routeDurationSeconds = result.durationSeconds;
+      _routeUnavailable = result.isFallback;
+      _routeLoaded = true;
+      _routeLoading = false;
+      _lastRouteOrigin = waypoints.first;
+    });
+  }
+
+  List<latlng.LatLng> _navigationWaypointsFromSession(
+    Map<String, dynamic> session,
+  ) {
+    final checkpoints = List<Map<String, dynamic>>.from(
+      session["checkpoints"] ?? const [],
+    );
+    final currentUserUuid = (session["currentUserUuid"] ?? "").toString();
+    final participants = List<Map<String, dynamic>>.from(
+      session["participants"] ?? const [],
+    );
+
+    final remainingCheckpoints =
+        checkpoints.where((checkpoint) {
+          final status = (checkpoint["checkpointStatus"] ?? "")
+              .toString()
+              .toUpperCase();
+          return status != "REACHED";
+        }).toList()..sort((a, b) {
+          final left = (a["sequence"] as num?)?.toInt() ?? 0;
+          final right = (b["sequence"] as num?)?.toInt() ?? 0;
+          return left.compareTo(right);
+        });
+
+    final points = <latlng.LatLng>[];
+    final origin =
+        _currentLocation ?? _currentUserLocation(participants, currentUserUuid);
+    if (origin != null) {
+      points.add(origin);
+    }
+
+    for (final checkpoint in remainingCheckpoints) {
+      final latitude = _toDouble(checkpoint["latitude"]);
+      final longitude = _toDouble(checkpoint["longitude"]);
+      if (latitude == null || longitude == null) {
+        continue;
+      }
+      final point = latlng.LatLng(latitude, longitude);
+      if (points.isEmpty || _distance(points.last, point) > 10) {
+        points.add(point);
+      }
+    }
+
+    return points;
+  }
+
+  void _animateCameraTo(latlng.LatLng target, {required double zoom}) {
+    _cameraAnimationController?.stop();
+    _cameraAnimationController?.dispose();
+
+    final startCenter = _cameraCenter ?? target;
+    final startZoom = _cameraZoom;
+    final controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    );
+    final curve = CurvedAnimation(
+      parent: controller,
+      curve: Curves.easeOutCubic,
+    );
+
+    controller.addListener(() {
+      final t = curve.value;
+      final center = latlng.LatLng(
+        startCenter.latitude + ((target.latitude - startCenter.latitude) * t),
+        startCenter.longitude +
+            ((target.longitude - startCenter.longitude) * t),
+      );
+      final nextZoom = startZoom + ((zoom - startZoom) * t);
+      _cameraCenter = center;
+      _cameraZoom = nextZoom;
+      _mapController.move(center, nextZoom);
+    });
+
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
+        _cameraCenter = target;
+        _cameraZoom = zoom;
+      }
+    });
+
+    _cameraAnimationController = controller;
+    unawaited(controller.forward());
+  }
+
+  double _normalizedHeading(double heading) {
+    if (heading.isNaN || heading.isInfinite || heading < 0) {
+      return 0;
+    }
+    return heading % 360;
   }
 
   void _ensureLocationSync() {
@@ -256,6 +511,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       setState(() {
         _session = session;
       });
+      unawaited(_refreshNavigationRoute(sessionOverride: session));
     } catch (_) {
       // Best-effort location syncing. Session websocket updates remain the fallback.
     } finally {
@@ -636,10 +892,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     final participants = List<Map<String, dynamic>>.from(
       session["participants"] ?? const [],
     );
-    final currentUserLocation = _currentUserLocation(
-      participants,
-      currentUserUuid,
-    );
+    final currentUserLocation =
+        _currentLocation ?? _currentUserLocation(participants, currentUserUuid);
     final ridersWithLocation = participants
         .where(
           (participant) =>
@@ -703,84 +957,8 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
           child: ListView(
             padding: const EdgeInsets.only(bottom: 120),
             children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      (session["title"] ?? widget.groupName).toString(),
-                      style: GoogleFonts.bebasNeue(
-                        color: theme.textPrimary,
-                        fontSize: 24,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          _isPaused ? "PAUSED" : "RIDING",
-                          style: GoogleFonts.bebasNeue(
-                            color: _isPaused ? Colors.orange : theme.primary,
-                            fontSize: 10,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              "Riding",
-                              style: TextStyle(
-                                color: theme.textPrimary.withValues(
-                                  alpha: 0.65,
-                                ),
-                                fontSize: 10,
-                              ),
-                            ),
-                            Text(
-                              format(ridingDuration),
-                              style: GoogleFonts.bebasNeue(
-                                color: _isPaused
-                                    ? Colors.orange
-                                    : theme.textPrimary,
-                                fontSize: 18,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              "Journey",
-                              style: TextStyle(
-                                color: theme.textPrimary.withValues(
-                                  alpha: 0.65,
-                                ),
-                                fontSize: 10,
-                              ),
-                            ),
-                            Text(
-                              format(journeyDuration),
-                              style: GoogleFonts.bebasNeue(
-                                color: theme.textPrimary,
-                                fontSize: 18,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
               Container(
-                height: 260,
+                height: 510,
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
                   color: theme.surface,
@@ -796,6 +974,93 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                     participants: participants,
                     checkpoints: checkpoints,
                     ridersWithLocation: ridersWithLocation,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          (session["title"] ?? widget.groupName).toString(),
+                          style: GoogleFonts.bebasNeue(
+                            color: theme.textPrimary,
+                            fontSize: 24,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Row(
+                        children: [
+                          Text(
+                            _isPaused ? "PAUSED" : "RIDING",
+                            style: GoogleFonts.bebasNeue(
+                              color: _isPaused ? Colors.orange : theme.primary,
+                              fontSize: 10,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Riding",
+                                style: TextStyle(
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                format(ridingDuration),
+                                style: GoogleFonts.bebasNeue(
+                                  color: _isPaused
+                                      ? Colors.orange
+                                      : theme.textPrimary,
+                                  fontSize: 18,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Journey",
+                                style: TextStyle(
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                format(journeyDuration),
+                                style: GoogleFonts.bebasNeue(
+                                  color: theme.textPrimary,
+                                  fontSize: 18,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1373,14 +1638,291 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     return double.tryParse(value?.toString() ?? "");
   }
 
+  int _nearestRouteIndex(latlng.LatLng point) {
+    if (_roadRoutePoints.isEmpty) {
+      return -1;
+    }
+    var bestIndex = 0;
+    var bestDistance = double.infinity;
+    for (var i = 0; i < _roadRoutePoints.length; i++) {
+      final currentDistance = _distance(point, _roadRoutePoints[i]);
+      if (currentDistance < bestDistance) {
+        bestDistance = currentDistance;
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  }
+
+  List<latlng.LatLng> _completedRoutePoints() {
+    final currentLocation = _currentLocation;
+    if (_roadRoutePoints.length < 2 || currentLocation == null) {
+      return const <latlng.LatLng>[];
+    }
+
+    final nearestIndex = _nearestRouteIndex(currentLocation);
+    if (nearestIndex <= 0) {
+      return const <latlng.LatLng>[];
+    }
+
+    if (_distance(currentLocation, _roadRoutePoints[nearestIndex]) >
+        _routeSnapThresholdMeters) {
+      return const <latlng.LatLng>[];
+    }
+
+    return <latlng.LatLng>[
+      ..._roadRoutePoints.take(nearestIndex),
+      currentLocation,
+    ];
+  }
+
+  List<latlng.LatLng> _upcomingRoutePoints() {
+    if (_roadRoutePoints.length < 2) {
+      return const <latlng.LatLng>[];
+    }
+
+    final currentLocation = _currentLocation;
+    if (currentLocation == null) {
+      return _roadRoutePoints;
+    }
+
+    final nearestIndex = _nearestRouteIndex(currentLocation);
+    if (nearestIndex < 0) {
+      return _roadRoutePoints;
+    }
+
+    if (_distance(currentLocation, _roadRoutePoints[nearestIndex]) >
+        _routeSnapThresholdMeters) {
+      return _roadRoutePoints;
+    }
+
+    return <latlng.LatLng>[
+      currentLocation,
+      ..._roadRoutePoints.skip(nearestIndex),
+    ];
+  }
+
+  double _remainingDistanceMeters() {
+    final currentLocation = _currentLocation;
+    if (currentLocation == null || _roadRoutePoints.length < 2) {
+      return _routeDistanceMeters;
+    }
+
+    final nearestIndex = _nearestRouteIndex(currentLocation);
+    if (nearestIndex < 0) {
+      return _routeDistanceMeters;
+    }
+
+    var remaining = _distance(currentLocation, _roadRoutePoints[nearestIndex]);
+    for (var i = nearestIndex; i < _roadRoutePoints.length - 1; i++) {
+      remaining += _distance(_roadRoutePoints[i], _roadRoutePoints[i + 1]);
+    }
+    return remaining;
+  }
+
+  RoadRouteStep? _nextStep() {
+    final currentLocation = _currentLocation;
+    if (_routeSteps.isEmpty) {
+      return null;
+    }
+    if (currentLocation == null || _roadRoutePoints.isEmpty) {
+      return _routeSteps.first;
+    }
+
+    final currentRouteIndex = _nearestRouteIndex(currentLocation);
+    RoadRouteStep? fallback;
+    for (final step in _routeSteps) {
+      final stepPoint = latlng.LatLng(
+        step.maneuverPoint.latitude,
+        step.maneuverPoint.longitude,
+      );
+      final stepDistance = _distance(currentLocation, stepPoint);
+      if (stepDistance <= 25) {
+        continue;
+      }
+      final stepRouteIndex = _nearestRouteIndex(stepPoint);
+      if (stepRouteIndex >= currentRouteIndex) {
+        return step;
+      }
+      fallback ??= step;
+    }
+    return fallback;
+  }
+
+  String _formatDistance(double meters) {
+    if (meters <= 0) {
+      return "0 m";
+    }
+    if (meters >= 1000) {
+      return "${(meters / 1000).toStringAsFixed(meters >= 10000 ? 0 : 1)} km";
+    }
+    return "${meters.round()} m";
+  }
+
+  String _formatSpeed(double speedMps) {
+    final speedKph = speedMps * 3.6;
+    if (speedKph.isNaN || speedKph.isInfinite || speedKph < 0) {
+      return "0 km/h";
+    }
+    return "${speedKph.round()} km/h";
+  }
+
+  String _etaText(double remainingMeters) {
+    if (_routeDistanceMeters <= 0 || _routeDurationSeconds <= 0) {
+      return "--";
+    }
+    final secondsPerMeter = _routeDurationSeconds / _routeDistanceMeters;
+    final remainingSeconds = (remainingMeters * secondsPerMeter).round();
+    final eta = Duration(seconds: remainingSeconds);
+    if (eta.inHours > 0) {
+      return "${eta.inHours}h ${eta.inMinutes % 60}m";
+    }
+    return "${eta.inMinutes}m";
+  }
+
+  IconData _stepIcon(RoadRouteStep? step) {
+    final modifier = (step?.maneuverModifier ?? "").toLowerCase();
+    final type = (step?.maneuverType ?? "").toLowerCase();
+
+    if (type == "roundabout" || type == "rotary") {
+      return Icons.roundabout_right;
+    }
+    if (modifier.contains("left")) {
+      return Icons.turn_left;
+    }
+    if (modifier.contains("right")) {
+      return Icons.turn_right;
+    }
+    if (modifier == "straight") {
+      return Icons.straight;
+    }
+    if (modifier == "uturn") {
+      return Icons.u_turn_left;
+    }
+    return Icons.navigation;
+  }
+
+  Marker? _buildCurrentLocationMarker(AppThemeConfig theme) {
+    final currentLocation = _currentLocation;
+    if (currentLocation == null) {
+      return null;
+    }
+
+    return Marker(
+      point: currentLocation,
+      width: 90,
+      height: 90,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: theme.primary.withValues(alpha: 0.14),
+              shape: BoxShape.circle,
+            ),
+          ),
+          Container(
+            width: 30,
+            height: 30,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Transform.rotate(
+              angle: (_currentHeading * math.pi) / 180,
+              child: Icon(Icons.navigation, color: theme.primary, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mapActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.white,
+      elevation: 6,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: Icon(icon, color: Colors.black87, size: 22),
+        ),
+      ),
+    );
+  }
+
+  Widget _speedPill(String speed) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.76),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Text(
+        speed,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _navMetric(
+    AppThemeConfig theme, {
+    required String label,
+    required String value,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.72),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildLiveRideMap(
     AppThemeConfig theme, {
     required List<Map<String, dynamic>> participants,
     required List<Map<String, dynamic>> checkpoints,
     required int ridersWithLocation,
   }) {
-    final routePoints = <latlng.LatLng>[];
+    final checkpointPoints = <latlng.LatLng>[];
     final markers = <Marker>[];
+    final currentUserUuid = (_session?["currentUserUuid"] ?? "").toString();
+    final currentLocationMarker = _buildCurrentLocationMarker(theme);
+    final currentLocationMarkers = currentLocationMarker == null
+        ? const <Marker>[]
+        : <Marker>[currentLocationMarker];
+    final currentLocationPoints = _currentLocation == null
+        ? const <latlng.LatLng>[]
+        : <latlng.LatLng>[_currentLocation!];
 
     for (final checkpoint in checkpoints) {
       final latitude = _toDouble(checkpoint["latitude"]);
@@ -1390,7 +1932,7 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       }
 
       final point = latlng.LatLng(latitude, longitude);
-      routePoints.add(point);
+      checkpointPoints.add(point);
       final status = (checkpoint["checkpointStatus"] ?? "")
           .toString()
           .toUpperCase();
@@ -1445,8 +1987,11 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
                   "Rider")
               .toString();
       final isCurrentUser =
-          (participant["userUuid"] ?? "").toString() ==
-          (_session?["currentUserUuid"] ?? "").toString();
+          (participant["userUuid"] ?? "").toString() == currentUserUuid;
+
+      if (isCurrentUser && _currentLocation != null) {
+        continue;
+      }
 
       markers.add(
         Marker(
@@ -1473,7 +2018,9 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     }
 
     final initialPoints = <latlng.LatLng>[
-      ...routePoints,
+      ...checkpointPoints,
+      ..._roadRoutePoints,
+      ...currentLocationPoints,
       ...markers.map((marker) => marker.point),
     ];
 
@@ -1487,12 +2034,37 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       );
     }
 
+    final nextStep = _nextStep();
+    final nextStepDistance = _currentLocation != null && nextStep != null
+        ? _distance(
+            _currentLocation!,
+            latlng.LatLng(
+              nextStep.maneuverPoint.latitude,
+              nextStep.maneuverPoint.longitude,
+            ),
+          )
+        : 0.0;
+    final completedRoute = _completedRoutePoints();
+    final upcomingRoute = _upcomingRoutePoints();
+    final remainingDistance = _remainingDistanceMeters();
+
     return Stack(
       children: [
         FlutterMap(
+          mapController: _mapController,
           options: MapOptions(
             initialCenter: initialPoints.first,
-            initialZoom: 12.5,
+            initialZoom: _cameraZoom,
+            onPositionChanged: (camera, hasGesture) {
+              if (!hasGesture) {
+                return;
+              }
+              if (_isFollowingUser) {
+                setState(() {
+                  _isFollowingUser = false;
+                });
+              }
+            },
             initialCameraFit: initialPoints.length > 1
                 ? CameraFit.coordinates(
                     coordinates: initialPoints,
@@ -1503,23 +2075,42 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
           ),
           children: [
             TileLayer(
-              urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+              urlTemplate: _hasMapboxToken
+                  ? _mapboxTileUrl
+                  : "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
               userAgentPackageName: "com.ridersclub.throttle_ui",
             ),
-            if (routePoints.length > 1)
+            if (completedRoute.length > 1)
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: routePoints,
-                    strokeWidth: 5,
-                    color: theme.primary,
+                    points: completedRoute,
+                    strokeWidth: 6,
+                    color: Colors.white.withValues(alpha: 0.32),
+                    strokeCap: StrokeCap.round,
+                    strokeJoin: StrokeJoin.round,
                   ),
                 ],
               ),
-            MarkerLayer(markers: markers),
+            if (!_routeUnavailable && upcomingRoute.length > 1)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: upcomingRoute,
+                    strokeWidth: 6,
+                    color: theme.primary,
+                    strokeCap: StrokeCap.round,
+                    strokeJoin: StrokeJoin.round,
+                  ),
+                ],
+              ),
+            MarkerLayer(markers: [...markers, ...currentLocationMarkers]),
             const RichAttributionWidget(
               popupInitialDisplayDuration: Duration.zero,
-              attributions: [TextSourceAttribution("© OpenStreetMap")],
+              attributions: [
+                TextSourceAttribution("© Mapbox"),
+                TextSourceAttribution("© OpenStreetMap"),
+              ],
             ),
           ],
         ),
@@ -1530,16 +2121,122 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(14),
+              color: Colors.black.withValues(alpha: 0.74),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: Text(
-              "Live Map • $ridersWithLocation rider locations synced",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _stepIcon(nextStep),
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        nextStep?.instruction ??
+                            (_routeLoading
+                                ? "Building navigation route"
+                                : "Follow the highlighted route"),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        nextStep != null
+                            ? "In ${_formatDistance(nextStepDistance)}"
+                            : (_routeUnavailable
+                                  ? "Road routing unavailable right now"
+                                  : "Navigation starts automatically as your ride location updates"),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.86),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          right: 12,
+          bottom: 112,
+          child: Column(
+            children: [
+              _mapActionButton(
+                icon: _isVoiceMuted
+                    ? Icons.volume_off_rounded
+                    : Icons.volume_up_rounded,
+                onTap: () {
+                  setState(() {
+                    _isVoiceMuted = !_isVoiceMuted;
+                  });
+                },
               ),
+              const SizedBox(height: 10),
+              _mapActionButton(icon: Icons.layers_outlined, onTap: () {}),
+              if (!_isFollowingUser && _currentLocation != null) ...[
+                const SizedBox(height: 10),
+                _mapActionButton(
+                  icon: Icons.my_location_rounded,
+                  onTap: () {
+                    setState(() {
+                      _isFollowingUser = true;
+                    });
+                    _animateCameraTo(_currentLocation!, zoom: _navigationZoom);
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+        Positioned(
+          left: 12,
+          bottom: 86,
+          child: _speedPill(_formatSpeed(_currentSpeedMps)),
+        ),
+        Positioned(
+          left: 12,
+          right: 12,
+          bottom: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.74),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _navMetric(
+                  theme,
+                  label: "Remaining",
+                  value: _formatDistance(remainingDistance),
+                ),
+                _navMetric(
+                  theme,
+                  label: "ETA",
+                  value: _etaText(remainingDistance),
+                ),
+              ],
             ),
           ),
         ),
@@ -1568,6 +2265,9 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
     Map<String, dynamic> currentCheckpoint,
     latlng.LatLng? currentUserLocation,
   ) {
+    if (_roadRoutePoints.length > 1 && _routeDistanceMeters > 0) {
+      return _formatDistance(_remainingDistanceMeters());
+    }
     if (currentCheckpoint.isEmpty || currentUserLocation == null) {
       return "Locating rider...";
     }
@@ -1578,15 +2278,11 @@ class _LiveRideScreenState extends State<LiveRideScreen> {
       return "Unavailable";
     }
 
-    final meters = const latlng.Distance().as(
-      latlng.LengthUnit.Meter,
+    final meters = _distance(
       currentUserLocation,
       latlng.LatLng(checkpointLat, checkpointLng),
     );
 
-    if (meters >= 1000) {
-      return "${(meters / 1000).toStringAsFixed(meters >= 10000 ? 0 : 1)} km";
-    }
-    return "${meters.round()} m";
+    return _formatDistance(meters);
   }
 }
