@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:throttle_ui/core/resources/frontend_resource_config.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
@@ -9,6 +8,8 @@ import 'package:throttle_ui/features/settings/presentation/screens/settings_scre
 import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_summary_screen.dart';
+
+import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
@@ -54,12 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       (_userData?['subscriptionActive'] ?? false) == true;
 
   int get _bikeLimit =>
-      int.tryParse(
-        (_userData?['bikeLimit'] ??
-                FrontendResourceConfig.instance.limits.freePlanMaxBikes)
-            .toString(),
-      ) ??
-      FrontendResourceConfig.instance.limits.freePlanMaxBikes;
+      int.tryParse((_userData?['bikeLimit'] ?? 3).toString()) ?? 3;
 
   double _toDouble(dynamic value) {
     if (value is num) return value.toDouble();
@@ -181,37 +177,30 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   void _openSubscriptionScreen() {
-    final subscriptionResource = FrontendResourceConfig.instance.subscriptions;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => SubscriptionScreen(
           onClose: () => Navigator.pop(context),
-          title: subscriptionResource.bikeUpsellTitle,
-          description: subscriptionResource.formatLimitText(
-            subscriptionResource.bikeUpsellDescription,
-            _bikeLimit,
-          ),
+          title: "Need More Bike Slots?",
+          description:
+              "Free riders can keep up to 3 bikes. Upgrade to Premium for more bike slots, or remove an existing bike to add another one.",
         ),
       ),
     );
   }
 
   Future<void> _showBikeLimitDialog() async {
-    final subscriptionResource = FrontendResourceConfig.instance.subscriptions;
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ThemeController.instance.theme.surface,
         title: Text(
-          subscriptionResource.bikeLimitDialogTitle,
+          "Bike limit reached",
           style: TextStyle(color: ThemeController.instance.theme.textPrimary),
         ),
         content: Text(
-          subscriptionResource.formatLimitText(
-            subscriptionResource.bikeLimitDialogMessage,
-            _bikeLimit,
-          ),
+          "You can keep up to $_bikeLimit bikes on the free plan. Remove an existing bike or upgrade your subscription to add more.",
           style: TextStyle(
             color: ThemeController.instance.theme.textPrimary.withValues(
               alpha: 0.7,
@@ -1356,10 +1345,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        ThemeController.instance,
-        FrontendResourceConfig.instance,
-      ]),
+      listenable: ThemeController.instance,
       builder: (context, _) {
         final theme = ThemeController.instance.theme;
 
@@ -1817,6 +1803,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                   .toList(),
                                             ),
                                     ),
+
                                   ],
                                 ),
                               ),
