@@ -5,11 +5,8 @@ import com.ridersclub.admin.dto.response.AdminRideDTO;
 import com.ridersclub.admin.dto.response.AdminStatsDTO;
 import com.ridersclub.admin.dto.response.AdminReportDTO;
 import com.ridersclub.admin.dto.response.AdminAuditDTO;
-import com.ridersclub.admin.dto.response.FrontendResourceAdminDTO;
-import com.ridersclub.admin.dto.request.UpdateFrontendResourceRequest;
 import com.ridersclub.admin.service.AdminService;
 import com.ridersclub.admin.service.ElasticsearchAuditService;
-import com.ridersclub.admin.service.FrontendResourceConfigService;
 import com.ridersclub.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +29,6 @@ public class AdminController {
     private final AdminService adminService;
     private final ElasticsearchAuditService elasticsearchAuditService;
     private final AdminQueryService adminQueryService;
-    private final FrontendResourceConfigService frontendResourceConfigService;
 
     // A mock method to get current admin ID, typically derived from Security Context
     private Long getCurrentAdminId() {
@@ -79,6 +75,29 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success(adminService.getDashboardStats(), "Stats retrieved successfully"));
     }
 
+    /**
+     * Returns daily growth time-series for users and rides.
+     *
+     * @param days  lookback window in days (clamped to [1, 90]); default 14
+     */
+    @GetMapping("/stats/growth")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AdminStatsDTO.GrowthStats>> getGrowthStats(
+            @RequestParam(defaultValue = "14") int days) {
+        int clampedDays = Math.max(1, Math.min(days, 90));
+        return ResponseEntity.ok(ApiResponse.success(adminService.getGrowthStats(clampedDays), "Growth stats retrieved"));
+    }
+
+    /**
+     * Returns a comprehensive analytics snapshot: user/ride/report breakdowns.
+     * The frontend fetches this once on mount; no polling needed for stable counts.
+     */
+    @GetMapping("/stats/analytics")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<com.ridersclub.admin.dto.response.AdminAnalyticsDTO>> getAnalytics() {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getAnalytics(), "Analytics retrieved"));
+    }
+
     @GetMapping("/reports")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<List<AdminReportDTO>>> getAllReports() {
@@ -110,30 +129,5 @@ public class AdminController {
     public ResponseEntity<ApiResponse<QueryResponseDTO>> executeQuery(@Valid @RequestBody QueryRequestDTO request) {
         QueryResponseDTO response = adminQueryService.executeQuery(getCurrentAdminId(), request);
         return ResponseEntity.ok(ApiResponse.success(response, "Query executed"));
-    }
-
-    @GetMapping("/frontend-resources")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<FrontendResourceAdminDTO>> getFrontendResources() {
-        return ResponseEntity.ok(
-            ApiResponse.success(
-                frontendResourceConfigService.getAdminFrontendResourceConfig(),
-                "Frontend resource config retrieved successfully"
-            )
-        );
-    }
-
-    @PutMapping("/frontend-resources")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<FrontendResourceAdminDTO>> updateFrontendResources(
-        @Valid @RequestBody UpdateFrontendResourceRequest request
-    ) {
-        final String currentUserUuid = (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return ResponseEntity.ok(
-            ApiResponse.success(
-                frontendResourceConfigService.updateFrontendResourceConfig(request.getEntries(), currentUserUuid),
-                "Frontend resource config updated successfully"
-            )
-        );
     }
 }

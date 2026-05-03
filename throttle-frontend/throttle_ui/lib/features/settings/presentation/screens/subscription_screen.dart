@@ -1,30 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
-import 'package:throttle_ui/core/resources/frontend_resource_config.dart';
+
+class SubscriptionPlan {
+  final String id;
+  final String name;
+  final String period;
+  final String price;
+  final String? originalPrice;
+  final List<String> features;
+  final bool popular;
+
+  SubscriptionPlan({
+    required this.id,
+    required this.name,
+    required this.period,
+    required this.price,
+    this.originalPrice,
+    required this.features,
+    this.popular = false,
+  });
+}
 
 class SubscriptionScreen extends StatelessWidget {
   final VoidCallback onClose;
-  final String? title;
-  final String? description;
+  final String title;
+  final String description;
 
-  const SubscriptionScreen({
+  SubscriptionScreen({
     super.key,
     required this.onClose,
-    this.title,
-    this.description,
+    this.title = "Upgrade to Premium",
+    this.description =
+        "Get unlimited access to advanced features and take your riding to the next level.",
   });
+
+  final List<SubscriptionPlan> plans = [
+    SubscriptionPlan(
+      id: 'monthly',
+      name: 'Monthly',
+      period: 'per month',
+      price: '\$9.99',
+      features: [
+        'Advanced ride analytics',
+        'Group management tools',
+        'Custom leaderboards',
+        'Priority support',
+        'Export ride data',
+      ],
+    ),
+    SubscriptionPlan(
+      id: 'quarterly',
+      name: 'Quarterly',
+      period: 'per 3 months',
+      price: '\$24.99',
+      originalPrice: '\$29.97',
+      popular: true,
+      features: [
+        'All Monthly features',
+        'Unlimited custom routes',
+        'Team collaboration tools',
+        'Advanced notifications',
+        'Early access to new features',
+        'Badge customization',
+      ],
+    ),
+    SubscriptionPlan(
+      id: 'yearly',
+      name: 'Yearly',
+      period: 'per year',
+      price: '\$79.99',
+      originalPrice: '\$119.88',
+      features: [
+        'All Quarterly features',
+        'Lifetime ride history',
+        'VIP club access',
+        'Dedicated account manager',
+        '24/7 premium support',
+        'Exclusive rewards program',
+      ],
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        ThemeController.instance,
-        FrontendResourceConfig.instance,
-      ]),
+      listenable: ThemeController.instance,
       builder: (context, _) {
         final theme = ThemeController.instance.theme;
-        final resource = FrontendResourceConfig.instance.subscriptions;
         return Scaffold(
           backgroundColor: Colors.black.withValues(alpha: 0.4),
           body: Align(
@@ -47,11 +110,9 @@ class SubscriptionScreen extends StatelessWidget {
                         children: [
                           _introText(theme),
                           const SizedBox(height: 16),
-                          ...resource.plans.map(
-                            (plan) => _planCard(plan, theme, resource),
-                          ),
+                          ...plans.map((plan) => _planCard(plan, theme)),
                           const SizedBox(height: 20),
-                          _footer(theme, resource),
+                          _footer(theme),
                         ],
                       ),
                     ),
@@ -77,7 +138,7 @@ class SubscriptionScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            title ?? FrontendResourceConfig.instance.subscriptions.title,
+            title,
             style: GoogleFonts.lexend(
               color: theme.textPrimary,
               fontSize: 22,
@@ -99,7 +160,7 @@ class SubscriptionScreen extends StatelessWidget {
 
   Widget _introText(AppThemeConfig theme) {
     return Text(
-      description ?? FrontendResourceConfig.instance.subscriptions.description,
+      description,
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 13,
@@ -108,11 +169,7 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 
-  Widget _planCard(
-    SubscriptionPlanResource plan,
-    AppThemeConfig theme,
-    FrontendSubscriptionResourceConfig resource,
-  ) {
+  Widget _planCard(SubscriptionPlan plan, AppThemeConfig theme) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -183,7 +240,7 @@ class SubscriptionScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                resource.formatPrice(plan.priceInr),
+                plan.price,
                 style: TextStyle(
                   color: theme.primary,
                   fontSize: 28,
@@ -191,9 +248,9 @@ class SubscriptionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              if (plan.originalPriceInr != null)
+              if (plan.originalPrice != null)
                 Text(
-                  resource.formatPrice(plan.originalPriceInr!),
+                  plan.originalPrice!,
                   style: TextStyle(
                     color: theme.textPrimary.withValues(alpha: 0.4),
                     decoration: TextDecoration.lineThrough,
@@ -253,7 +310,7 @@ class SubscriptionScreen extends StatelessWidget {
                 ),
               ),
               onPressed: () {},
-              child: Text(plan.ctaLabel, style: GoogleFonts.lexend()),
+              child: Text("Subscribe Now", style: GoogleFonts.lexend()),
             ),
           ),
         ],
@@ -261,19 +318,16 @@ class SubscriptionScreen extends StatelessWidget {
     );
   }
 
-  Widget _footer(
-    AppThemeConfig theme,
-    FrontendSubscriptionResourceConfig resource,
-  ) {
+  Widget _footer(AppThemeConfig theme) {
     final style = TextStyle(
       fontSize: 11,
       color: theme.textPrimary.withValues(alpha: 0.6),
     );
     return Column(
       children: [
-        Text(resource.cancelAnytimeText, style: style),
+        Text("Cancel anytime. No questions asked.", style: style),
         const SizedBox(height: 4),
-        Text(resource.allPlansIncludeText, style: style),
+        Text("All plans include access to core riding features", style: style),
       ],
     );
   }
