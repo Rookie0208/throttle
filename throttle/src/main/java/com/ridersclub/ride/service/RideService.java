@@ -1053,7 +1053,6 @@ public class RideService {
                 User actorUser = userRepository.findByUuid(actorUserUuid)
                                 .orElseThrow(() -> new RuntimeException("User not found"));
                 RideGroup group = getAccessibleGroup(groupUuid, actorUser);
-                ensurePreRideSetupEditable(group.getRide());
 
                 GroupMember actorMembership = groupMemberRepository
                                 .findByGroup_IdAndUser_Id(group.getId(), actorUser.getId())
@@ -1070,6 +1069,7 @@ public class RideService {
                         throw new RuntimeException("Only captain/admin can update pre-ride info");
                 }
 
+                Ride ride = group.getRide();
                 Map<String, Object> startLocation = sanitizeLocation(request.getStartLocation());
                 Map<String, Object> endLocation = sanitizeLocation(request.getEndLocation());
                 Map<String, Object> meetingPointLocation = sanitizeLocation(request.getMeetingPointLocation());
@@ -1083,19 +1083,24 @@ public class RideService {
                                         .toList();
                 }
 
-                group.setPreRideMeetingPoint(trimToNull(request.getMeetingPoint()));
-                group.setPreRideStartLocation(writeJson(startLocation));
-                group.setPreRideEndLocation(writeJson(endLocation));
-                if ((group.getPreRideMeetingPoint() == null || group.getPreRideMeetingPoint().isBlank())
-                                && meetingPointLocation != null) {
-                        group.setPreRideMeetingPoint(trimToNull(locationLabel(meetingPointLocation)));
+                if (isPreRideSetupEditable(ride)) {
+                        group.setPreRideMeetingPoint(trimToNull(request.getMeetingPoint()));
+                        group.setPreRideStartLocation(writeJson(startLocation));
+                        group.setPreRideEndLocation(writeJson(endLocation));
+                        if ((group.getPreRideMeetingPoint() == null || group.getPreRideMeetingPoint().isBlank())
+                                        && meetingPointLocation != null) {
+                                group.setPreRideMeetingPoint(trimToNull(locationLabel(meetingPointLocation)));
+                        }
+                        group.setPreRideMeetingPointLocation(writeJson(meetingPointLocation));
+                        group.setPreRideFuelStops(trimToNull(request.getFuelStops()));
+                        group.setPreRideRules(joinList(request.getRuleList()));
+                        group.setPreRideNotes(trimToNull(request.getNotes()));
+                } else {
+                        ensureRideAllowsLiveCheckpointUpdates(ride);
                 }
-                group.setPreRideMeetingPointLocation(writeJson(meetingPointLocation));
-                group.setPreRideFuelStops(trimToNull(request.getFuelStops()));
+
                 group.setPreRideCheckpoints(joinList(checkpointLabels));
                 group.setPreRideCheckpointLocations(writeJson(checkpointLocations));
-                group.setPreRideRules(joinList(request.getRuleList()));
-                group.setPreRideNotes(trimToNull(request.getNotes()));
                 group.setPreRideUpdatedAt(LocalDateTime.now());
 
                 RideGroup savedGroup = rideGroupRepository.save(group);
@@ -1358,13 +1363,28 @@ public class RideService {
         }
 
         private void ensurePreRideSetupEditable(Ride ride) {
+                if (!isPreRideSetupEditable(ride)) {
+                        throw new RuntimeException(PRE_RIDE_FROZEN_MESSAGE);
+                }
+        }
+
+        private boolean isPreRideSetupEditable(Ride ride) {
+                if (ride == null) {
+                        return true;
+                }
+
+                Status status = ride.getStatus();
+                return status == Status.CREATED || status == Status.SCHEDULED;
+        }
+
+        private void ensureRideAllowsLiveCheckpointUpdates(Ride ride) {
                 if (ride == null) {
                         return;
                 }
 
                 Status status = ride.getStatus();
-                if (status != Status.CREATED && status != Status.SCHEDULED) {
-                        throw new RuntimeException(PRE_RIDE_FROZEN_MESSAGE);
+                if (status == Status.COMPLETED || status == Status.CANCELLED || status == Status.ARCHIVED) {
+                        throw new RuntimeException("Checkpoints cannot be updated after the ride has ended");
                 }
         }
 
