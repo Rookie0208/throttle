@@ -65,6 +65,7 @@ class _LiveRideScreenState extends State<LiveRideScreen>
   double _currentHeading = 0;
   bool _isFollowingUser = true;
   bool _isVoiceMuted = false;
+  String? _lastCheckpointArrivalPromptKey;
   latlng.LatLng? _lastRouteOrigin;
   StreamSubscription<Position>? _positionSubscription;
   AnimationController? _cameraAnimationController;
@@ -246,6 +247,41 @@ class _LiveRideScreenState extends State<LiveRideScreen>
     });
   }
 
+  Future<void> _confirmAdvanceCheckpoint() async {
+    if (!_canManageRide) {
+      _showSnack("Only captain/admin can mark checkpoints");
+      return;
+    }
+    if (_isPaused) {
+      _showSnack("Resume the ride before marking a checkpoint");
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Reached checkpoint?"),
+        content: const Text(
+          "Mark the current checkpoint as reached and move to the next one?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Confirm"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _advanceCheckpoint();
+    }
+  }
+
   Future<void> _startNavigationTracking() async {
     final initialPosition = await LocationService.getCurrentLocation();
     if (!mounted) {
@@ -282,7 +318,7 @@ class _LiveRideScreenState extends State<LiveRideScreen>
       _currentHeading = _normalizedHeading(position.heading);
     });
 
-    if (animateCamera && _isFollowingUser) {
+    if (animateCamera && _isFollowingUser && !_isPaused) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           return;
@@ -293,6 +329,9 @@ class _LiveRideScreenState extends State<LiveRideScreen>
   }
 
   bool _shouldRefreshNavigationRoute() {
+    if (_isPaused) {
+      return false;
+    }
     final currentLocation = _currentLocation;
     if (currentLocation == null) {
       return false;
@@ -599,6 +638,56 @@ class _LiveRideScreenState extends State<LiveRideScreen>
     );
   }
 
+  void _maybeShowCheckpointArrival(Map<String, dynamic> currentCheckpoint) {
+    final currentLocation = _currentLocation;
+    if (currentCheckpoint.isEmpty || currentLocation == null || _isPaused) {
+      return;
+    }
+
+    final checkpointLat = _toDouble(currentCheckpoint["latitude"]);
+    final checkpointLng = _toDouble(currentCheckpoint["longitude"]);
+    if (checkpointLat == null || checkpointLng == null) {
+      return;
+    }
+
+    final checkpointName = (currentCheckpoint["title"] ?? "Checkpoint")
+        .toString()
+        .trim();
+    final checkpointKey =
+        "${currentCheckpoint["sequence"] ?? ""}::$checkpointName";
+    if (_lastCheckpointArrivalPromptKey == checkpointKey) {
+      return;
+    }
+
+    final distance = _distance(
+      currentLocation,
+      latlng.LatLng(checkpointLat, checkpointLng),
+    );
+    if (distance > 35) {
+      return;
+    }
+
+    _lastCheckpointArrivalPromptKey = checkpointKey;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Checkpoint reached"),
+          content: Text("You've reached $checkpointName."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
   Future<void> _showSosConfirmationModal(
     String label,
     AppThemeConfig theme,
@@ -826,8 +915,9 @@ class _LiveRideScreenState extends State<LiveRideScreen>
                       icon: Icon(Icons.refresh, color: theme.textPrimary),
                     ),
                     IconButton(
-                      onPressed:
-                          _loading ? null : () => _showCancelRideDialog(theme),
+                      onPressed: _loading
+                          ? null
+                          : () => _showCancelRideDialog(theme),
                       icon: const Icon(Icons.stop_circle, color: Colors.red),
                     ),
                   ],
@@ -859,13 +949,15 @@ class _LiveRideScreenState extends State<LiveRideScreen>
           (c["checkpointStatus"] ?? "").toString().toUpperCase() == "CURRENT",
       orElse: () => const <String, dynamic>{},
     );
+    _maybeShowCheckpointArrival(currentCheckpoint);
     final totalCheckpoints = checkpoints.length;
     final reachedCount =
         ((session["currentCheckpointIndex"] as num?)?.toInt() ?? 0).clamp(
           0,
           totalCheckpoints,
         );
-    final bool allReached = totalCheckpoints > 0 && reachedCount >= totalCheckpoints;
+    final bool allReached =
+        totalCheckpoints > 0 && reachedCount >= totalCheckpoints;
     final currentIndex = allReached
         ? reachedCount
         : (((currentCheckpoint["sequence"] as num?)?.toInt() ?? reachedCount) +
@@ -974,93 +1066,7 @@ class _LiveRideScreenState extends State<LiveRideScreen>
                     participants: participants,
                     checkpoints: checkpoints,
                     ridersWithLocation: ridersWithLocation,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: theme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          (session["title"] ?? widget.groupName).toString(),
-                          style: GoogleFonts.bebasNeue(
-                            color: theme.textPrimary,
-                            fontSize: 24,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Row(
-                        children: [
-                          Text(
-                            _isPaused ? "PAUSED" : "RIDING",
-                            style: GoogleFonts.bebasNeue(
-                              color: _isPaused ? Colors.orange : theme.primary,
-                              fontSize: 10,
-                              letterSpacing: 1,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "Riding",
-                                style: TextStyle(
-                                  color: theme.textPrimary.withValues(
-                                    alpha: 0.65,
-                                  ),
-                                  fontSize: 10,
-                                ),
-                              ),
-                              Text(
-                                format(ridingDuration),
-                                style: GoogleFonts.bebasNeue(
-                                  color: _isPaused
-                                      ? Colors.orange
-                                      : theme.textPrimary,
-                                  fontSize: 18,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "Journey",
-                                style: TextStyle(
-                                  color: theme.textPrimary.withValues(
-                                    alpha: 0.65,
-                                  ),
-                                  fontSize: 10,
-                                ),
-                              ),
-                              Text(
-                                format(journeyDuration),
-                                style: GoogleFonts.bebasNeue(
-                                  color: theme.textPrimary,
-                                  fontSize: 18,
-                                  letterSpacing: 1.1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
+                    currentCheckpoint: currentCheckpoint,
                   ),
                 ),
               ),
@@ -1206,6 +1212,93 @@ class _LiveRideScreenState extends State<LiveRideScreen>
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          (session["title"] ?? widget.groupName).toString(),
+                          style: GoogleFonts.bebasNeue(
+                            color: theme.textPrimary,
+                            fontSize: 24,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Row(
+                        children: [
+                          Text(
+                            _isPaused ? "PAUSED" : "RIDING",
+                            style: GoogleFonts.bebasNeue(
+                              color: _isPaused ? Colors.orange : theme.primary,
+                              fontSize: 10,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Riding",
+                                style: TextStyle(
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                format(ridingDuration),
+                                style: GoogleFonts.bebasNeue(
+                                  color: _isPaused
+                                      ? Colors.orange
+                                      : theme.textPrimary,
+                                  fontSize: 18,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                "Journey",
+                                style: TextStyle(
+                                  color: theme.textPrimary.withValues(
+                                    alpha: 0.65,
+                                  ),
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                format(journeyDuration),
+                                style: GoogleFonts.bebasNeue(
+                                  color: theme.textPrimary,
+                                  fontSize: 18,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1362,8 +1455,9 @@ class _LiveRideScreenState extends State<LiveRideScreen>
                         SizedBox(
                           width: double.infinity,
                           child: GestureDetector(
-                            onLongPress:
-                                (_loading || _isPaused) ? null : _holdToEndRide,
+                            onLongPress: (_loading || _isPaused)
+                                ? null
+                                : _holdToEndRide,
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               decoration: BoxDecoration(
@@ -1452,6 +1546,7 @@ class _LiveRideScreenState extends State<LiveRideScreen>
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () async {
+                              final wasPaused = _isPaused;
                               setState(() {
                                 _isPaused = !_isPaused;
                                 if (_isPaused) {
@@ -1464,6 +1559,9 @@ class _LiveRideScreenState extends State<LiveRideScreen>
                                 }
                               });
                               await _persistPauseState();
+                              if (wasPaused && !_isPaused) {
+                                unawaited(_refreshNavigationRoute(force: true));
+                              }
                             },
                             icon: Icon(
                               _isPaused ? Icons.play_arrow : Icons.pause,
@@ -1912,6 +2010,7 @@ class _LiveRideScreenState extends State<LiveRideScreen>
     required List<Map<String, dynamic>> participants,
     required List<Map<String, dynamic>> checkpoints,
     required int ridersWithLocation,
+    required Map<String, dynamic> currentCheckpoint,
   }) {
     final checkpointPoints = <latlng.LatLng>[];
     final markers = <Marker>[];
@@ -2181,6 +2280,16 @@ class _LiveRideScreenState extends State<LiveRideScreen>
           bottom: 112,
           child: Column(
             children: [
+              if (_canManageRide && currentCheckpoint.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _mapActionButton(
+                    icon: Icons.check_circle_outline_rounded,
+                    onTap: _loading || _isPaused
+                        ? () {}
+                        : _confirmAdvanceCheckpoint,
+                  ),
+                ),
               _mapActionButton(
                 icon: _isVoiceMuted
                     ? Icons.volume_off_rounded
@@ -2240,6 +2349,38 @@ class _LiveRideScreenState extends State<LiveRideScreen>
             ),
           ),
         ),
+        if (_isPaused)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.22),
+              alignment: Alignment.center,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.76),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.pause_circle_filled, color: Colors.orange),
+                    SizedBox(width: 10),
+                    Text(
+                      "Ride paused",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
