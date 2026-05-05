@@ -37,6 +37,7 @@ GET /admin/rides
 PUT /admin/rides/{id}/cancel
 JWT should include roles
 Only ADMIN role can access /admin/** APIs
+
 Frontend (Admin Portal):
 Create login page
 Call /auth/login API
