@@ -39,6 +39,8 @@ public class AdminController {
     private Long getCurrentAdminId() {
         return 1L; // Hardcoded for MVP
     }
+    private final FrontendResourceConfigService frontendResourceConfigService;
+    private final AdminSecurityContext adminSecurityContext;
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
