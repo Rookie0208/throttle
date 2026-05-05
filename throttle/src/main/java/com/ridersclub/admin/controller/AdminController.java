@@ -5,8 +5,6 @@ import com.ridersclub.admin.dto.response.AdminRideDTO;
 import com.ridersclub.admin.dto.response.AdminStatsDTO;
 import com.ridersclub.admin.dto.response.AdminReportDTO;
 import com.ridersclub.admin.dto.response.AdminAuditDTO;
-import com.ridersclub.admin.dto.response.FrontendResourceAdminDTO;
-import com.ridersclub.admin.dto.request.UpdateFrontendResourceRequest;
 import com.ridersclub.admin.security.AdminSecurityContext;
 import com.ridersclub.admin.service.AdminService;
 import com.ridersclub.admin.service.ElasticsearchAuditService;
@@ -32,14 +30,11 @@ public class AdminController {
     private final AdminService adminService;
     private final ElasticsearchAuditService elasticsearchAuditService;
     private final AdminQueryService adminQueryService;
-    private final FrontendResourceConfigService frontendResourceConfigService;
-    private final AdminSecurityContext adminSecurityContext;
 
     // A mock method to get current admin ID, typically derived from Security Context
     private Long getCurrentAdminId() {
         return 1L; // Hardcoded for MVP
     }
-    private final FrontendResourceConfigService frontendResourceConfigService;
     private final AdminSecurityContext adminSecurityContext;
 
     @GetMapping("/users")
