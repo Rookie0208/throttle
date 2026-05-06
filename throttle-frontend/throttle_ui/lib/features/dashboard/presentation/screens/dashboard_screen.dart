@@ -524,7 +524,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _fetchLocationAndWeather() async {
     try {
-      final position = await LocationService.getCurrentLocation();
+      final position = await LocationService.getCurrentLocation(
+        requestPermission: false,
+      );
       if (position != null) {
         final city = await LocationService.getCityName(
           position.latitude,

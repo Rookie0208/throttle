@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/features/clubs/presentation/screens/clubs_screen.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/friends_screen.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/groups_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/plan_ride_screen.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/profile_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
+import 'package:throttle_ui/features/permissions/presentation/widgets/location_permission_sheet.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/services/app_permission_service.dart';
 import 'package:throttle_ui/features/dashboard/presentation/screens/dashboard_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -17,10 +20,13 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  static const _locationPromptSeenKey = 'location_permission_prompt_seen_v1';
+
   int _currentIndex = 0;
   String? _token;
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _isPromptingForPermissions = false;
 
   @override
   void initState() {
@@ -41,6 +47,95 @@ class _MainScreenState extends State<MainScreen> {
       _userData = userData;
       _isLoading = false;
     });
+
+    if (token != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _maybePromptForLocationPermission();
+      });
+    }
+  }
+
+  Future<void> _maybePromptForLocationPermission() async {
+    if (!mounted || _isPromptingForPermissions) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasSeenPrompt = prefs.getBool(_locationPromptSeenKey) ?? false;
+    final accessState = await AppPermissionService.getLocationAccessState();
+
+    if (!mounted || accessState == LocationAccessState.granted) {
+      return;
+    }
+
+    if (hasSeenPrompt &&
+        accessState != LocationAccessState.deniedForever &&
+        accessState != LocationAccessState.serviceDisabled) {
+      return;
+    }
+
+    _isPromptingForPermissions = true;
+    await prefs.setBool(_locationPromptSeenKey, true);
+    if (!mounted) {
+      _isPromptingForPermissions = false;
+      return;
+    }
+
+    var currentState = accessState;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: ThemeController.instance.theme.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> refreshState() async {
+              final nextState =
+                  await AppPermissionService.getLocationAccessState();
+              if (!mounted) {
+                return;
+              }
+              setModalState(() {
+                currentState = nextState;
+              });
+              if (nextState == LocationAccessState.granted && context.mounted) {
+                Navigator.of(context).pop();
+              }
+            }
+
+            return LocationPermissionSheet(
+              state: currentState,
+              onRequestPermission: () async {
+                final nextState =
+                    await AppPermissionService.requestLocationAccess();
+                if (!context.mounted) {
+                  return;
+                }
+                setModalState(() {
+                  currentState = nextState;
+                });
+                if (nextState == LocationAccessState.granted) {
+                  Navigator.of(context).pop();
+                }
+              },
+              onOpenSettings: () async {
+                if (currentState == LocationAccessState.serviceDisabled) {
+                  await AppPermissionService.openLocationSettings();
+                } else {
+                  await AppPermissionService.openAppSettings();
+                }
+                await refreshState();
+              },
+            );
+          },
+        );
+      },
+    );
+
+    _isPromptingForPermissions = false;
   }
 
   List<Widget> get _screens => [
