@@ -213,6 +213,22 @@ public class AdminService {
         log.info("ADMIN action=RESOLVE_REPORT status=SUCCESS adminId={} reportId={}", currentAdminId, reportId);
     }
 
+    @Transactional
+    public void dismissReport(Long currentAdminId, Long reportId, String note) {
+        log.info("ADMIN action=DISMISS_REPORT adminId={} reportId={}", currentAdminId, reportId);
+        Report report = reportRepository.findById(reportId)
+            .orElseThrow(() -> new RuntimeException("Report not found: " + reportId));
+        if (report.getStatus() != ReportStatus.PENDING) {
+            throw new IllegalStateException("Only PENDING reports can be dismissed. Current status: " + report.getStatus());
+        }
+        report.setStatus(ReportStatus.DISMISSED);
+        report.setResolvedAt(LocalDateTime.now());
+        report.setResolutionNote(note);
+        reportRepository.save(report);
+        publishAudit("DISMISS_REPORT", currentAdminId, reportId);
+        log.info("ADMIN action=DISMISS_REPORT status=SUCCESS adminId={} reportId={}", currentAdminId, reportId);
+    }
+
     private void publishAudit(String action, Long adminId, Long targetId) {
         log.info("AUDIT_EVENT action={} adminId={} targetId={}", action, adminId, targetId);
         String timestamp = java.time.Instant.now().toString();

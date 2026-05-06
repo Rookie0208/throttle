@@ -91,8 +91,21 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   }
 
   bool get _isSoloRide {
-    final rideType = (widget.group["rideType"] ?? "").toString().toUpperCase();
-    return rideType == "SOLO";
+    final rideType =
+        (widget.group["rideType"] ??
+                widget.group["type"] ??
+                widget.group["groupType"] ??
+                "")
+            .toString()
+            .toUpperCase();
+    if (rideType == "SOLO") {
+      return true;
+    }
+
+    final maxRiders = int.tryParse(
+      (widget.group["maxRiders"] ?? "").toString(),
+    );
+    return maxRiders == 1;
   }
 
   /// ================= FETCH SUBGROUPS =================
@@ -437,7 +450,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     if (messages.isEmpty) {
       return Center(
         child: Text(
-          "No messages yet",
+          _isSoloRide ? "No notes yet" : "No messages yet",
           style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
         ),
       );
@@ -464,7 +477,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
               controller: messageController,
               style: TextStyle(color: theme.textPrimary),
               decoration: InputDecoration(
-                hintText: "Type message...",
+                hintText: _isSoloRide ? "Add Note..." : "Type message...",
                 hintStyle: TextStyle(
                   color: theme.textPrimary.withValues(alpha: 0.4),
                 ),
@@ -625,12 +638,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                InviteMemberScreen(
-                  rideUuid: _rideUuid,
-                  token: widget.token,
-                  preRideFrozen: _isRideStarted,
-                ),
+            builder: (_) => InviteMemberScreen(
+              rideUuid: _rideUuid,
+              token: widget.token,
+              preRideFrozen: _isRideStarted,
+            ),
           ),
         );
         break;
@@ -742,12 +754,11 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            CreateSubGroupScreen(
-              rideUuid: _rideUuid,
-              token: widget.token,
-              preRideFrozen: _isRideStarted,
-            ),
+        builder: (_) => CreateSubGroupScreen(
+          rideUuid: _rideUuid,
+          token: widget.token,
+          preRideFrozen: _isRideStarted,
+        ),
       ),
     );
 

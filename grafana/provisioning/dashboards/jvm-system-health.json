@@ -1,0 +1,171 @@
+{
+  "uid": "throttle-jvm",
+  "title": "Throttle — JVM & System Health",
+  "description": "JVM heap, GC pressure, thread pools, CPU and system memory.",
+  "tags": ["throttle", "jvm", "system"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "15s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "JVM Heap Used %",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "100 * sum(jvm_memory_used_bytes{job=\"throttle\",area=\"heap\"}) / sum(jvm_memory_max_bytes{job=\"throttle\",area=\"heap\"})",
+          "refId": "A"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "showThresholdLabels": true, "showThresholdMarkers": true },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0, "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Heap Used",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 3 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(jvm_memory_used_bytes{job=\"throttle\",area=\"heap\"})", "refId": "A" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Heap Max",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 3 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(jvm_memory_max_bytes{job=\"throttle\",area=\"heap\"})", "refId": "A" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": { "defaults": { "unit": "bytes" } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "System CPU Usage",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 3 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "system_cpu_usage{job=\"throttle\"}", "refId": "A" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.7 },
+              { "color": "red", "value": 0.9 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "JVM Thread Count",
+      "gridPos": { "x": 6, "y": 3, "w": 6, "h": 3 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "jvm_threads_live_threads{job=\"throttle\"}", "refId": "A" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Open File Descriptors",
+      "gridPos": { "x": 12, "y": 3, "w": 6, "h": 3 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "process_open_fds{job=\"throttle\"}", "refId": "A" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Process Uptime",
+      "gridPos": { "x": 18, "y": 3, "w": 6, "h": 3 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "process_uptime_seconds{job=\"throttle\"}", "refId": "A" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "JVM Memory — Heap vs Non-Heap",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(jvm_memory_used_bytes{job=\"throttle\",area=\"heap\"})", "legendFormat": "Heap Used", "refId": "A" },
+        { "expr": "sum(jvm_memory_used_bytes{job=\"throttle\",area=\"nonheap\"})", "legendFormat": "Non-Heap Used", "refId": "B" },
+        { "expr": "sum(jvm_memory_max_bytes{job=\"throttle\",area=\"heap\"})", "legendFormat": "Heap Max", "refId": "C" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 10 } }
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "GC Pause Duration",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "rate(jvm_gc_pause_seconds_sum{job=\"throttle\"}[1m])", "legendFormat": "{{action}} {{cause}}", "refId": "A" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10 } }
+      }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "CPU Usage — System vs Process",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "system_cpu_usage{job=\"throttle\"}", "legendFormat": "System CPU", "refId": "A" },
+        { "expr": "process_cpu_usage{job=\"throttle\"}", "legendFormat": "Process CPU", "refId": "B" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "lineWidth": 2, "fillOpacity": 10 } }
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "JVM Threads",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "jvm_threads_live_threads{job=\"throttle\"}", "legendFormat": "Live", "refId": "A" },
+        { "expr": "jvm_threads_daemon_threads{job=\"throttle\"}", "legendFormat": "Daemon", "refId": "B" },
+        { "expr": "jvm_threads_peak_threads{job=\"throttle\"}", "legendFormat": "Peak", "refId": "C" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 } }
+      }
+    }
+  ]
+}
