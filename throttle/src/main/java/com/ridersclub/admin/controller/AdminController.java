@@ -5,6 +5,7 @@ import com.ridersclub.admin.dto.response.AdminRideDTO;
 import com.ridersclub.admin.dto.response.AdminStatsDTO;
 import com.ridersclub.admin.dto.response.AdminReportDTO;
 import com.ridersclub.admin.dto.response.AdminAuditDTO;
+import com.ridersclub.admin.security.AdminSecurityContext;
 import com.ridersclub.admin.service.AdminService;
 import com.ridersclub.admin.service.ElasticsearchAuditService;
 import com.ridersclub.common.dto.ApiResponse;
@@ -34,6 +35,7 @@ public class AdminController {
     private Long getCurrentAdminId() {
         return 1L; // Hardcoded for MVP
     }
+    private final AdminSecurityContext adminSecurityContext;
 
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
@@ -45,14 +47,14 @@ public class AdminController {
     @PutMapping("/users/{id}/block")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> blockUser(@PathVariable Long id) {
-        adminService.blockUser(getCurrentAdminId(), id);
+        adminService.blockUser(adminSecurityContext.getCurrentAdminId(), id);
         return ResponseEntity.ok(ApiResponse.success(null, "User blocked successfully"));
     }
 
     @PutMapping("/users/{id}/unblock")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> unblockUser(@PathVariable Long id) {
-        adminService.unblockUser(getCurrentAdminId(), id);
+        adminService.unblockUser(adminSecurityContext.getCurrentAdminId(), id);
         return ResponseEntity.ok(ApiResponse.success(null, "User unblocked successfully"));
     }
 
@@ -65,7 +67,7 @@ public class AdminController {
     @PutMapping("/rides/{id}/cancel")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> cancelRide(@PathVariable Long id) {
-        adminService.cancelRide(getCurrentAdminId(), id);
+        adminService.cancelRide(adminSecurityContext.getCurrentAdminId(), id);
         return ResponseEntity.ok(ApiResponse.success(null, "Ride cancelled successfully"));
     }
 
@@ -107,14 +109,23 @@ public class AdminController {
     @PutMapping("/reports/{id}/resolve")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> resolveReport(@PathVariable Long id, @RequestParam(required = false, defaultValue = "Resolved by admin.") String note) {
-        adminService.resolveReport(getCurrentAdminId(), id, note);
+        adminService.resolveReport(adminSecurityContext.getCurrentAdminId(), id, note);
         return ResponseEntity.ok(ApiResponse.success(null, "Report resolved successfully"));
+    }
+
+    @PutMapping("/reports/{id}/dismiss")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> dismissReport(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "Dismissed — no action required.") String note) {
+        adminService.dismissReport(adminSecurityContext.getCurrentAdminId(), id, note);
+        return ResponseEntity.ok(ApiResponse.success(null, "Report dismissed successfully"));
     }
 
     @PutMapping("/users/{id}/role")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> updateUserRole(@PathVariable Long id, @RequestParam String role) {
-        adminService.updateUserRole(getCurrentAdminId(), id, role);
+        adminService.updateUserRole(adminSecurityContext.getCurrentAdminId(), id, role);
         return ResponseEntity.ok(ApiResponse.success(null, "User role completely aligned"));
     }
 
@@ -127,7 +138,7 @@ public class AdminController {
     @PostMapping("/execute-query")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<QueryResponseDTO>> executeQuery(@Valid @RequestBody QueryRequestDTO request) {
-        QueryResponseDTO response = adminQueryService.executeQuery(getCurrentAdminId(), request);
+        QueryResponseDTO response = adminQueryService.executeQuery(adminSecurityContext.getCurrentAdminId(), request);
         return ResponseEntity.ok(ApiResponse.success(response, "Query executed"));
     }
 }
