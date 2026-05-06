@@ -47,12 +47,6 @@
 	<true/>
 
 	<key>NSLocationWhenInUseUsageDescription</key>
-<string>We need your location to show nearby rides</string>
-
-<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-<string>We track rides even in background</string>
-
-<key>NSUserNotificationUsageDescription</key>
-<string>We send ride updates and alerts</string>
+	<string>Throttle uses your location to show nearby rides, maps, and live ride navigation.</string>
 </dict>
 </plist>
