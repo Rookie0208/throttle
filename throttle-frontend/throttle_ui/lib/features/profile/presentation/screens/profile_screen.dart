@@ -9,7 +9,6 @@ import 'package:throttle_ui/features/settings/presentation/screens/subscription_
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_summary_screen.dart';
 
-import 'package:throttle_ui/core/utils/string_extensions.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
@@ -160,6 +159,14 @@ class _ProfileScreenState extends State<ProfileScreen>
     _userData = widget.userData != null
         ? Map<String, dynamic>.from(widget.userData!)
         : {};
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.userData != oldWidget.userData && widget.userData != null) {
+      _userData = Map<String, dynamic>.from(widget.userData!);
+    }
   }
 
   @override
@@ -1803,7 +1810,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                   .toList(),
                                             ),
                                     ),
-
                                   ],
                                 ),
                               ),
