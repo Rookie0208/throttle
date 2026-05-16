@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:stomp_dart_client/stomp_dart_client.dart';
+import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 
 class ChatService {
@@ -13,7 +14,7 @@ class ChatService {
     final token = await AuthService.getToken();
 
     final response = await http.get(
-      Uri.parse("http://localhost:8080/api/v1/chat/$groupId"),
+      Uri.parse("${AppConstants.baseUrl}/chat/$groupId"),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $token",
@@ -37,7 +38,7 @@ class ChatService {
 
     stompClient = StompClient(
       config: StompConfig.sockJS(
-        url: 'http://localhost:8080/ws-friends',
+        url: AppConstants.webSocketUrl,
         stompConnectHeaders: {'Authorization': 'Bearer $token'},
 
         reconnectDelay: const Duration(seconds: 5),
