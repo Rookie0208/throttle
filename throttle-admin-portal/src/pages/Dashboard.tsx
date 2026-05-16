@@ -14,6 +14,7 @@ import {
   Users, Bike, Activity, ShieldAlert,
   UserX, CheckCircle, Flag,
 } from 'lucide-react';
+import { MANAGEMENT_BASE_URL } from '../config';
 import apiClient from '../services/apiClient';
 import { usePrometheusMetric } from '../hooks/usePrometheusMetric';
 import { AreaMetricChart } from '../components/charts/AreaMetricChart';
@@ -149,7 +150,7 @@ export const Dashboard = () => {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:8080/actuator/health', {
+      const res = await fetch(`${MANAGEMENT_BASE_URL}/actuator/health`, {
         signal: AbortSignal.timeout(4000),
       });
       const json = await res.json();

@@ -18,6 +18,7 @@ import lombok.Setter;
 @Setter
 public class UserProfileResponse {
     private String id;
+    private String uuid;
     private String firstName;
     private String lastName;
     private String username;
@@ -34,6 +35,7 @@ public class UserProfileResponse {
     private int totalRides;
     private double totalMiles;
     private long totalDuration;
+    private double totalKm;
     private int weeklyMiles;
     private double weeklyAvgMph;
     private long weeklyDuration;
@@ -44,11 +46,17 @@ public class UserProfileResponse {
     private List<RideSummaryDto> recentRides;
     private UpcomingRideDto todayRide;
     private UpcomingRideDto upcomingRide;
+    private String visibilityMode;
+    private Integer bikeCount;
+    private Integer badgeCount;
+    private String publicMessage;
+    private List<PublicGroupDto> publicGroups;
     private boolean subscriptionActive;
     private int bikeLimit;
 
     public UserProfileResponse(User user) {
         this.id = user.getUuid().toString();
+        this.uuid = user.getUuid().toString();
         this.firstName = user.getFirstName();
         this.lastName = user.getLastName();
         this.username = user.getUsername();
@@ -102,8 +110,21 @@ public class UserProfileResponse {
         private String id;
         private String title;
         private String date; // formatted date short, e.g. "Feb 13"
+        private String startTime;
         private double miles;
+        private double distanceKm;
+        private double avgSpeed;
+        private long durationMinutes;
         private String duration; // formatted duration, e.g. "2h 15m"
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PublicGroupDto {
+        private String id;
+        private String name;
+        private String title;
     }
 
     @Data

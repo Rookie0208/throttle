@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -75,7 +76,7 @@ apiClient.interceptors.response.use(
 
       // Explicitly call axios.post skipping our own interceptors to strictly fetch the new token
       const res = await axios.post<{ data: { token: string; refreshToken: string } }>(
-        'http://localhost:8080/api/v1/auth/refresh',
+        `${API_BASE_URL}/auth/refresh`,
         { refreshToken }
       );
 

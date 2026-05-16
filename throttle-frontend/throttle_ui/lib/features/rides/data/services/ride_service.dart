@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:throttle_ui/core/constants/app_constants.dart';
 
 class RideService {
-  static const String _apiBaseUrl = "http://localhost:8080/api/v1";
+  static String get _apiBaseUrl => AppConstants.baseUrl;
   static const List<String> availableRoles = [
     "RIDER",
     "NAVIGATOR",
