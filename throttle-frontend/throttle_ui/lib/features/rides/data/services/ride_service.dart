@@ -251,6 +251,23 @@ class RideService {
     throw Exception(data["message"] ?? "Failed to start ride");
   }
 
+  static Future<Map<String, dynamic>> dropRide(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/drop"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to drop ride");
+  }
+
   static Future<Map<String, dynamic>> startReturnRide(
     String token,
     String rideUuid,
