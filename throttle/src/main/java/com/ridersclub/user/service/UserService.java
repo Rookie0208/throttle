@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.ridersclub.bike.service.BikeRegistryService;
 import com.ridersclub.common.enums.Gender;
 import com.ridersclub.common.enums.Status;
+import com.ridersclub.friend.repository.FriendshipRepository;
 import com.ridersclub.user.dto.request.UpdateProfileRequest;
 import com.ridersclub.user.dto.response.UserProfileResponse;
 import com.ridersclub.user.entity.User;
@@ -41,6 +42,12 @@ public class UserService {
 
     @Autowired
     private com.ridersclub.ride.repository.RideRepository rideRepository;
+
+    @Autowired
+    private com.ridersclub.ride.repository.ClubMemberRepository clubMemberRepository;
+
+    @Autowired
+    private FriendshipRepository friendshipRepository;
 
     @Autowired
     private BikeRegistryService bikeRegistryService;
@@ -96,30 +103,45 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserProfileResponse getProfileByUUID(String uuidStr) {
+        return getProfileByUUID(uuidStr, uuidStr);
+    }
+
+    @Transactional(readOnly = true)
+    public UserProfileResponse getProfileByUUID(String uuidStr, String viewerUuid) {
         User user = userRepository.findByUuid(uuidStr)
                 .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
+        User viewer = viewerUuid == null || viewerUuid.isBlank()
+                ? null
+                : userRepository.findByUuid(viewerUuid).orElse(null);
+        boolean isSelf = viewer != null && user.getUuid().equals(viewer.getUuid());
+        boolean isFriend = viewer != null && !isSelf && friendshipRepository.existsByUserAndFriend(viewer, user);
+        String visibilityMode = isSelf ? "self" : isFriend ? "friend" : "public";
 
         UserProfileResponse response = new UserProfileResponse(user);
 
         // Fetch bikes
         List<com.ridersclub.user.entity.UserBike> bikes = userBikeRepository.findByUserId(user.getId());
         response.setBikes(bikes.stream().map(bikeRegistryService::mapUserBike).toList());
+        response.setBikeCount(bikes.size());
 
         // Fetch achievements
         List<com.ridersclub.user.entity.UserAchievement> achievements = userAchievementRepository
                 .findByUserId(user.getId());
         response.setAchievements(achievements.stream().map(a -> new UserProfileResponse.UserAchievementDto(
                 a.getTitle(), a.getDescription(), a.getIconName())).toList());
+        response.setBadgeCount(achievements.size());
 
         // Fetch Ride Stats
         List<com.ridersclub.ride.entity.RideStats> stats = rideStatsRepository.findByUserId(user.getUuid());
 
         int totalRides = 0;
         double totalMiles = 0;
+        double totalKm = 0;
         long totalDurationMin = 0;
 
         for (com.ridersclub.ride.entity.RideStats stat : stats) {
             totalRides++;
+            totalKm += stat.getDistanceKm();
             double miles = stat.getDistanceKm() * 0.621371;
             totalMiles += miles;
             totalDurationMin += stat.getDurationMinutes();
@@ -133,6 +155,7 @@ public class UserService {
 
         response.setTotalRides(totalRides);
         response.setTotalMiles(Math.round(totalMiles * 10.0) / 10.0);
+        response.setTotalKm(Math.round(totalKm * 10.0) / 10.0);
         response.setTotalDuration(totalDurationMin / 60);
 
         // Let's get actual rides for weekly stats & history
@@ -181,11 +204,25 @@ public class UserService {
                             r.getUuid(),
                             r.getTitle(),
                             r.getStartTime().getMonth().name().substring(0, 3) + " " + r.getStartTime().getDayOfMonth(),
+                            r.getStartTime().toString(),
                             Math.round(miles * 10.0) / 10.0,
+                            optStat.map(com.ridersclub.ride.entity.RideStats::getDistanceKm).orElse(0.0),
+                            optStat.map(com.ridersclub.ride.entity.RideStats::getAvgSpeed).orElse(0.0),
+                            duration,
                             (duration / 60) + "h " + (duration % 60) + "m");
                 })
                 .toList();
         response.setRecentRides(recentRides);
+
+        response.setPublicGroups(
+                clubMemberRepository.findByUser_Uuid(user.getUuid()).stream()
+                        .map(com.ridersclub.ride.entity.ClubMember::getClub)
+                        .distinct()
+                        .map(club -> new UserProfileResponse.PublicGroupDto(
+                                club.getUuid(),
+                                club.getName(),
+                                club.getTitle()))
+                        .toList());
 
         userRides.stream()
                 .filter(r -> r.getStatus() == com.ridersclub.common.enums.Status.ACTIVE
@@ -252,7 +289,53 @@ public class UserService {
                             ur.getStatus().name()));
                 });
 
+        response.setVisibilityMode(visibilityMode);
+        applyVisibility(response, visibilityMode);
         return response;
+    }
+
+    private void applyVisibility(UserProfileResponse response, String visibilityMode) {
+        response.setPublicMessage(null);
+        response.setEmergencyContacts(null);
+        response.setBloodGroup(null);
+        response.setAllergies(null);
+        response.setCurrentMedication(null);
+        response.setEmail(null);
+
+        if ("self".equals(visibilityMode)) {
+            return;
+        }
+
+        response.setTodayRide(null);
+        response.setUpcomingRide(null);
+
+        if ("friend".equals(visibilityMode)) {
+            if (response.getRecentRides() != null) {
+                response.setRecentRides(response.getRecentRides().stream()
+                        .map(ride -> new UserProfileResponse.RideSummaryDto(
+                                null,
+                                ride.getTitle(),
+                                ride.getDate(),
+                                ride.getStartTime(),
+                                ride.getMiles(),
+                                ride.getDistanceKm(),
+                                ride.getAvgSpeed(),
+                                ride.getDurationMinutes(),
+                                ride.getDuration()))
+                        .toList());
+            }
+            return;
+        }
+
+        response.setPublicMessage("You are not a friend. Add friend to see their journey.");
+        response.setWeeklyMiles(0);
+        response.setWeeklyAvgMph(0);
+        response.setWeeklyDuration(0);
+        response.setBikes(null);
+        response.setBikeCount(null);
+        response.setAchievements(null);
+        response.setRecentRides(null);
+        response.setPublicGroups(null);
     }
 
     public UserProfileResponse updateProfile(

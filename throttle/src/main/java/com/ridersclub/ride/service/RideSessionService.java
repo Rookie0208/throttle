@@ -38,10 +38,12 @@ import com.ridersclub.ride.entity.RideGroup;
 import com.ridersclub.ride.entity.RideLiveLocation;
 import com.ridersclub.ride.entity.RideLocation;
 import com.ridersclub.ride.entity.RideParticipant;
+import com.ridersclub.ride.entity.RideStats;
 import com.ridersclub.ride.repository.RideGroupRepository;
 import com.ridersclub.ride.repository.RideLiveLocationRepository;
 import com.ridersclub.ride.repository.RideParticipantRepository;
 import com.ridersclub.ride.repository.RideRepository;
+import com.ridersclub.ride.repository.RideStatsRepository;
 import com.ridersclub.user.entity.User;
 
 @Slf4j
@@ -54,6 +56,7 @@ public class RideSessionService {
     private final RideGroupRepository rideGroupRepository;
     private final RideLiveLocationRepository rideLiveLocationRepository;
     private final GroupMessageRepository groupMessageRepository;
+    private final RideStatsRepository rideStatsRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -63,12 +66,14 @@ public class RideSessionService {
             RideGroupRepository rideGroupRepository,
             RideLiveLocationRepository rideLiveLocationRepository,
             GroupMessageRepository groupMessageRepository,
+            RideStatsRepository rideStatsRepository,
             SimpMessagingTemplate messagingTemplate) {
         this.rideRepository = rideRepository;
         this.participantRepository = participantRepository;
         this.rideGroupRepository = rideGroupRepository;
         this.rideLiveLocationRepository = rideLiveLocationRepository;
         this.groupMessageRepository = groupMessageRepository;
+        this.rideStatsRepository = rideStatsRepository;
         this.messagingTemplate = messagingTemplate;
     }
 
@@ -101,6 +106,9 @@ public class RideSessionService {
                         .createdAt(message.getCreatedAt())
                         .build())
                 .toList();
+        Optional<RideStats> currentUserStats = rideStatsRepository.findByRideIdAndUserId(
+                String.valueOf(ride.getId()),
+                actor.getUser().getUsername());
 
         return RideSessionResponse.builder()
                 .rideUuid(ride.getUuid())
@@ -123,6 +131,9 @@ public class RideSessionService {
                 .currentUserGroupRideDurationSeconds(resolveGroupRideDurationSeconds(actor, ride))
                 .currentUserReturnRideDurationSeconds(resolveReturnRideDurationSeconds(actor))
                 .currentUserTotalRideDurationSeconds(resolveTotalRideDurationSeconds(actor, ride))
+                .currentUserDistanceKm(currentUserStats.map(RideStats::getDistanceKm).orElse(null))
+                .currentUserAverageSpeedKmh(currentUserStats.map(RideStats::getAvgSpeed).orElse(null))
+                .currentUserDurationMinutes(currentUserStats.map(RideStats::getDurationMinutes).orElse(null))
                 .startLocation(resolveRouteLocation(mainGroup.getPreRideStartLocation(), ride, LocationType.START, 1))
                 .endLocation(resolveRouteLocation(mainGroup.getPreRideEndLocation(), ride, LocationType.END, 2))
                 .meetingPoint(mainGroup.getPreRideMeetingPoint())

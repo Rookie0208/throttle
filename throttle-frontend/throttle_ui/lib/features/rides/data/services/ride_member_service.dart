@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:throttle_ui/core/constants/app_constants.dart';
 
 class RideMemberService {
-  static const String baseUrl = "http://localhost:8080/api/v1";
+  static String get baseUrl => AppConstants.baseUrl;
 
   // Hardcoded roles list - can be easily updated here without touching UI
   static const List<String> availableRoles = [

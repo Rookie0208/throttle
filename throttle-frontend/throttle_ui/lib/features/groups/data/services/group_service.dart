@@ -1,24 +1,24 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:throttle_ui/core/constants/app_constants.dart';
 
 class GroupService {
-  static const String baseUrl = "http://localhost:8080/api/v1";
+  static String get baseUrl => AppConstants.baseUrl;
 
-      static Future<void> updateRide(
-  String token,
-  String rideUuid,
-  Map payload,
-) async {
-
-  await http.put(
-    Uri.parse("$baseUrl/rides/$rideUuid"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json"
-    },
-    body: jsonEncode(payload),
-  );
-}
+  static Future<void> updateRide(
+    String token,
+    String rideUuid,
+    Map payload,
+  ) async {
+    await http.put(
+      Uri.parse("$baseUrl/rides/$rideUuid"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode(payload),
+    );
+  }
 
   static Future<Map<String, dynamic>> updatePreRideInfo(
     String token,
@@ -49,9 +49,7 @@ class GroupService {
     final url = Uri.parse('$baseUrl/rides/groups/$groupId/pre-ride-info');
     final response = await http.get(
       url,
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
     if (response.statusCode == 200) {
@@ -133,8 +131,7 @@ class GroupService {
   }
 
   /// ================= FETCH PUBLIC RIDES =================
-  static Future<Map<String, dynamic>> fetchPublicRides(
-      String token) async {
+  static Future<Map<String, dynamic>> fetchPublicRides(String token) async {
     final url = Uri.parse("$baseUrl/rides/public");
 
     final response = await http.get(
@@ -154,9 +151,7 @@ class GroupService {
 
       return data;
     } else {
-      throw Exception(
-        "Failed to fetch public rides: ${response.statusCode}",
-      );
+      throw Exception("Failed to fetch public rides: ${response.statusCode}");
     }
   }
 }
