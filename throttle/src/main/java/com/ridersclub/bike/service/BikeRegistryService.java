@@ -27,7 +27,10 @@ import com.ridersclub.user.repository.UserBikeRepository;
 import com.ridersclub.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import com.ridersclub.admin.service.SystemResourceService;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -39,6 +42,7 @@ public class BikeRegistryService {
     private final UserRepository userRepository;
     private final UserBikeRepository userBikeRepository;
     private final PlatformTransactionManager transactionManager;
+    private final SystemResourceService resourceService;
 
     public int ensureSeedData() {
         TransactionTemplate seedTemplate = new TransactionTemplate(transactionManager);
@@ -363,9 +367,19 @@ public class BikeRegistryService {
 
     private void validateBikeLimit(User user) {
         long bikeCount = userBikeRepository.countByUserId(user.getId());
-        if (!user.isSubscriptionActive() && bikeCount >= FREE_PLAN_BIKE_LIMIT) {
+        int bikeLimit = FREE_PLAN_BIKE_LIMIT;
+        try {
+            String limitStr = resourceService.getDecryptedValue("FREE_PLAN_BIKE_LIMIT");
+            if (limitStr != null && !limitStr.trim().isEmpty()) {
+                bikeLimit = Integer.parseInt(limitStr.trim());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse dynamic FREE_PLAN_BIKE_LIMIT from database, using static fallback", e);
+        }
+
+        if (!user.isSubscriptionActive() && bikeCount >= bikeLimit) {
             throw new IllegalArgumentException(
-                    "You can add up to 3 bikes on the free plan. Remove an existing bike or upgrade your subscription.");
+                    "You can add up to " + bikeLimit + " bikes on the free plan. Remove an existing bike or upgrade your subscription.");
         }
     }
 

@@ -28,6 +28,9 @@ import com.ridersclub.auth.service.RefreshTokenService;
 import com.ridersclub.auth.service.TokenBlacklistService;
 import com.ridersclub.common.Utils.ApiConstants;
 import com.ridersclub.common.dto.ApiResponse;
+import com.ridersclub.admin.service.SystemResourceService;
+import org.springframework.web.bind.annotation.GetMapping;
+import java.util.Map;
 
 @RestController
 @RequestMapping(ApiConstants.Auth.BASE)
@@ -38,15 +41,18 @@ public class AuthController {
     private final TokenBlacklistService tokenBlacklistService;
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
+    private final SystemResourceService resourceService;
 
     public AuthController(AuthService authService, 
                           TokenBlacklistService tokenBlacklistService,
                           RefreshTokenService refreshTokenService,
-                          JwtService jwtService) {
+                          JwtService jwtService,
+                          SystemResourceService resourceService) {
         this.authService = authService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
+        this.resourceService = resourceService;
     }
 
     @PostMapping(ApiConstants.Auth.REGISTER)
@@ -162,5 +168,10 @@ public class AuthController {
     @PostMapping(ApiConstants.Auth.TEST)
     public ResponseEntity<String> test() {
         return ResponseEntity.ok("Auth controller working");
+    }
+
+    @GetMapping("/features")
+    public ResponseEntity<ApiResponse<Map<String, Boolean>>> getFeatureFlags() {
+        return ResponseEntity.ok(ApiResponse.success(resourceService.getFeatureFlags(), "Feature flags retrieved successfully"));
     }
 }
