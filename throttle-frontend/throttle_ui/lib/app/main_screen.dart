@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:throttle_ui/core/network/api_service.dart';
 import 'package:throttle_ui/features/clubs/presentation/screens/clubs_screen.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/friends_screen.dart';
 import 'package:throttle_ui/features/groups/presentation/screens/groups_screen.dart';
@@ -21,6 +23,7 @@ class _MainScreenState extends State<MainScreen> {
   String? _token;
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _clubsEnabled = true;
 
   @override
   void initState() {
@@ -31,6 +34,19 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadToken() async {
     final token = await AuthService.getToken();
     Map<String, dynamic>? userData;
+    bool clubsEnabled = true;
+
+    try {
+      final response = await ApiService.get('/auth/features');
+      if (response != null && (response['status'] == 200 || response['status'] == 201)) {
+        final decoded = jsonDecode(response['body']);
+        if (decoded['status'] == "SUCCESS" && decoded['data'] != null) {
+          clubsEnabled = decoded['data']['FEATURE_CLUBS_ENABLED'] ?? true;
+        }
+      }
+    } catch (e) {
+      // Fallback to true if network request fails
+    }
 
     if (token != null) {
       userData = await UserService.getMe();
@@ -39,14 +55,20 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _token = token;
       _userData = userData;
+      _clubsEnabled = clubsEnabled;
       _isLoading = false;
+      
+      final screensCount = 4 + (clubsEnabled ? 1 : 0);
+      if (_currentIndex >= screensCount) {
+        _currentIndex = 0;
+      }
     });
   }
 
   List<Widget> get _screens => [
     DashboardScreen(userData: _userData, token: _token!),
     GroupsScreen(token: _token!),
-    const ClubsScreen(),
+    if (_clubsEnabled) const ClubsScreen(),
     const FriendsScreen(),
     ProfileScreen(userData: _userData),
   ];
@@ -126,28 +148,29 @@ class _MainScreenState extends State<MainScreen> {
               child: NavigationBar(
                 selectedIndex: _currentIndex,
                 onDestinationSelected: _onTabChanged,
-                destinations: const [
-                  NavigationDestination(
+                destinations: [
+                  const NavigationDestination(
                     icon: Icon(Icons.space_dashboard_outlined),
                     selectedIcon: Icon(Icons.space_dashboard_rounded),
                     label: "Dashboard",
                   ),
-                  NavigationDestination(
+                  const NavigationDestination(
                     icon: Icon(Icons.two_wheeler_outlined),
                     selectedIcon: Icon(Icons.two_wheeler_rounded),
                     label: "Rides",
                   ),
-                  NavigationDestination(
-                    icon: Icon(Icons.groups_2_outlined),
-                    selectedIcon: Icon(Icons.groups_2_rounded),
-                    label: "Clubs",
-                  ),
-                  NavigationDestination(
+                  if (_clubsEnabled)
+                    const NavigationDestination(
+                      icon: Icon(Icons.groups_2_outlined),
+                      selectedIcon: Icon(Icons.groups_2_rounded),
+                      label: "Clubs",
+                    ),
+                  const NavigationDestination(
                     icon: Icon(Icons.diversity_3_outlined),
                     selectedIcon: Icon(Icons.diversity_3_rounded),
                     label: "Friends",
                   ),
-                  NavigationDestination(
+                  const NavigationDestination(
                     icon: Icon(Icons.person_outline_rounded),
                     selectedIcon: Icon(Icons.person_rounded),
                     label: "Profile",

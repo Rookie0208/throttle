@@ -34,6 +34,8 @@ import com.ridersclub.user.service.RiderIdService;
 import com.ridersclub.user.service.UserService;
 import com.ridersclub.bike.service.BikeRegistryService;
 
+import com.ridersclub.admin.service.SystemResourceService;
+
 @Slf4j
 @Service
 public class AuthService {
@@ -46,6 +48,7 @@ public class AuthService {
     private final org.springframework.data.neo4j.core.Neo4jClient neo4jClient;
     private final RiderIdService riderIdService;
     private final BikeRegistryService bikeRegistryService;
+    private final SystemResourceService resourceService;
 
     @Value("${google.client.id}")
     private String googleClientId;
@@ -60,7 +63,8 @@ public class AuthService {
             RefreshTokenService refreshTokenService,
             org.springframework.data.neo4j.core.Neo4jClient neo4jClient,
             RiderIdService riderIdService,
-            BikeRegistryService bikeRegistryService) {
+            BikeRegistryService bikeRegistryService,
+            SystemResourceService resourceService) {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -69,6 +73,7 @@ public class AuthService {
         this.neo4jClient = neo4jClient;
         this.riderIdService = riderIdService;
         this.bikeRegistryService = bikeRegistryService;
+        this.resourceService = resourceService;
     }
 
     /** Async Neo4j dual-write — MERGE so it's safe to call multiple times */
@@ -167,9 +172,13 @@ public class AuthService {
 
     public GoogleAuthResponse verifyGoogleToken(GoogleAuthRequest request) {
         try {
+            String resolvedClientId = resourceService.getDecryptedValue("GOOGLE_CLIENT_ID");
+            if (resolvedClientId == null || resolvedClientId.trim().isEmpty()) {
+                resolvedClientId = googleClientId;
+            }
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(),
                     new GsonFactory())
-                    .setAudience(Collections.singletonList(googleClientId))
+                    .setAudience(Collections.singletonList(resolvedClientId))
                     .build();
 
             GoogleIdToken idToken = verifier.verify(request.getIdToken());
