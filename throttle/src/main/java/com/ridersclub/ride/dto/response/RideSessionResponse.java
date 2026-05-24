@@ -32,6 +32,9 @@ public class RideSessionResponse {
     private Long currentUserGroupRideDurationSeconds;
     private Long currentUserReturnRideDurationSeconds;
     private Long currentUserTotalRideDurationSeconds;
+    private Double currentUserDistanceKm;
+    private Double currentUserAverageSpeedKmh;
+    private Long currentUserDurationMinutes;
     private Map<String, Object> startLocation;
     private Map<String, Object> endLocation;
     private String meetingPoint;

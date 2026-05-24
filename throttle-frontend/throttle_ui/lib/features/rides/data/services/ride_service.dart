@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:throttle_ui/core/constants/app_constants.dart';
 
 class RideService {
-  static const String _apiBaseUrl = "http://localhost:8080/api/v1";
+  static String get _apiBaseUrl => AppConstants.baseUrl;
   static const List<String> availableRoles = [
     "RIDER",
     "NAVIGATOR",
@@ -248,6 +249,23 @@ class RideService {
     }
 
     throw Exception(data["message"] ?? "Failed to start ride");
+  }
+
+  static Future<Map<String, dynamic>> dropRide(
+    String token,
+    String rideUuid,
+  ) async {
+    final response = await http.post(
+      Uri.parse("$_apiBaseUrl/rides/$rideUuid/drop"),
+      headers: _headers(token),
+    );
+
+    final data = _decodeBody(response.body);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return Map<String, dynamic>.from(data["data"] ?? const {});
+    }
+
+    throw Exception(data["message"] ?? "Failed to drop ride");
   }
 
   static Future<Map<String, dynamic>> startReturnRide(

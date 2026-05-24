@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
+import 'package:throttle_ui/features/profile/data/services/user_service.dart';
+import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_summary_screen.dart';
 
 class StatsScreen extends StatefulWidget {
   final Map<String, dynamic>? userData;
@@ -17,6 +21,8 @@ class StatsScreen extends StatefulWidget {
 
 class _StatsScreenState extends State<StatsScreen> {
   String activeTab = "analytics";
+  late DateTime _heatmapMonth;
+  Map<String, dynamic>? _userData;
 
   final badges = [
     {'name': 'Century Rider', 'desc': '100 miles in a day', 'earned': true},
@@ -26,8 +32,8 @@ class _StatsScreenState extends State<StatsScreen> {
   ];
 
   List<Map<String, dynamic>> get rideHistory =>
-      widget.userData != null && widget.userData!['recentRides'] is List
-      ? List<Map<String, dynamic>>.from(widget.userData!['recentRides'])
+      _userData != null && _userData!['recentRides'] is List
+      ? List<Map<String, dynamic>>.from(_userData!['recentRides'])
       : const [];
 
   List<_RideInsight> get _rideInsights {
@@ -38,9 +44,7 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   int get totalRides {
-    final total = int.tryParse(
-      (widget.userData?['totalRides'] ?? '').toString(),
-    );
+    final total = int.tryParse((_userData?['totalRides'] ?? '').toString());
     return total != null && total > 0 ? total : rideHistory.length;
   }
 
@@ -73,13 +77,13 @@ class _StatsScreenState extends State<StatsScreen> {
     if (fromHistory > 0) return fromHistory;
 
     final fromUserKm = _toDouble(
-      widget.userData?['totalKm'] ??
-          widget.userData?['totalDistanceKm'] ??
-          widget.userData?['distanceKm'],
+      _userData?['totalKm'] ??
+          _userData?['totalDistanceKm'] ??
+          _userData?['distanceKm'],
     );
     if (fromUserKm > 0) return fromUserKm;
 
-    final fromMiles = _toDouble(widget.userData?['totalMiles']);
+    final fromMiles = _toDouble(_userData?['totalMiles']);
     if (fromMiles > 0) return fromMiles * 1.60934;
 
     return 0;
@@ -95,14 +99,15 @@ class _StatsScreenState extends State<StatsScreen> {
       (ride['name'] ?? ride['title'] ?? 'Ride').toString();
 
   String _rideDate(Map<String, dynamic> ride) =>
-      (ride['date'] ?? '').toString();
+      (ride['date'] ?? ride['startTime'] ?? '').toString();
 
   String _rideTime(Map<String, dynamic> ride) =>
       (ride['time'] ?? ride['duration'] ?? '').toString();
 
   DateTime? _rideParsedDate(Map<String, dynamic> ride) {
     final raw =
-        (ride['date'] ??
+        (ride['startTime'] ??
+                ride['date'] ??
                 ride['scheduledDate'] ??
                 ride['startTime'] ??
                 ride['rideStartedAt'] ??
@@ -114,24 +119,44 @@ class _StatsScreenState extends State<StatsScreen> {
     final direct = DateTime.tryParse(raw);
     if (direct != null) return direct;
 
+    final normalizedRaw = _normalizeShortDate(raw);
+
     final formats = [
       DateFormat('MMM d, yyyy'),
       DateFormat('MMM d yyyy'),
       DateFormat('MMM d'),
       DateFormat('d MMM yyyy'),
       DateFormat('d MMM'),
+      DateFormat('yyyy-MM-dd'),
     ];
 
     for (final format in formats) {
       try {
-        final parsed = format.parseStrict(raw);
-        if (!raw.contains(RegExp(r'\d{4}'))) {
+        final parsed = format.parseStrict(normalizedRaw);
+        if (!normalizedRaw.contains(RegExp(r'\d{4}'))) {
           return DateTime(DateTime.now().year, parsed.month, parsed.day);
         }
         return parsed;
       } catch (_) {}
     }
     return null;
+  }
+
+  String _normalizeShortDate(String raw) {
+    final normalized = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final match = RegExp(
+      r'^([A-Za-z]{3,})\s+(\d{1,2})(.*)$',
+    ).firstMatch(normalized);
+    if (match == null) {
+      return normalized;
+    }
+
+    final month = match.group(1)!;
+    final day = match.group(2)!;
+    final tail = match.group(3) ?? '';
+    final canonicalMonth =
+        "${month[0].toUpperCase()}${month.substring(1).toLowerCase()}";
+    return "$canonicalMonth $day$tail";
   }
 
   double _parseDurationHours(String raw) {
@@ -195,7 +220,7 @@ class _StatsScreenState extends State<StatsScreen> {
   double get _averageSpeedKmh {
     final rides = _rideInsights.where((ride) => ride.speedKmh > 0).toList();
     if (rides.isEmpty) {
-      return _toDouble(widget.userData?['weeklyAvgMph']) * 1.60934;
+      return _toDouble(_userData?['weeklyAvgMph']) * 1.60934;
     }
     final total = rides.fold<double>(0, (sum, ride) => sum + ride.speedKmh);
     return total / rides.length;
@@ -213,12 +238,15 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Map<DateTime, double> get _activityByDay {
     final activity = <DateTime, double>{};
-    for (final ride in _rideInsights) {
-      final day = DateTime(ride.date.year, ride.date.month, ride.date.day);
+    for (final ride in rideHistory) {
+      final parsed = _rideParsedDate(ride);
+      if (parsed == null) continue;
+      final day = DateTime(parsed.year, parsed.month, parsed.day);
+      final distance = math.max(_rideDistanceKm(ride), 1).toDouble();
       activity.update(
         day,
-        (value) => value + math.max(ride.distanceKm, 1),
-        ifAbsent: () => math.max(ride.distanceKm, 1),
+        (value) => value + distance,
+        ifAbsent: () => distance,
       );
     }
     return activity;
@@ -226,13 +254,16 @@ class _StatsScreenState extends State<StatsScreen> {
 
   List<_ChartPoint> get _distanceChartPoints {
     if (_rideInsights.isEmpty) return const [];
+    var cumulativeDistance = 0.0;
     return List.generate(_rideInsights.length, (index) {
       final ride = _rideInsights[index];
+      cumulativeDistance += ride.distanceKm;
       return _ChartPoint(
         x: index.toDouble(),
-        y: ride.distanceKm,
+        y: cumulativeDistance,
         label: DateFormat('MMM d').format(ride.date),
-        detail: "${ride.title} • ${_formatKm(ride.distanceKm)}",
+        detail:
+            "${ride.title} • ${_formatKm(ride.distanceKm)} ride • ${_formatKm(cumulativeDistance)} total",
       );
     });
   }
@@ -250,14 +281,140 @@ class _StatsScreenState extends State<StatsScreen> {
     }).where((point) => point.y > 0).toList();
   }
 
-  String _activitySummary() {
+  String get _ridingStyleLabel {
     if (_rideInsights.isEmpty) {
-      return "Complete a few rides to unlock riding patterns.";
+      return "Style not ready";
     }
 
-    final activeDays = _activityByDay.values.where((value) => value > 0).length;
-    final totalDays = 35;
-    return "$activeDays active day${activeDays == 1 ? '' : 's'} in the last $totalDays days";
+    if (totalDistanceKm >= 250 ||
+        _rideInsights.any((ride) => ride.distanceKm >= 120)) {
+      return "Endurance rider";
+    }
+    if (_bestSpeedKmh >= 85 || _averageSpeedKmh >= 65) {
+      return "Fast cruiser";
+    }
+    if (_activityByDay.length >= 5) {
+      return "Consistent explorer";
+    }
+    return "Balanced tourer";
+  }
+
+  String get _ridingStyleNote {
+    if (_rideInsights.isEmpty) {
+      return "Recent ride metrics will unlock speed, endurance, and consistency patterns.";
+    }
+
+    if (totalDistanceKm >= 250 ||
+        _rideInsights.any((ride) => ride.distanceKm >= 120)) {
+      return "Your recent rides lean long-distance. Endurance days are the clearest pattern in your history.";
+    }
+    if (_bestSpeedKmh >= 85 || _averageSpeedKmh >= 65) {
+      return "Your pace trends high. Speed is the strongest signal across your recent rides.";
+    }
+    if (_activityByDay.length >= 5) {
+      return "You ride regularly across the month, which points to a steady, repeatable riding rhythm.";
+    }
+    return "Your recent rides are balanced across distance and pace without one pattern dominating yet.";
+  }
+
+  Future<void> _openRideSummary(Map<String, dynamic> ride) async {
+    final rideUuid = (ride["uuid"] ?? ride["id"])?.toString();
+    final groupName = (ride["title"] ?? ride["name"] ?? "Ride").toString();
+    final token = await AuthService.getToken();
+
+    Map<String, dynamic>? session;
+    if (rideUuid != null &&
+        rideUuid.isNotEmpty &&
+        token != null &&
+        token.isNotEmpty) {
+      try {
+        session = await RideService.fetchRideSession(token, rideUuid);
+      } catch (_) {}
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RideSummaryScreen(
+          groupName: groupName,
+          ride: ride,
+          session: session,
+          token: token,
+          rideUuid: rideUuid,
+        ),
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _heatmapMonth = DateTime(now.year, now.month);
+    _userData = widget.userData != null
+        ? Map<String, dynamic>.from(widget.userData!)
+        : null;
+    _refreshProfile();
+  }
+
+  @override
+  void didUpdateWidget(covariant StatsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.userData != oldWidget.userData && widget.userData != null) {
+      _userData = Map<String, dynamic>.from(widget.userData!);
+    }
+  }
+
+  Future<void> _refreshProfile() async {
+    final freshUser = await UserService.getMe();
+    if (!mounted || freshUser == null) return;
+    setState(() {
+      _userData = freshUser;
+    });
+  }
+
+  DateTime get _currentMonth =>
+      DateTime(DateTime.now().year, DateTime.now().month);
+
+  bool get _isViewingCurrentMonth =>
+      _heatmapMonth.year == _currentMonth.year &&
+      _heatmapMonth.month == _currentMonth.month;
+
+  Map<DateTime, double> _activityForMonth(DateTime month) {
+    final monthActivity = <DateTime, double>{};
+    for (final entry in _activityByDay.entries) {
+      final day = entry.key;
+      if (day.year == month.year && day.month == month.month) {
+        monthActivity[day] = entry.value;
+      }
+    }
+    return monthActivity;
+  }
+
+  String _activitySummaryForMonth(DateTime month) {
+    final monthActivity = _activityForMonth(month);
+    final activeDays = monthActivity.values.where((value) => value > 0).length;
+    final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+    return "$activeDays active day${activeDays == 1 ? '' : 's'} in ${DateFormat('MMMM yyyy').format(month)} • $daysInMonth-day view";
+  }
+
+  void _showPreviousMonth() {
+    setState(() {
+      _heatmapMonth = DateTime(_heatmapMonth.year, _heatmapMonth.month - 1);
+    });
+  }
+
+  void _showNextMonth() {
+    if (_isViewingCurrentMonth) {
+      return;
+    }
+    setState(() {
+      _heatmapMonth = DateTime(_heatmapMonth.year, _heatmapMonth.month + 1);
+    });
   }
 
   @override
@@ -303,6 +460,11 @@ class _StatsScreenState extends State<StatsScreen> {
                 ),
 
                 if (activeTab == "analytics") ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildInsightHero(theme),
+                  ),
+
                   // Grid summary (2x2)
                   Padding(
                     padding: const EdgeInsets.all(16),
@@ -354,7 +516,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   _buildLineChartCard(
                     title: "Distance covered per ride",
                     subtitle:
-                        "Useful for spotting endurance, consistency, and long-run days.",
+                        "Cumulative distance makes long-run weeks and steady volume easier to spot.",
                     points: _distanceChartPoints,
                     theme: theme,
                     lineColor: Colors.orangeAccent,
@@ -499,7 +661,7 @@ class _StatsScreenState extends State<StatsScreen> {
     required Color lineColor,
     required String metricLabel,
   }) {
-    if (points.length < 2) {
+    if (points.isEmpty) {
       return _insufficientDataCard(
         theme,
         title: title,
@@ -691,21 +853,31 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _buildHeatmap(AppThemeConfig theme) {
-    final endDate = DateTime.now();
-    final startDate = DateTime(
-      endDate.year,
-      endDate.month,
-      endDate.day,
-    ).subtract(const Duration(days: 34));
-    final days = List.generate(
-      35,
-      (index) =>
-          DateTime(startDate.year, startDate.month, startDate.day + index),
-    );
-    final maxIntensity = _activityByDay.values.fold<double>(
+    final monthActivity = _activityForMonth(_heatmapMonth);
+    final maxIntensity = monthActivity.values.fold<double>(
       0,
       (max, value) => math.max(max, value),
     );
+    final firstDayOfMonth = DateTime(
+      _heatmapMonth.year,
+      _heatmapMonth.month,
+      1,
+    );
+    final daysInMonth = DateUtils.getDaysInMonth(
+      _heatmapMonth.year,
+      _heatmapMonth.month,
+    );
+    final leadingEmptySlots = firstDayOfMonth.weekday % 7;
+    final totalSlots = leadingEmptySlots + daysInMonth;
+    final rowCount = (totalSlots / 7).ceil();
+    final calendarDays = List<DateTime?>.generate(rowCount * 7, (index) {
+      final dayNumber = index - leadingEmptySlots + 1;
+      if (dayNumber < 1 || dayNumber > daysInMonth) {
+        return null;
+      }
+      return DateTime(_heatmapMonth.year, _heatmapMonth.month, dayNumber);
+    });
+    const weekLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -728,51 +900,152 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            _activitySummary(),
+            _activitySummaryForMonth(_heatmapMonth),
             style: TextStyle(
               color: theme.textPrimary.withValues(alpha: 0.55),
               fontSize: 12,
             ),
           ),
           const SizedBox(height: 16),
-          Column(
-            children: List.generate(5, (weekIndex) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(7, (dayIndex) {
-                  final day = days[(weekIndex * 7) + dayIndex];
-                  final intensity =
-                      _activityByDay[DateTime(day.year, day.month, day.day)] ??
-                      0;
-                  final normalized = maxIntensity <= 0
-                      ? 0
-                      : (intensity / maxIntensity).clamp(0, 1);
-                  final opacity = normalized == 0
-                      ? 0.08
-                      : 0.18 + (normalized * 0.72);
-                  return Container(
-                    width: 32,
-                    height: 32,
-                    margin: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: theme.primary.withValues(alpha: opacity),
-                      borderRadius: BorderRadius.circular(6),
+          Row(
+            children: [
+              IconButton(
+                onPressed: _showPreviousMonth,
+                icon: Icon(
+                  Icons.chevron_left_rounded,
+                  color: theme.textPrimary,
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    DateFormat('MMMM yyyy').format(_heatmapMonth),
+                    style: GoogleFonts.lexend(
+                      color: theme.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      "${day.day}",
-                      style: TextStyle(
-                        color: normalized > 0.45
-                            ? Colors.white
-                            : theme.textPrimary.withValues(alpha: 0.55),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }),
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: _isViewingCurrentMonth ? null : _showNextMonth,
+                icon: Icon(
+                  Icons.chevron_right_rounded,
+                  color: _isViewingCurrentMonth
+                      ? theme.textPrimary.withValues(alpha: 0.24)
+                      : theme.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 6.0;
+              final tileSize = ((constraints.maxWidth - (gap * 6)) / 7).clamp(
+                34.0,
+                52.0,
               );
-            }),
+
+              return Column(
+                children: [
+                  Row(
+                    children: List.generate(7, (index) {
+                      return Expanded(
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              weekLabels[index],
+                              style: TextStyle(
+                                color: theme.textPrimary.withValues(
+                                  alpha: 0.45,
+                                ),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                  ...List.generate(rowCount, (weekIndex) {
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: weekIndex == rowCount - 1 ? 0 : gap,
+                      ),
+                      child: Row(
+                        children: List.generate(7, (dayIndex) {
+                          final day = calendarDays[(weekIndex * 7) + dayIndex];
+                          if (day == null) {
+                            return Expanded(
+                              child: Container(
+                                height: tileSize,
+                                margin: EdgeInsets.only(
+                                  right: dayIndex == 6 ? 0 : gap,
+                                ),
+                              ),
+                            );
+                          }
+
+                          final normalizedDay = DateTime(
+                            day.year,
+                            day.month,
+                            day.day,
+                          );
+                          final intensity = monthActivity[normalizedDay] ?? 0;
+                          final normalized = maxIntensity <= 0
+                              ? 0
+                              : (intensity / maxIntensity).clamp(0, 1);
+                          final opacity = normalized == 0
+                              ? 0.08
+                              : 0.22 + (normalized * 0.70);
+
+                          return Expanded(
+                            child: Container(
+                              height: tileSize,
+                              margin: EdgeInsets.only(
+                                right: dayIndex == 6 ? 0 : gap,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.primary.withValues(alpha: opacity),
+                                borderRadius: BorderRadius.circular(10),
+                                border: intensity > 0
+                                    ? Border.all(
+                                        color: theme.primary.withValues(
+                                          alpha: 0.55,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Tooltip(
+                                message:
+                                    "${DateFormat('EEE, MMM d').format(day)} • ${intensity <= 0 ? 'No ride' : _formatKm(intensity)}",
+                                child: Text(
+                                  "${day.day}",
+                                  style: TextStyle(
+                                    color: normalized > 0.42
+                                        ? Colors.white
+                                        : theme.textPrimary.withValues(
+                                            alpha: 0.62,
+                                          ),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    );
+                  }),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 20),
           Row(
@@ -813,73 +1086,145 @@ class _StatsScreenState extends State<StatsScreen> {
 
   Widget _historyTile(Map<String, dynamic> ride, AppThemeConfig theme) {
     final speed = _rideSpeedKmh(ride);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openRideSummary(ride),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.textPrimary.withValues(alpha: 0.05),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.directions_bike,
+                  color: theme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _rideTitle(ride),
+                      style: TextStyle(
+                        color: theme.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _rideDate(ride),
+                      style: TextStyle(
+                        color: theme.textPrimary.withValues(alpha: 0.5),
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Tap for full summary",
+                      style: TextStyle(
+                        color: theme.primary.withValues(alpha: 0.85),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _formatKm(_rideDistanceKm(ride)),
+                    style: GoogleFonts.bebasNeue(
+                      color: theme.textPrimary,
+                      fontSize: 18,
+                    ),
+                  ),
+                  Text(
+                    _rideTime(ride),
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.5),
+                      fontSize: 11,
+                    ),
+                  ),
+                  if (speed > 0)
+                    Text(
+                      _formatSpeed(speed),
+                      style: TextStyle(
+                        color: theme.primary.withValues(alpha: 0.85),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: theme.textPrimary.withValues(alpha: 0.45),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInsightHero(AppThemeConfig theme) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: theme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.textPrimary.withValues(alpha: 0.05)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: theme.primary.withValues(alpha: 0.12)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.directions_bike, color: theme.primary, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _rideTitle(ride),
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  _rideDate(ride),
-                  style: TextStyle(
-                    color: theme.textPrimary.withValues(alpha: 0.5),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+          Text(
+            "Riding style",
+            style: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _formatKm(_rideDistanceKm(ride)),
-                style: GoogleFonts.bebasNeue(
-                  color: theme.textPrimary,
-                  fontSize: 18,
-                ),
-              ),
-              Text(
-                _rideTime(ride),
-                style: TextStyle(
-                  color: theme.textPrimary.withValues(alpha: 0.5),
-                  fontSize: 11,
-                ),
-              ),
-              if (speed > 0)
-                Text(
-                  _formatSpeed(speed),
-                  style: TextStyle(
-                    color: theme.primary.withValues(alpha: 0.85),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            _ridingStyleLabel.toUpperCase(),
+            style: GoogleFonts.bebasNeue(
+              color: theme.primary,
+              fontSize: 28,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _ridingStyleNote,
+            style: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.68),
+              fontSize: 13,
+              height: 1.45,
+            ),
           ),
         ],
       ),

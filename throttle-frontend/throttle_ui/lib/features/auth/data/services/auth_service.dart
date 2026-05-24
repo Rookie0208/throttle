@@ -3,12 +3,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/core/globals.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
 
 class AuthService {
-  static String get baseUrl =>
-      "${dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1'}/auth";
+  static String get baseUrl => "${AppConstants.baseUrl}/auth";
 
   static const _storage = FlutterSecureStorage();
   static const String _tokenKey = "jwt_token";
