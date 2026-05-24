@@ -8,8 +8,8 @@ import { Rides } from './pages/Rides';
 import { Reports } from './pages/Reports';
 import { AuditLogs } from './pages/AuditLogs';
 import { DatabaseQuery } from './pages/DatabaseQuery';
+import { Resources } from './pages/Resources';
 import { AuthProvider } from './context/AuthContext';
-
 import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
@@ -29,6 +29,7 @@ function App() {
               <Route path="reports" element={<Reports />} />
               <Route path="audit-logs" element={<AuditLogs />} />
               <Route path="query-executor" element={<DatabaseQuery />} />
+              <Route path="resources" element={<Resources />} />
             </Route>
           </Routes>
         </BrowserRouter>
@@ -38,3 +39,4 @@ function App() {
 }
 
 export default App;
+

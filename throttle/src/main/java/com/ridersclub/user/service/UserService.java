@@ -52,6 +52,9 @@ public class UserService {
     @Autowired
     private BikeRegistryService bikeRegistryService;
 
+    @Autowired
+    private com.ridersclub.admin.service.SystemResourceService resourceService;
+
     // --- helper methods used by other services ---
     @Transactional(readOnly = true)
     public java.util.Optional<User> findByEmail(String email) {
@@ -98,7 +101,9 @@ public class UserService {
     public UserProfileResponse getProfile(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("User not found"));
-        return new UserProfileResponse(user);
+        UserProfileResponse response = new UserProfileResponse(user);
+        response.setBikeLimit(resolveDynamicBikeLimit(user));
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -118,6 +123,7 @@ public class UserService {
         String visibilityMode = isSelf ? "self" : isFriend ? "friend" : "public";
 
         UserProfileResponse response = new UserProfileResponse(user);
+        response.setBikeLimit(resolveDynamicBikeLimit(user));
 
         // Fetch bikes
         List<com.ridersclub.user.entity.UserBike> bikes = userBikeRepository.findByUserId(user.getId());
@@ -372,7 +378,24 @@ public class UserService {
 
         userRepository.save(user);
 
-        return new UserProfileResponse(user);
+        UserProfileResponse response = new UserProfileResponse(user);
+        response.setBikeLimit(resolveDynamicBikeLimit(user));
+        return response;
+    }
+
+    private int resolveDynamicBikeLimit(User user) {
+        if (user.isSubscriptionActive()) {
+            return 999;
+        }
+        try {
+            String limitStr = resourceService.getDecryptedValue("FREE_PLAN_BIKE_LIMIT");
+            if (limitStr != null && !limitStr.trim().isEmpty()) {
+                return Integer.parseInt(limitStr.trim());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve dynamic FREE_PLAN_BIKE_LIMIT, falling back to default.", e);
+        }
+        return 3;
     }
 
 }

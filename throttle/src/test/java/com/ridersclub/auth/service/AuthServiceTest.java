@@ -57,6 +57,9 @@ class AuthServiceTest {
     @Mock
     private BikeRegistryService bikeRegistryService;
 
+    @Mock
+    private com.ridersclub.admin.service.SystemResourceService resourceService;
+
     private AuthService authService;
 
     @BeforeEach
@@ -70,7 +73,8 @@ class AuthServiceTest {
                 refreshTokenService,
                 neo4jClient,
                 riderIdService,
-                bikeRegistryService);
+                bikeRegistryService,
+                resourceService);
     }
 
     @Test
