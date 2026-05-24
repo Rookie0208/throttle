@@ -765,3 +765,23 @@ CREATE TABLE friendships (
 );
 
 CREATE INDEX idx_fs_user ON friendships(user_id);
+
+--------------------------------------------------
+-- SYSTEM RESOURCES
+--------------------------------------------------
+
+CREATE TABLE system_resources (
+    id BIGSERIAL PRIMARY KEY,
+    resource_key VARCHAR(100) UNIQUE NOT NULL,
+    resource_value TEXT NOT NULL,
+    resource_type VARCHAR(30) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    description VARCHAR(255),
+    is_secret BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now(),
+    updated_by VARCHAR(100)
+);
+
+CREATE UNIQUE INDEX idx_system_resources_key ON system_resources(resource_key);
+CREATE INDEX idx_system_resources_category ON system_resources(category);
