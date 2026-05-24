@@ -30,6 +30,7 @@ public class ApiConstants {
         public static final String MY_RIDES = "/my";
         public static final String DETAILS = "/{id}";
         public static final String START = "/{id}/start";
+        public static final String DROP = "/{id}/drop";
         public static final String START_RETURN = "/{id}/return/start";
         public static final String END_RETURN = "/{id}/return/end";
         public static final String COMPLETE = "/{id}/complete";

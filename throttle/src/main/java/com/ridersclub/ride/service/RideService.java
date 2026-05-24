@@ -540,10 +540,8 @@ public class RideService {
                         return;
                 }
 
-                if (ride.getStatus() == Status.ACTIVE
-                                || ride.getStatus() == Status.IN_PROGRESS
-                                || ride.getStatus() == Status.COMPLETED) {
-                        throw new RuntimeException("Started rides cannot be cancelled");
+                if (ride.getStatus() == Status.COMPLETED) {
+                        throw new RuntimeException("Completed rides cannot be cancelled");
                 }
 
                 ride.setStatus(Status.CANCELLED);

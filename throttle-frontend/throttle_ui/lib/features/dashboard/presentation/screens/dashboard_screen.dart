@@ -30,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? _profileData;
+  bool _hasLoadedFreshProfile = false;
   String? _cityName;
   Map<String, dynamic>? _weatherData;
   bool _isLoadingWeather = true;
@@ -175,7 +176,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Map<String, dynamic> get _userData =>
-      _profileData ?? widget.userData ?? const {};
+      _hasLoadedFreshProfile
+      ? (_profileData ?? const {})
+      : (widget.userData ?? const {});
 
   Map<String, dynamic>? _mapValue(String key) {
     final value = _userData[key];
@@ -265,10 +268,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (status != "SCHEDULED") {
         return status;
       }
-      final subtitle = todayRide["subtitle"]?.toString().toUpperCase() ?? "";
-      if (subtitle.contains("IN PROGRESS")) {
-        return "ACTIVE";
-      }
     }
     final rawStatus =
         (todayPlanRide?["status"] ?? todayPlanRide?["rideStatus"] ?? "")
@@ -276,6 +275,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             .toUpperCase();
     if (rawStatus.isNotEmpty) return rawStatus;
     return "SCHEDULED";
+  }
+
+  bool _isClosedRideStatus(String status) {
+    return {"COMPLETED", "CANCELLED", "ENDED", "ARCHIVED"}.contains(
+      status.toUpperCase(),
+    );
   }
 
   String _normalizedRideStatus(Map<String, dynamic>? ride) {
@@ -292,8 +297,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       "READY_TO_START",
       "ACTIVE",
       "IN_PROGRESS",
-      "COMPLETED",
-      "CANCELLED",
     }.contains(status.toUpperCase());
   }
 
@@ -343,7 +346,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? _latestCompletedRide(List<Map<String, dynamic>> rides) {
     final completed = rides.where(_isCompletedRide).toList();
     if (completed.isEmpty) {
-      return rides.isNotEmpty ? rides.first : null;
+      return null;
     }
 
     completed.sort((a, b) {
@@ -455,9 +458,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _refreshProfileData() async {
     final freshProfile = await UserService.getMe();
-    if (!mounted || freshProfile == null) return;
+    if (!mounted) return;
     setState(() {
       _profileData = freshProfile;
+      _hasLoadedFreshProfile = true;
     });
   }
 
@@ -524,7 +528,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _fetchLocationAndWeather() async {
     try {
-      final position = await LocationService.getCurrentLocation();
+      final position = await LocationService.getCurrentLocation(
+        requestPermission: false,
+      );
       if (position != null) {
         final city = await LocationService.getCityName(
           position.latitude,
@@ -658,8 +664,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final miles = _userData['weeklyMiles'] ?? 0;
         final avg = _userData['weeklyAvgMph'] ?? 0;
         final duration = _userData['weeklyDuration'] ?? 0;
-        final todayRide = _mapValue('todayRide');
-        final upcomingRide = _mapValue('upcomingRide');
+        final rawTodayRide = _mapValue('todayRide');
+        final rawUpcomingRide = _mapValue('upcomingRide');
+        final todayRide =
+            rawTodayRide != null &&
+                !_isClosedRideStatus(_normalizedRideStatus(rawTodayRide))
+            ? rawTodayRide
+            : null;
+        final upcomingRide =
+            rawUpcomingRide != null &&
+                !_isClosedRideStatus(_normalizedRideStatus(rawUpcomingRide))
+            ? rawUpcomingRide
+            : null;
         final recentRides = _mapListValue('recentRides');
         final achievements = _mapListValue('achievements');
         final todayPlanRide =

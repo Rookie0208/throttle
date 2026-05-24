@@ -1,34 +1,35 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:throttle_ui/core/constants/app_constants.dart';
 
 class SubGroupService {
-  static const String baseUrl = "http://localhost:8080/api/v1";
+  static String get baseUrl => AppConstants.baseUrl;
 
   /// FETCH SUBGROUPS
   static Future<List<Map<String, dynamic>>> fetchSubGroups(
-  String token,
-  String groupUuid,
-) async {
-  final response = await http.get(
-    Uri.parse("$baseUrl/rides/$groupUuid/subgroups"),
-    headers: {
-      "Authorization": "Bearer $token",
-      "Content-Type": "application/json",
-    },
-  );
+    String token,
+    String groupUuid,
+  ) async {
+    final response = await http.get(
+      Uri.parse("$baseUrl/rides/$groupUuid/subgroups"),
+      headers: {
+        "Authorization": "Bearer $token",
+        "Content-Type": "application/json",
+      },
+    );
 
-  if (response.statusCode == 200) {
-    final Map<String, dynamic> res = jsonDecode(response.body);
-    
-    // Extract the `data` list
-    final List subGroups = res['data'] ?? [];
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> res = jsonDecode(response.body);
 
-    // Make sure it is a List<Map<String, dynamic>>
-    return List<Map<String, dynamic>>.from(subGroups);
-  } else {
-    throw Exception("Failed to load subgroups");
+      // Extract the `data` list
+      final List subGroups = res['data'] ?? [];
+
+      // Make sure it is a List<Map<String, dynamic>>
+      return List<Map<String, dynamic>>.from(subGroups);
+    } else {
+      throw Exception("Failed to load subgroups");
+    }
   }
-}
 
   /// CREATE SUBGROUP
   static Future<Map<String, dynamic>> createSubGroup(
@@ -110,10 +111,7 @@ class SubGroupService {
     throw Exception(res["message"] ?? "Failed to join subgroup");
   }
 
-  static Future<void> leaveSubGroup(
-    String token,
-    String groupUuid,
-  ) async {
+  static Future<void> leaveSubGroup(String token, String groupUuid) async {
     final response = await http.delete(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/leave"),
       headers: {
@@ -175,7 +173,9 @@ class SubGroupService {
     int requestId,
   ) async {
     final response = await http.post(
-      Uri.parse("$baseUrl/rides/groups/$groupUuid/join-requests/$requestId/approve"),
+      Uri.parse(
+        "$baseUrl/rides/groups/$groupUuid/join-requests/$requestId/approve",
+      ),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -212,7 +212,9 @@ class SubGroupService {
     int requestId,
   ) async {
     final response = await http.post(
-      Uri.parse("$baseUrl/rides/groups/$groupUuid/join-requests/$requestId/reject"),
+      Uri.parse(
+        "$baseUrl/rides/groups/$groupUuid/join-requests/$requestId/reject",
+      ),
       headers: {
         "Authorization": "Bearer $token",
         "Content-Type": "application/json",
@@ -225,10 +227,7 @@ class SubGroupService {
     }
   }
 
-  static Future<void> rejectJoinRequestById(
-    String token,
-    int requestId,
-  ) async {
+  static Future<void> rejectJoinRequestById(String token, int requestId) async {
     final response = await http.post(
       Uri.parse("$baseUrl/rides/join-requests/$requestId/reject"),
       headers: {

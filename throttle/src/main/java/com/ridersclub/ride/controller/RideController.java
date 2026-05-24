@@ -180,6 +180,16 @@ public class RideController {
                 "Ride started successfully");
     }
 
+    @PostMapping(ApiConstants.Rides.DROP)
+    public ApiResponse<RideSessionResponse> dropRide(
+            @PathVariable String id,
+            Authentication authentication) {
+        String userUuid = authentication.getPrincipal().toString();
+        return ApiResponse.success(
+                rideSessionService.dropFromRide(id, userUuid),
+                "Ride dropped successfully");
+    }
+
     @PostMapping(ApiConstants.Rides.START_RETURN)
     public ApiResponse<RideSessionResponse> startReturnRide(
             @PathVariable String id,

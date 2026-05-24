@@ -65,6 +65,7 @@ class _LiveRideScreenState extends State<LiveRideScreen>
   double _currentHeading = 0;
   bool _isFollowingUser = true;
   bool _isVoiceMuted = false;
+  double _dropSliderValue = 0;
   String? _lastCheckpointArrivalPromptKey;
   latlng.LatLng? _lastRouteOrigin;
   StreamSubscription<Position>? _positionSubscription;
@@ -82,6 +83,9 @@ class _LiveRideScreenState extends State<LiveRideScreen>
 
   bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
 
+  String get _currentUserState =>
+      (_session?["currentUserState"] ?? "").toString().toUpperCase();
+
   bool get _canManageRide =>
       (_session?["currentUserCaptain"] == true) ||
       {
@@ -89,6 +93,14 @@ class _LiveRideScreenState extends State<LiveRideScreen>
         "ADMIN",
         "CO_CAPTAIN",
       }.contains((_session?["currentUserRole"] ?? "").toString().toUpperCase());
+
+  bool get _canDropRide =>
+      _hasRideSession &&
+      _currentUserState.isNotEmpty &&
+      _currentUserState != "DROPPED" &&
+      _currentUserState != "COMPLETED" &&
+      _currentUserState != "RETURN_RIDE_STARTED" &&
+      _currentUserState != "RETURN_RIDE_COMPLETED";
 
   @override
   void initState() {
@@ -209,6 +221,7 @@ class _LiveRideScreenState extends State<LiveRideScreen>
       await _refreshNavigationRoute(force: true, sessionOverride: session);
       _ensureLocationSync();
       _handleCompletedRide(session);
+      _handleDroppedRide(session);
     } catch (e) {
       if (!mounted) return;
       _showSnack(e.toString());
@@ -576,6 +589,27 @@ class _LiveRideScreenState extends State<LiveRideScreen>
     });
   }
 
+  void _handleDroppedRide(Map<String, dynamic> session) {
+    final currentUserState = (session["currentUserState"] ?? "")
+        .toString()
+        .toUpperCase();
+    if (_rideClosedHandled || currentUserState != "DROPPED") {
+      return;
+    }
+
+    _rideClosedHandled = true;
+    _locationSyncTimer?.cancel();
+    _locationSyncTimer = null;
+    unawaited(_clearPauseState());
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _showSnack("You dropped from this ride");
+      RideRefreshNotifier.notify();
+      Navigator.pop(context);
+    });
+  }
+
   Future<void> _addCustomCheckpoint(AppThemeConfig theme) async {
     final controller = TextEditingController();
     final title = await showDialog<String>(
@@ -806,6 +840,55 @@ class _LiveRideScreenState extends State<LiveRideScreen>
 
   Future<void> _holdToEndRide() async {
     await _completeRide();
+  }
+
+  Future<void> _dropRide() async {
+    await _withLoading(() async {
+      final session = await RideService.dropRide(widget.token!, widget.rideUuid!);
+      if (!mounted) return;
+      setState(() {
+        _session = session;
+        _dropSliderValue = 0;
+      });
+      RideRefreshNotifier.notify();
+      _handleDroppedRide(session);
+    });
+  }
+
+  Future<void> _confirmDropRide() async {
+    if (!_canDropRide) {
+      _showSnack("You can no longer drop from this ride");
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Drop from live ride?"),
+        content: const Text(
+          "You will be marked as dropped for the rest of the ride and other riders will see that update.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Keep Riding"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Drop"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _dropRide();
+    } else if (mounted) {
+      setState(() {
+        _dropSliderValue = 0;
+      });
+    }
   }
 
   Future<void> _cancelRide() async {
@@ -1586,6 +1669,10 @@ class _LiveRideScreenState extends State<LiveRideScreen>
                         ),
                       ],
                     ),
+                    if (_canDropRide) ...[
+                      const SizedBox(height: 14),
+                      _dropRideSlider(theme),
+                    ],
                   ],
                 ),
               ),
@@ -2425,5 +2512,109 @@ class _LiveRideScreenState extends State<LiveRideScreen>
     );
 
     return _formatDistance(meters);
+  }
+
+  Widget _dropRideSlider(AppThemeConfig theme) {
+    final progress = _dropSliderValue.clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Drop From Ride",
+            style: GoogleFonts.bebasNeue(
+              color: Colors.red.shade300,
+              fontSize: 18,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "Slide only if you need to leave this live ride before it ends.",
+            style: TextStyle(
+              color: theme.textPrimary.withValues(alpha: 0.68),
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.14),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Positioned.fill(
+                    child: FractionallySizedBox(
+                      alignment: Alignment.centerLeft,
+                      widthFactor: progress,
+                      child: Container(color: Colors.red.withValues(alpha: 0.3)),
+                    ),
+                  ),
+                  IgnorePointer(
+                    child: Text(
+                      _loading
+                          ? "UPDATING..."
+                          : (progress > 0.9
+                                ? "Release to Drop"
+                                : "Slide to Drop"),
+                      style: GoogleFonts.bebasNeue(
+                        color: Colors.white,
+                        fontSize: 18,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 56,
+                      activeTrackColor: Colors.transparent,
+                      inactiveTrackColor: Colors.transparent,
+                      thumbColor: Colors.red,
+                      overlayColor: Colors.red.withValues(alpha: 0.12),
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 20,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 24,
+                      ),
+                    ),
+                    child: Slider(
+                      value: progress,
+                      onChanged: _loading
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _dropSliderValue = value;
+                              });
+                            },
+                      onChangeEnd: _loading
+                          ? null
+                          : (value) {
+                              if (value >= 0.94) {
+                                unawaited(_confirmDropRide());
+                              } else {
+                                setState(() {
+                                  _dropSliderValue = 0;
+                                });
+                              }
+                            },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
