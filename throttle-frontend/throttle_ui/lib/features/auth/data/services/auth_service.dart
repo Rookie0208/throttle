@@ -9,7 +9,6 @@ import 'package:throttle_ui/core/services/logger_service.dart';
 
 class AuthService {
   static String get baseUrl => "${AppConstants.baseUrl}/auth";
-
   static const _storage = FlutterSecureStorage();
   static const String _tokenKey = "jwt_token";
   static const String _refreshTokenKey = "refresh_token";
@@ -34,7 +33,7 @@ class AuthService {
   }) async {
     try {
       final url = Uri.parse("$baseUrl/register");
-
+print("amit.baseURL : "+url.toString());
       final body = {
         "firstName": firstName,
         "lastName": lastName ?? "",
