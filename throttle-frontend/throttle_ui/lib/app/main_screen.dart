@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:throttle_ui/core/network/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:throttle_ui/features/clubs/presentation/screens/clubs_screen.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/friends_screen.dart';
@@ -26,6 +28,7 @@ class _MainScreenState extends State<MainScreen> {
   String? _token;
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _clubsEnabled = true;
   bool _isPromptingForPermissions = false;
 
   @override
@@ -37,6 +40,19 @@ class _MainScreenState extends State<MainScreen> {
   Future<void> _loadToken() async {
     final token = await AuthService.getToken();
     Map<String, dynamic>? userData;
+    bool clubsEnabled = true;
+
+    try {
+      final response = await ApiService.get('/auth/features');
+      if (response != null && (response['status'] == 200 || response['status'] == 201)) {
+        final decoded = jsonDecode(response['body']);
+        if (decoded['status'] == "SUCCESS" && decoded['data'] != null) {
+          clubsEnabled = decoded['data']['FEATURE_CLUBS_ENABLED'] ?? true;
+        }
+      }
+    } catch (e) {
+      // Fallback to true if network request fails
+    }
 
     if (token != null) {
       userData = await UserService.getMe();
@@ -45,7 +61,13 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _token = token;
       _userData = userData;
+      _clubsEnabled = clubsEnabled;
       _isLoading = false;
+      
+      final screensCount = 4 + (clubsEnabled ? 1 : 0);
+      if (_currentIndex >= screensCount) {
+        _currentIndex = 0;
+      }
     });
 
     if (token != null) {
@@ -141,7 +163,7 @@ class _MainScreenState extends State<MainScreen> {
   List<Widget> get _screens => [
     DashboardScreen(userData: _userData, token: _token!),
     GroupsScreen(token: _token!),
-    const ClubsScreen(),
+    if (_clubsEnabled) const ClubsScreen(),
     const FriendsScreen(),
     ProfileScreen(userData: _userData),
   ];
@@ -183,6 +205,112 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {});
   }
 
+  Future<void> _openCreateRideOptions() async {
+    final theme = ThemeController.instance.theme;
+    final selection = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: theme.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: theme.textPrimary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Create ride",
+                  style: TextStyle(
+                    color: theme.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Choose a planned ride or start an instant one right away.",
+                  style: TextStyle(
+                    color: theme.textPrimary.withValues(alpha: 0.65),
+                    fontSize: 13,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _CreateRideOptionTile(
+                  title: "Plan Ride",
+                  icon: Icons.route_rounded,
+                  theme: theme,
+                  onTap: () => Navigator.of(context).pop("planned"),
+                ),
+                const SizedBox(height: 12),
+                _CreateRideOptionTile(
+                  title: "Create Instant Ride",
+                  icon: Icons.flash_on_rounded,
+                  theme: theme,
+                  onTap: () => Navigator.of(context).pop("instant"),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || selection == null) {
+      return;
+    }
+
+    if (selection == "instant") {
+      await Navigator.of(context).push(
+        PageRouteBuilder(
+          opaque: false,
+          barrierDismissible: false,
+          transitionDuration: const Duration(milliseconds: 350),
+          reverseTransitionDuration: const Duration(milliseconds: 280),
+          pageBuilder: (context, animation, secondaryAnimation) {
+            return PlanRideScreen(token: _token!, instantRide: true);
+          },
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 1),
+                end: Offset.zero,
+              ).animate(curved),
+              child: FadeTransition(opacity: curved, child: child),
+            );
+          },
+        ),
+      );
+    } else {
+      await _openCreateRideSheet();
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -221,28 +349,29 @@ class _MainScreenState extends State<MainScreen> {
               child: NavigationBar(
                 selectedIndex: _currentIndex,
                 onDestinationSelected: _onTabChanged,
-                destinations: const [
-                  NavigationDestination(
+                destinations: [
+                  const NavigationDestination(
                     icon: Icon(Icons.space_dashboard_outlined),
                     selectedIcon: Icon(Icons.space_dashboard_rounded),
                     label: "Dashboard",
                   ),
-                  NavigationDestination(
+                  const NavigationDestination(
                     icon: Icon(Icons.two_wheeler_outlined),
                     selectedIcon: Icon(Icons.two_wheeler_rounded),
                     label: "Rides",
                   ),
-                  NavigationDestination(
-                    icon: Icon(Icons.groups_2_outlined),
-                    selectedIcon: Icon(Icons.groups_2_rounded),
-                    label: "Clubs",
-                  ),
-                  NavigationDestination(
+                  if (_clubsEnabled)
+                    const NavigationDestination(
+                      icon: Icon(Icons.groups_2_outlined),
+                      selectedIcon: Icon(Icons.groups_2_rounded),
+                      label: "Clubs",
+                    ),
+                  const NavigationDestination(
                     icon: Icon(Icons.diversity_3_outlined),
                     selectedIcon: Icon(Icons.diversity_3_rounded),
                     label: "Friends",
                   ),
-                  NavigationDestination(
+                  const NavigationDestination(
                     icon: Icon(Icons.person_outline_rounded),
                     selectedIcon: Icon(Icons.person_rounded),
                     label: "Profile",
@@ -269,13 +398,74 @@ class _MainScreenState extends State<MainScreen> {
               backgroundColor: Colors.transparent,
               elevation: 0,
               highlightElevation: 0,
-              onPressed: _openCreateRideSheet,
+              onPressed: _openCreateRideOptions,
               child: const Icon(Icons.add_rounded, color: Colors.white),
             ),
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         );
       },
+    );
+  }
+}
+
+class _CreateRideOptionTile extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final AppThemeConfig theme;
+  final VoidCallback onTap;
+
+  const _CreateRideOptionTile({
+    required this.title,
+    required this.icon,
+    required this.theme,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0x52B8C6DA)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: theme.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: theme.primary),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: theme.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: theme.textPrimary.withValues(alpha: 0.55),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

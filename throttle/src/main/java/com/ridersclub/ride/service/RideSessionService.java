@@ -271,6 +271,58 @@ public class RideSessionService {
         return session;
     }
 
+    public RideSessionResponse dropFromRide(String rideUuid, String actorUserUuid) {
+        Ride ride = getRide(rideUuid);
+        RideParticipant actor = getActiveParticipant(rideUuid, actorUserUuid);
+        ensureRideMutable(ride);
+
+        RideParticipantState currentState = resolveRideState(actor, ride);
+        if (currentState == RideParticipantState.DROPPED) {
+            return getRideSession(rideUuid, actorUserUuid);
+        }
+        if (currentState == RideParticipantState.COMPLETED
+                || currentState == RideParticipantState.RETURN_RIDE_STARTED
+                || currentState == RideParticipantState.RETURN_RIDE_COMPLETED) {
+            throw new RuntimeException("You cannot drop after completing this ride");
+        }
+
+        if (isRideManager(actor.getRole())) {
+            List<RideParticipant> activeParticipants = participantRepository.findByRide_IdAndRsvpStatusNot(
+                    ride.getId(),
+                    Status.EXITED);
+
+            RideParticipant replacement = activeParticipants.stream()
+                    .filter(member -> !member.getUser().getId().equals(actor.getUser().getId()))
+                    .filter(member -> isRideManager(member.getRole()))
+                    .filter(member -> resolveRideState(member, ride) != RideParticipantState.DROPPED)
+                    .findFirst()
+                    .orElse(null);
+
+            if (replacement == null) {
+                throw new RuntimeException("Assign another admin/captain before dropping from the ride");
+            }
+
+            if (ride.getCaptain() != null
+                    && ride.getCaptain().getId().equals(actor.getUser().getId())) {
+                ride.setCaptain(replacement.getUser());
+                rideRepository.save(ride);
+            }
+        }
+
+        actor.setRideState(RideParticipantState.DROPPED);
+        actor.setStateUpdatedAt(LocalDateTime.now());
+        participantRepository.save(actor);
+
+        createSystemGroupMessage(
+                ride,
+                actor.getUser(),
+                formatUserName(actor.getUser()) + " dropped from the live ride.");
+
+        RideSessionResponse session = getRideSession(rideUuid, actorUserUuid);
+        publishSessionUpdate(rideUuid);
+        return session;
+    }
+
     public RideSessionResponse updateLocation(String rideUuid, String actorUserUuid, RideLocationUpdateRequest request) {
         Ride ride = getRide(rideUuid);
         RideParticipant participant = getActiveParticipant(rideUuid, actorUserUuid);

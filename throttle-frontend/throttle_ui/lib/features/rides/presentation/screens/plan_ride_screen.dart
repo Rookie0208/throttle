@@ -8,11 +8,18 @@ import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
+import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
 
 class PlanRideScreen extends StatefulWidget {
   final String token;
+  final bool instantRide;
 
-  const PlanRideScreen({super.key, required this.token});
+  const PlanRideScreen({
+    super.key,
+    required this.token,
+    this.instantRide = false,
+  });
 
   @override
   State<PlanRideScreen> createState() => _PlanRideScreenState();
@@ -54,7 +61,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   @override
   void initState() {
     super.initState();
-    _syncSelectedStartTime();
+    if (widget.instantRide) {
+      _setInstantStartTime();
+    } else {
+      _syncSelectedStartTime();
+    }
   }
 
   @override
@@ -72,6 +83,17 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       dotenv.env["MAPBOX_PUBLIC_TOKEN"]?.trim() ?? "";
 
   bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
+
+  bool get _isInstantRide => widget.instantRide;
+
+  List<String> get _steps => _isInstantRide
+      ? const ["Type", "Route", "Info", "Preview"]
+      : const ["Type", "Route", "Info", "Setup", "Preview"];
+
+  int get _lastStepIndex => _steps.length - 1;
+
+  String get _sheetTitle =>
+      _isInstantRide ? "Create Instant Ride" : "Create Ride";
 
   String get _routeStatusLabel {
     if (!_hasMapboxToken) {
@@ -139,10 +161,8 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   }
 
   Widget stepIndicator(AppThemeConfig theme) {
-    final steps = ["Type", "Route", "Info", "Setup", "Preview"];
-
     return Row(
-      children: List.generate(steps.length, (index) {
+      children: List.generate(_steps.length, (index) {
         final isActive = index == currentStep;
         final isDone = index < currentStep;
 
@@ -185,7 +205,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               ),
               const SizedBox(height: 5),
               Text(
-                steps[index],
+                _steps[index],
                 style: TextStyle(
                   color: isActive
                       ? theme.textPrimary
@@ -250,6 +270,13 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       selectedTime.hour,
       selectedTime.minute,
     );
+  }
+
+  void _setInstantStartTime() {
+    final now = DateTime.now().add(const Duration(minutes: 1));
+    selectedDate = DateTime(now.year, now.month, now.day);
+    selectedTime = TimeOfDay.fromDateTime(now);
+    selectedStartTime = now;
   }
 
   bool _hasValidFutureStartTime() {
@@ -566,7 +593,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   }
 
   bool validateCurrentStep() {
-    if (currentStep == 0 && rideType == "GROUP") {
+    if (currentStep == 0 && rideType == "GROUP" && !_isInstantRide) {
       if (maxRidersController.text.trim().isEmpty ||
           int.tryParse(maxRidersController.text.trim()) == null) {
         showError("Please enter max riders for group ride");
@@ -593,7 +620,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       }
     }
 
-    if (currentStep == 3 && !_hasValidFutureStartTime()) {
+    if (!_isInstantRide && currentStep == 3 && !_hasValidFutureStartTime()) {
       showError("Please choose a future date and time");
       return false;
     }
@@ -607,7 +634,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       final routeReady = await _ensureRouteCoordinates();
       if (!routeReady) return;
     }
-    if (currentStep < 4) {
+    if (currentStep < _lastStepIndex) {
       setState(() => currentStep++);
     }
   }
@@ -633,12 +660,13 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       return;
     }
     if (rideType == "GROUP" &&
+        !_isInstantRide &&
         (maxRidersController.text.isEmpty ||
             int.tryParse(maxRidersController.text) == null)) {
       showError("Max Riders is required for group rides");
       return;
     }
-    if (!_hasValidFutureStartTime()) {
+    if (!_isInstantRide && !_hasValidFutureStartTime()) {
       showError("Please choose a future date and time");
       return;
     }
@@ -648,6 +676,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     }
 
     setState(() => isLoading = true);
+
+    final rideStartTime = _isInstantRide
+        ? DateTime.now().add(const Duration(minutes: 1))
+        : selectedStartTime;
 
     final rules = rulesController.text.trim().isEmpty
         ? <String>[]
@@ -663,12 +695,13 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       "rideType": rideType,
       "routeType": "HIGHWAY",
       "difficulty": difficulty,
-      "startTime": selectedStartTime.toIso8601String(),
+      "startTime": rideStartTime.toIso8601String(),
       "visibility": "PUBLIC",
       "maxRiders": rideType == "GROUP"
-          ? int.parse(maxRidersController.text)
+          ? (_isInstantRide
+                ? (selectedFriends.length + 1)
+                : int.parse(maxRidersController.text))
           : 1,
-      "invitedFriends": selectedFriends,
       "startLocation": {
         "name": startLocationController.text.trim(),
         "latitude": startPoint?.latitude,
@@ -681,22 +714,94 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       },
     };
 
-    if (rules.isNotEmpty) {
+    if (!_isInstantRide && rules.isNotEmpty) {
       rideData["rules"] = rules;
+    }
+    if (selectedFriends.isNotEmpty) {
+      rideData["invitedFriends"] = selectedFriends;
     }
 
     final result = await RideService.createRide(rideData, widget.token);
 
     if (!mounted) return;
-    setState(() => isLoading = false);
 
     if (result["success"]) {
+      final rideUuid = _extractRideUuid(result);
+      if (_isInstantRide) {
+        if (rideUuid == null || rideUuid.isEmpty) {
+          setState(() => isLoading = false);
+          showError("Ride was created, but we couldn't open it automatically.");
+          return;
+        }
+
+        try {
+          await RideService.startRideSession(widget.token, rideUuid);
+          if (!mounted) return;
+          setState(() => isLoading = false);
+          RideRefreshNotifier.notify();
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => LiveRideScreen(
+                groupName: titleController.text.trim(),
+                onEndRide: () {},
+                token: widget.token,
+                rideUuid: rideUuid,
+              ),
+            ),
+          );
+          return;
+        } catch (_) {
+          if (!mounted) return;
+          setState(() => isLoading = false);
+          RideRefreshNotifier.notify();
+          showSuccess("Instant ride created. Opening ride controls...");
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => RideStartScreen(
+                groupName: titleController.text.trim(),
+                rideDate: "${selectedDate.toLocal()}".split(" ")[0],
+                rideTime: "Now",
+                location: startLocationController.text.trim(),
+                memberCount: rideType == "GROUP"
+                    ? selectedFriends.length + 1
+                    : 1,
+                token: widget.token,
+                rideUuid: rideUuid,
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
+      setState(() => isLoading = false);
       RideRefreshNotifier.notify();
       showSuccess("Ride created successfully!");
       Navigator.pop(context, rideType == "GROUP");
     } else {
+      setState(() => isLoading = false);
       showError(result["message"] ?? "Failed to create ride");
     }
+  }
+
+  String? _extractRideUuid(Map<String, dynamic> result) {
+    final root = result["data"];
+    if (root is Map) {
+      final rootMap = Map<String, dynamic>.from(root);
+      final nested = rootMap["data"];
+      if (nested is Map) {
+        final nestedMap = Map<String, dynamic>.from(nested);
+        final nestedRideUid = nestedMap["rideUid"] ?? nestedMap["rideUuid"];
+        if (nestedRideUid != null) {
+          return nestedRideUid.toString();
+        }
+      }
+      final directRideUid = rootMap["rideUid"] ?? rootMap["rideUuid"];
+      if (directRideUid != null) {
+        return directRideUid.toString();
+      }
+    }
+    return null;
   }
 
   Widget _choiceTile({
@@ -790,6 +895,10 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   }
 
   Widget buildStepContent(AppThemeConfig theme) {
+    if (_isInstantRide && currentStep == 3) {
+      return _buildPreviewStep(theme);
+    }
+
     switch (currentStep) {
       case 0:
         return cardWrapper(
@@ -824,17 +933,18 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 ],
               ),
               const SizedBox(height: 14),
-              _ModernInputField(
-                controller: maxRidersController,
-                hint: rideType == "SOLO"
-                    ? "Max riders not needed for solo"
-                    : "Enter max riders",
-                keyboardType: TextInputType.number,
-                disabled: rideType == "SOLO",
-                icon: Icons.people_alt_outlined,
-                primaryColor: theme.primary,
-                theme: theme,
-              ),
+              if (!_isInstantRide)
+                _ModernInputField(
+                  controller: maxRidersController,
+                  hint: rideType == "SOLO"
+                      ? "Max riders not needed for solo"
+                      : "Enter max riders",
+                  keyboardType: TextInputType.number,
+                  disabled: rideType == "SOLO",
+                  icon: Icons.people_alt_outlined,
+                  primaryColor: theme.primary,
+                  theme: theme,
+                ),
             ],
           ),
         );
@@ -955,14 +1065,63 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 theme: theme,
               ),
               const SizedBox(height: 10),
-              _ModernInputField(
-                controller: rulesController,
-                hint: "Optional: Helmet required, No rash riding",
-                maxLines: 2,
-                icon: Icons.rule_folder_outlined,
-                primaryColor: theme.primary,
-                theme: theme,
-              ),
+              if (!_isInstantRide)
+                _ModernInputField(
+                  controller: rulesController,
+                  hint: "Optional: Helmet required, No rash riding",
+                  maxLines: 2,
+                  icon: Icons.rule_folder_outlined,
+                  primaryColor: theme.primary,
+                  theme: theme,
+                ),
+              if (_isInstantRide && rideType == "GROUP") ...[
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => openInviteFriendsModal(theme),
+                  child: Container(
+                    padding: const EdgeInsets.all(13),
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0x52B8C6DA)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          height: 34,
+                          width: 34,
+                          decoration: BoxDecoration(
+                            color: theme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.person_add_alt_1,
+                            color: theme.primary,
+                            size: 18,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            selectedFriends.isEmpty
+                                ? "Invite members"
+                                : "${selectedFriends.length} riders selected",
+                            style: TextStyle(
+                              color: theme.textPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          Icons.chevron_right,
+                          color: theme.textPrimary.withValues(alpha: 0.6),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -1061,43 +1220,9 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: ["EASY", "MODERATE", "HARD"].map((level) {
-                  final selected = difficulty == level;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => difficulty = level),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selected
-                                ? theme.primary
-                                : const Color(0x52B8C6DA),
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            level,
-                            style: TextStyle(
-                              color: selected
-                                  ? theme.primary
-                                  : theme.textPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
+              _buildDifficultySelector(theme),
+              const SizedBox(height: 12),
               if (rideType == "GROUP") ...[
-                const SizedBox(height: 12),
                 GestureDetector(
                   onTap: () => openInviteFriendsModal(theme),
                   child: Container(
@@ -1149,127 +1274,176 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         );
 
       case 4:
-        final rules = rulesController.text.trim().isEmpty
-            ? "-"
-            : rulesController.text.trim();
-        final invited = selectedFriends.isEmpty
-            ? "No riders"
-            : selectedFriends
-                  .map((uuid) => selectedFriendLabels[uuid] ?? uuid)
-                  .join(", ");
-
-        return cardWrapper(
-          theme: theme,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              sectionTitle(
-                "Preview your ride",
-                theme,
-                subtitle: "Quick summary before you create it.",
-              ),
-              const SizedBox(height: 14),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.28,
-                children: [
-                  _infoChip("🏍️", "Ride Type", rideType, theme),
-                  _infoChip(
-                    "📍",
-                    "Start",
-                    startLocationController.text.trim().isEmpty
-                        ? "-"
-                        : startLocationController.text.trim(),
-                    theme,
-                  ),
-                  _infoChip(
-                    "🏁",
-                    "End",
-                    endLocationController.text.trim().isEmpty
-                        ? "-"
-                        : endLocationController.text.trim(),
-                    theme,
-                  ),
-                  _infoChip(
-                    "📝",
-                    "Title",
-                    titleController.text.trim().isEmpty
-                        ? "-"
-                        : titleController.text.trim(),
-                    theme,
-                  ),
-                  _infoChip(
-                    "📅",
-                    "Date",
-                    "${selectedDate.toLocal()}".split(" ")[0],
-                    theme,
-                  ),
-                  _infoChip("⏰", "Time", selectedTime.format(context), theme),
-                  _infoChip("🔥", "Difficulty", difficulty, theme),
-                  _infoChip("📋", "Rules", rules, theme),
-                  if (rideType == "GROUP")
-                    _infoChip(
-                      "👥",
-                      "Max Riders",
-                      maxRidersController.text.trim().isEmpty
-                          ? "-"
-                          : maxRidersController.text.trim(),
-                      theme,
-                    ),
-                  if (rideType == "GROUP")
-                    _infoChip("🤝", "Invited", invited, theme),
-                ],
-              ),
-              if (descriptionController.text.trim().isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0x52B8C6DA)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Description",
-                        style: TextStyle(
-                          color: theme.textPrimary.withValues(alpha: 0.6),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        descriptionController.text.trim(),
-                        style: TextStyle(
-                          color: theme.textPrimary,
-                          fontSize: 13.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
+        return _buildPreviewStep(theme);
 
       default:
         return const SizedBox();
     }
   }
 
+  Widget _buildDifficultySelector(AppThemeConfig theme) {
+    return Row(
+      children: ["EASY", "MODERATE", "HARD"].map((level) {
+        final selected = difficulty == level;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => difficulty = level),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selected ? theme.primary : const Color(0x52B8C6DA),
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  level,
+                  style: TextStyle(
+                    color: selected ? theme.primary : theme.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPreviewStep(AppThemeConfig theme) {
+    final rules = rulesController.text.trim().isEmpty
+        ? "-"
+        : rulesController.text.trim();
+    final invited = selectedFriends.isEmpty
+        ? "No riders"
+        : selectedFriends
+              .map((uuid) => selectedFriendLabels[uuid] ?? uuid)
+              .join(", ");
+
+    return cardWrapper(
+      theme: theme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          sectionTitle(
+            "Preview your ride",
+            theme,
+            subtitle: _isInstantRide
+                ? "Quick summary before you start it right away."
+                : "Quick summary before you create it.",
+          ),
+          const SizedBox(height: 14),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 1.28,
+            children: [
+              _infoChip("🏍️", "Ride Type", rideType, theme),
+              _infoChip(
+                "📍",
+                "Start",
+                startLocationController.text.trim().isEmpty
+                    ? "-"
+                    : startLocationController.text.trim(),
+                theme,
+              ),
+              _infoChip(
+                "🏁",
+                "End",
+                endLocationController.text.trim().isEmpty
+                    ? "-"
+                    : endLocationController.text.trim(),
+                theme,
+              ),
+              _infoChip(
+                "📝",
+                "Title",
+                titleController.text.trim().isEmpty
+                    ? "-"
+                    : titleController.text.trim(),
+                theme,
+              ),
+              _infoChip(
+                _isInstantRide ? "⚡" : "📅",
+                _isInstantRide ? "Start" : "Date",
+                _isInstantRide
+                    ? "Starts now"
+                    : "${selectedDate.toLocal()}".split(" ")[0],
+                theme,
+              ),
+              if (!_isInstantRide)
+                _infoChip(
+                  "🔥",
+                  "Difficulty",
+                  difficulty,
+                  theme,
+                ),
+              if (!_isInstantRide) _infoChip("📋", "Rules", rules, theme),
+              if (!_isInstantRide)
+                _infoChip("⏰", "Time", selectedTime.format(context), theme),
+              if (rideType == "GROUP" && !_isInstantRide)
+                _infoChip(
+                  "👥",
+                  "Max Riders",
+                  maxRidersController.text.trim().isEmpty
+                      ? "-"
+                      : maxRidersController.text.trim(),
+                  theme,
+                ),
+              if (rideType == "GROUP" && !_isInstantRide)
+                _infoChip("🤝", "Invited", invited, theme),
+            ],
+          ),
+          if (descriptionController.text.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0x52B8C6DA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Description",
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.6),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    descriptionController.text.trim(),
+                    style: TextStyle(
+                      color: theme.textPrimary,
+                      fontSize: 13.5,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget buildBottomActions(AppThemeConfig theme) {
-    final isLastStep = currentStep == 4;
+    final isLastStep = currentStep == _lastStepIndex;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
@@ -1325,7 +1499,9 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                       ),
                     )
                   : Text(
-                      isLastStep ? "Create Ride" : "Next",
+                      isLastStep
+                          ? (_isInstantRide ? "Start Ride" : "Create Ride")
+                          : "Next",
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 14.5,
@@ -1378,7 +1554,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              "Create Ride",
+                              _sheetTitle,
                               style: TextStyle(
                                 color: theme.textPrimary,
                                 fontSize: 20,
