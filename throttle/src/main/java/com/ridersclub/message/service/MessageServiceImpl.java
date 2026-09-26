@@ -148,7 +148,10 @@ public class MessageServiceImpl implements MessageService {
 
                 if (dto.getReplyToId() != null) {
                         replyTo = messageRepo.findById(dto.getReplyToId())
-                                        .orElse(null);
+                                        .orElseThrow(() -> new IllegalArgumentException("Replied message not found"));
+                        if (!replyTo.getGroup().getId().equals(group.getId())) {
+                                throw new IllegalArgumentException("Replied message must belong to the same group");
+                        }
                 }
 
                 GroupMessage message = GroupMessage.builder()
@@ -173,6 +176,7 @@ public class MessageServiceImpl implements MessageService {
         private MessageDTO mapToDTO(GroupMessage msg) {
 
                 return MessageDTO.builder()
+                                .id(msg.getId())
                                 .uuid(msg.getUuid())
                                 .groupId(msg.getGroup().getUuid())
                                 .senderId(msg.getSender().getUuid())
@@ -180,6 +184,10 @@ public class MessageServiceImpl implements MessageService {
                                 .message(msg.getMessage())
                                 .mediaUrl(msg.getMediaUrl())
                                 .messageType(msg.getMessageType().name())
+                                .replyToId(msg.getReplyTo() == null ? null : msg.getReplyTo().getId())
+                                .replyToUuid(msg.getReplyTo() == null ? null : msg.getReplyTo().getUuid())
+                                .replyToSenderName(msg.getReplyTo() == null ? null : msg.getReplyTo().getSender().getFirstName())
+                                .replyToMessage(msg.getReplyTo() == null ? null : msg.getReplyTo().getMessage())
                                 .build();
         }
 

@@ -36,6 +36,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
   /// messages per chat
   List<Map<String, dynamic>> messages = [];
   bool loadingMessages = true;
+  Map<String, dynamic>? replyingTo;
 
   String get _rideUuid =>
       (widget.group["rideUuid"] ?? widget.group["uuid"]).toString();
@@ -233,8 +234,12 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
     _chatService.sendMessage(
       groupId: (activeSubGroupId ?? _groupUuid),
       text: text,
+      replyToId: replyingTo?['id'] is num
+          ? (replyingTo?['id'] as num).toInt()
+          : int.tryParse('${replyingTo?['id']}'),
     );
     messageController.clear();
+    setState(() => replyingTo = null);
   }
 
   /// ================= UI =================
@@ -287,6 +292,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ? _systemMessageText(msg)
         : (msg["message"] ?? "").toString();
 
+    final replyPreview = (msg['replyToMessage'] ?? '').toString();
+
     if (isSystem) {
       return Center(
         child: Container(
@@ -307,7 +314,33 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       );
     }
 
-    return Align(
+    return Dismissible(
+      key: ValueKey('chat-message-${msg['uuid'] ?? msg['id']}'),
+      direction: DismissDirection.startToEnd,
+      dismissThresholds: const {DismissDirection.startToEnd: 0.25},
+      confirmDismiss: (_) async {
+        final id = msg['id'];
+        if (id == null) return false;
+        setState(() => replyingTo = Map<String, dynamic>.from(msg));
+        return false;
+      },
+      background: Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 18),
+          child: Icon(Icons.reply, color: theme.primary),
+        ),
+      ),
+      child: GestureDetector(
+      onLongPress: () {
+        final id = msg['id'];
+        if (id == null ||
+            (msg['messageType'] ?? '').toString().toUpperCase() == 'SYSTEM') {
+          return;
+        }
+        setState(() => replyingTo = Map<String, dynamic>.from(msg));
+      },
+      child: Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         padding: const EdgeInsets.all(10),
@@ -320,6 +353,42 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (replyPreview.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(left: 8),
+                decoration: BoxDecoration(
+                  border: Border(
+                    left: BorderSide(
+                      color: isMe ? Colors.white70 : theme.primary,
+                      width: 2,
+                    ),
+                  ),
+              ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (msg['replyToSenderName'] ?? 'Rider').toString(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isMe
+                            ? Colors.white70
+                            : theme.textPrimary.withValues(alpha: .65),
+                      ),
+                    ),
+                    Text(
+                      replyPreview,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isMe ? Colors.white70 : theme.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             if (!isMe)
               Text(
                 senderName,
@@ -335,6 +404,8 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
           ],
         ),
       ),
+      ),
+    )
     );
   }
 
@@ -470,24 +541,47 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         color: theme.surface,
         border: const Border(top: BorderSide(color: Color(0x52B8C6DA))),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: TextField(
-              controller: messageController,
-              style: TextStyle(color: theme.textPrimary),
-              decoration: InputDecoration(
-                hintText: _isSoloRide ? "Add Note..." : "Type message...",
-                hintStyle: TextStyle(
-                  color: theme.textPrimary.withValues(alpha: 0.4),
+          if (replyingTo != null)
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Replying to ${(replyingTo!['senderName'] ?? 'Rider')}: ${(replyingTo!['message'] ?? '').toString()}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: theme.textPrimary, fontSize: 12),
+                  ),
                 ),
-                border: InputBorder.none,
-              ),
+                IconButton(
+                  tooltip: 'Cancel reply',
+                  icon: Icon(Icons.close, color: theme.textPrimary),
+                  onPressed: () => setState(() => replyingTo = null),
+                ),
+              ],
             ),
-          ),
-          IconButton(
-            icon: Icon(Icons.send, color: theme.primary),
-            onPressed: sendMessage,
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: messageController,
+                  style: TextStyle(color: theme.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: _isSoloRide ? "Add Note..." : "Type message...",
+                    hintStyle: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.4),
+                    ),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.send, color: theme.primary),
+                onPressed: sendMessage,
+              ),
+            ],
           ),
         ],
       ),
