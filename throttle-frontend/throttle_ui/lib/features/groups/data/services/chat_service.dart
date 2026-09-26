@@ -79,7 +79,7 @@ class ChatService {
   }
 
   /// ✅ CORRECT SEND METHOD
-  void sendMessage({required String groupId, required String text}) {
+  void sendMessage({required String groupId, required String text, int? replyToId}) {
     if (!isConnected || stompClient == null || _groupId == null) {
       print("⚠️ NOT CONNECTED YET");
       return;
@@ -91,6 +91,7 @@ class ChatService {
       "mediaUrl": null,
       "messageType": "TEXT",
       "uuid": DateTime.now().millisecondsSinceEpoch.toString(),
+      "replyToId": replyToId,
     };
 
     print("🚀 SENDING: $message");

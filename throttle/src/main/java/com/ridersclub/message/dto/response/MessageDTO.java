@@ -19,5 +19,9 @@ public class MessageDTO {
     private String messageType;
 
     private String uuid;
+    private Long id;
     private Long replyToId;
+    private String replyToUuid;
+    private String replyToSenderName;
+    private String replyToMessage;
 }

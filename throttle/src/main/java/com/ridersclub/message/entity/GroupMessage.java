@@ -49,7 +49,7 @@ public class GroupMessage {
 
     // reply feature (future ready)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reply_to_id")
+    @JoinColumn(name = "reply_to_message_id")
     private GroupMessage replyTo;
 
     private LocalDateTime createdAt;
