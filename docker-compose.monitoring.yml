@@ -1,0 +1,124 @@
+version: '3.8'
+
+# Optional Dev/Monitoring Stack: Kafka-UI, ELK Stack, Prometheus, Grafana, Loki, Promtail
+# To run alongside main docker-compose: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+
+services:
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: throttle-kafka-ui
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    networks:
+      - throttle-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: throttle-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    networks:
+      - throttle-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.2
+    container_name: throttle-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - throttle-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.10.2
+    container_name: throttle-logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    depends_on:
+      - elasticsearch
+    networks:
+      - throttle-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: throttle-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - throttle-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: throttle-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_FEATURE_TOGGLES_ENABLE=lokiLive
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/etc/grafana/provisioning/dashboards/platform-overview.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+    networks:
+      - throttle-network
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: throttle-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - throttle-network
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: throttle-promtail
+    restart: unless-stopped
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./throttle/logs:/app/logs:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - throttle-network
+
+volumes:
+  loki_data:
+  grafana_data:
