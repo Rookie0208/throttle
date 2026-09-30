@@ -158,3 +158,6 @@ The Super Admin Portal is a web-based dashboard for administrative controls and 
 
 The admin portal will start at:
 http://localhost:5173
+
+how to run docker compose (new)
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
