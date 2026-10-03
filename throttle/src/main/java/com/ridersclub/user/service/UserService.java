@@ -302,15 +302,16 @@ public class UserService {
 
     private void applyVisibility(UserProfileResponse response, String visibilityMode) {
         response.setPublicMessage(null);
-        response.setEmergencyContacts(null);
-        response.setBloodGroup(null);
-        response.setAllergies(null);
-        response.setCurrentMedication(null);
         response.setEmail(null);
 
         if ("self".equals(visibilityMode)) {
             return;
         }
+
+        response.setEmergencyContacts(null);
+        response.setBloodGroup(null);
+        response.setAllergies(null);
+        response.setCurrentMedication(null);
 
         response.setTodayRide(null);
         response.setUpcomingRide(null);
