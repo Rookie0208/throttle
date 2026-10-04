@@ -10,10 +10,10 @@ import 'package:throttle_ui/features/settings/presentation/screens/message_setti
 import 'package:throttle_ui/features/settings/presentation/screens/notification_preferences_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/privacy_settings_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/privacy_policy_screen.dart';
-import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/widgets/app_list_group.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -47,6 +47,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     }
+  }
+
+  void _showSubscriptionComingSoon() {
+    final theme = _themeController.theme;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: theme.surface,
+          title: Text(
+            "Coming soon",
+            style: GoogleFonts.lexend(
+              color: theme.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            "We will shortly introduce pricing plans and subscriptions. "
+            "Thanks for riding with Throttle — stay tuned!",
+            style: GoogleFonts.plusJakartaSans(
+              color: theme.textPrimary.withValues(alpha: 0.75),
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(
+                "OK",
+                style: TextStyle(
+                  color: theme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _openThemePicker() async {
@@ -134,28 +173,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-                    ...ThemeController.presets.map((preset) {
-                      final isSelected =
-                          _themeController.theme.preset == preset.preset;
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: theme.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isSelected
-                                ? theme.primary
-                                : const Color(0x52B8C6DA),
+                    AppListGroup(
+                      margin: EdgeInsets.zero,
+                      dividerIndent: 0,
+                      children: ThemeController.presets.map((preset) {
+                        final isSelected =
+                            _themeController.theme.preset == preset.preset;
+                        return ListTile(
+                          selected: isSelected,
+                          selectedTileColor: theme.primary.withValues(
+                            alpha: 0.08,
                           ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x12191B22),
-                              blurRadius: 20,
-                              offset: Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: ListTile(
                           title: Text(
                             preset.label,
                             style: GoogleFonts.lexend(
@@ -184,9 +212,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             Navigator.pop(sheetContext);
                             setState(() {});
                           },
-                        ),
-                      );
-                    }),
+                        );
+                      }).toList(),
+                    ),
                     const SizedBox(height: 14),
                     Text(
                       "Custom Theme",
@@ -243,8 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
     );
   }
 
@@ -304,8 +331,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         decoration: BoxDecoration(
                           color: theme.surface,
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: const Color(0x52B8C6DA)),
-                        ),
+                                                  ),
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
                           onTap: _openThemePicker,
@@ -384,11 +410,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         alpha: 0.12,
                                       ),
                                       borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: theme.primary.withValues(
-                                          alpha: 0.2,
-                                        ),
-                                      ),
                                     ),
                                     child: Text(
                                       "Change Theme",
@@ -405,167 +426,176 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                       ),
-                      _settingsTile(
-                        icon: Icons.notifications_outlined,
-                        title: "Notifications",
-                        subtitle: "Manage alerts",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const NotificationPreferencesScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _settingsTile(
-                        icon: Icons.message_outlined,
-                        title: "Messages",
-                        subtitle: "Chat settings",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MessageSettingsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _settingsTile(
-                        icon: Icons.people_outline_rounded,
-                        title: "Friends",
-                        subtitle: "Manage connections",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const FriendsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _settingsTile(
-                        icon: Icons.contact_phone_outlined,
-                        title: "Emergency Contacts",
-                        subtitle: "Add up to 3 contacts",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const EmergencyContactsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _settingsTile(
-                        icon: Icons.medical_information_outlined,
-                        title: "Medical Info",
-                        subtitle: "Blood group, allergies, medication",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MedicalInfoScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _settingsTile(
-                        icon: Icons.two_wheeler_outlined,
-                        title: "My Bikes",
-                        subtitle: "Add or edit bikes",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const BikeManagementScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _settingsTile(
-                        icon: Icons.groups_2_outlined,
-                        title: "Join our WhatsApp community",
-                        subtitle: "Open rider community link",
-                        theme: theme,
-                        onTap: _openWhatsAppCommunity,
-                      ),
-                      _settingsTile(
-                        icon: Icons.shield_outlined,
-                        title: "Privacy",
-                        subtitle: "Data & security",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PrivacySettingsScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      _settingsTile(
-                        icon: Icons.policy_outlined,
-                        title: "Privacy Policy",
-                        subtitle: "Read how your data is handled",
-                        theme: theme,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PrivacyPolicyScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      ListTile(
-                        leading: Icon(
-                          Icons.workspace_premium,
-                          color: theme.primary,
-                        ),
-                        title: Text(
-                          "Subscription",
-                          style: TextStyle(
-                            color: theme.textPrimary,
-                            fontWeight: FontWeight.w600,
+                      AppListGroup(
+                        children: [
+                          _settingsTile(
+                            icon: Icons.notifications_outlined,
+                            title: "Notifications",
+                            subtitle: "Manage alerts",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const NotificationPreferencesScreen(),
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                        subtitle: Text(
-                          "Manage your subscription plan",
-                          style: TextStyle(
-                            color: theme.textPrimary.withValues(alpha: 0.6),
-                            fontSize: 12,
+                          _settingsTile(
+                            icon: Icons.message_outlined,
+                            title: "Messages",
+                            subtitle: "Chat settings",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MessageSettingsScreen(),
+                                ),
+                              );
+                            },
                           ),
-                        ),
-                        trailing: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => SubscriptionScreen(
-                                  onClose: () => Navigator.pop(context),
+                          _settingsTile(
+                            icon: Icons.people_outline_rounded,
+                            title: "Friends",
+                            subtitle: "Manage connections",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FriendsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _settingsTile(
+                            icon: Icons.contact_phone_outlined,
+                            title: "Emergency Contacts",
+                            subtitle: "Add up to 3 contacts",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const EmergencyContactsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _settingsTile(
+                            icon: Icons.medical_information_outlined,
+                            title: "Medical Info",
+                            subtitle: "Blood group, allergies, medication",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const MedicalInfoScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _settingsTile(
+                            icon: Icons.two_wheeler_outlined,
+                            title: "My Bikes",
+                            subtitle: "Add or edit bikes",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const BikeManagementScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _settingsTile(
+                            icon: Icons.groups_2_outlined,
+                            title: "Join our WhatsApp community",
+                            subtitle: "Open rider community link",
+                            theme: theme,
+                            onTap: _openWhatsAppCommunity,
+                          ),
+                          _settingsTile(
+                            icon: Icons.shield_outlined,
+                            title: "Privacy",
+                            subtitle: "Data & security",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const PrivacySettingsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          _settingsTile(
+                            icon: Icons.policy_outlined,
+                            title: "Privacy Policy",
+                            subtitle: "Read how your data is handled",
+                            theme: theme,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const PrivacyPolicyScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      AppListGroup(
+                        children: [
+                          ListTile(
+                            leading: Icon(
+                              Icons.workspace_premium,
+                              color: theme.primary,
+                            ),
+                            title: Text(
+                              "Subscription",
+                              style: TextStyle(
+                                color: theme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              "Pricing plans coming soon",
+                              style: TextStyle(
+                                color: theme.textPrimary.withValues(alpha: 0.6),
+                                fontSize: 12,
+                              ),
+                            ),
+                            trailing: ElevatedButton(
+                              onPressed: _showSubscriptionComingSoon,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.textPrimary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                foregroundColor: theme.textPrimary.withValues(
+                                  alpha: 0.45,
+                                ),
+                                disabledBackgroundColor:
+                                    theme.textPrimary.withValues(alpha: 0.1),
+                                disabledForegroundColor:
+                                    theme.textPrimary.withValues(alpha: 0.45),
+                                minimumSize: const Size(80, 36),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(80, 36),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              child: const Text("Manage"),
                             ),
                           ),
-                          child: const Text("Manage"),
-                        ),
+                        ],
                       ),
                     ],
                   ),

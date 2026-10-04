@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/widgets/app_list_group.dart';
 import 'package:throttle_ui/features/settings/data/controllers/settings_preferences_controller.dart';
 
 class PrivacySettingsScreen extends StatefulWidget {
@@ -46,37 +47,42 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
               children: [
                 _header(theme),
                 const SizedBox(height: 16),
-                _toggleTile(
-                  theme: theme,
-                  title: 'Private profile',
-                  subtitle:
-                      'Hide your profile details from riders who are not connected with you.',
-                  value: _prefs.privateProfile,
-                  onChanged: _prefs.setPrivateProfile,
-                ),
-                _toggleTile(
-                  theme: theme,
-                  title: 'Discoverable in search',
-                  subtitle:
-                      'Let other riders find you by rider ID or profile search.',
-                  value: _prefs.discoverableProfile,
-                  onChanged: _prefs.setDiscoverableProfile,
-                ),
-                _toggleTile(
-                  theme: theme,
-                  title: 'Share ride activity',
-                  subtitle:
-                      'Show recent rides and activity summaries on your profile.',
-                  value: _prefs.shareRideActivity,
-                  onChanged: _prefs.setShareRideActivity,
-                ),
-                _toggleTile(
-                  theme: theme,
-                  title: 'Show ride stats',
-                  subtitle:
-                      'Display totals like distance, streaks, and ride counts.',
-                  value: _prefs.showRideStats,
-                  onChanged: _prefs.setShowRideStats,
+                AppListGroup(
+                  dividerIndent: 16,
+                  children: [
+                    _toggleTile(
+                      theme: theme,
+                      title: 'Private profile',
+                      subtitle:
+                          'Hide your profile details from riders who are not connected with you.',
+                      value: _prefs.privateProfile,
+                      onChanged: _prefs.setPrivateProfile,
+                    ),
+                    _toggleTile(
+                      theme: theme,
+                      title: 'Discoverable in search',
+                      subtitle:
+                          'Let other riders find you by rider ID or profile search.',
+                      value: _prefs.discoverableProfile,
+                      onChanged: _prefs.setDiscoverableProfile,
+                    ),
+                    _toggleTile(
+                      theme: theme,
+                      title: 'Share ride activity',
+                      subtitle:
+                          'Show recent rides and activity summaries on your profile.',
+                      value: _prefs.shareRideActivity,
+                      onChanged: _prefs.setShareRideActivity,
+                    ),
+                    _toggleTile(
+                      theme: theme,
+                      title: 'Show ride stats',
+                      subtitle:
+                          'Display totals like distance, streaks, and ride counts.',
+                      value: _prefs.showRideStats,
+                      onChanged: _prefs.setShowRideStats,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -92,8 +98,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -125,31 +130,23 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
-      child: SwitchListTile(
-        value: value,
-        onChanged: onChanged,
-        activeThumbColor: Colors.white,
-        activeTrackColor: theme.primary,
-        title: Text(
-          title,
-          style: TextStyle(
-            color: theme.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
+    return SwitchListTile(
+      value: value,
+      onChanged: onChanged,
+      activeThumbColor: Colors.white,
+      activeTrackColor: theme.primary,
+      title: Text(
+        title,
+        style: TextStyle(
+          color: theme.textPrimary,
+          fontWeight: FontWeight.w600,
         ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: theme.textPrimary.withValues(alpha: 0.65),
-            fontSize: 12,
-          ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: theme.textPrimary.withValues(alpha: 0.65),
+          fontSize: 12,
         ),
       ),
     );

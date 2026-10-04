@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
+import 'package:throttle_ui/features/bikes/presentation/bike_display_formatters.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
 
@@ -101,27 +102,11 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
     );
   }
 
-  String _bikeTitle(Map<String, dynamic> bike) {
-    final year = bike['year']?.toString() ?? '';
-    final brand = (bike['brand'] ?? bike['make'] ?? bike['title'] ?? '')
-        .toString();
-    final model = (bike['model'] ?? '').toString();
-    final variant = (bike['variant'] ?? '').toString();
-    return [year, brand, model, variant]
-        .where((part) => part.trim().isNotEmpty)
-        .join(' ');
-  }
+  String _bikeTitle(Map<String, dynamic> bike) =>
+      BikeDisplayFormatters.title(bike);
 
-  String _bikeSubtitle(Map<String, dynamic> bike) {
-    final category = (bike['category'] ?? '').toString();
-    final type = (bike['bikeType'] ?? bike['type'] ?? '').toString();
-    final engineCc = bike['engineCc']?.toString();
-    return [
-      if (category.isNotEmpty) category,
-      if (type.isNotEmpty) type,
-      if (engineCc != null && engineCc.isNotEmpty) '${engineCc}cc',
-    ].join(' • ');
-  }
+  String _bikeSubtitle(Map<String, dynamic> bike) =>
+      BikeDisplayFormatters.subtitle(bike);
 
   Future<void> _removeBike(Map<String, dynamic> bike) async {
     final bikeId = int.tryParse((bike['id'] ?? '').toString());
@@ -375,8 +360,7 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0x52B8C6DA)),
-        ),
+                  ),
         child: Row(
           children: [
             Expanded(
@@ -837,8 +821,7 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
+                                                      ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -880,8 +863,7 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
                             decoration: BoxDecoration(
                               color: theme.surface,
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: const Color(0x52B8C6DA)),
-                            ),
+                                                          ),
                             child: Text(
                               'No bikes registered yet. Use Add Bike to build your garage.',
                               style: TextStyle(

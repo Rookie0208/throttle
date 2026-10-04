@@ -393,8 +393,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       decoration: BoxDecoration(
                         color: theme.surface,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0x52B8C6DA)),
-                      ),
+                                              ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedRole,
@@ -728,8 +727,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 decoration: BoxDecoration(
                   color: theme.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0x52B8C6DA)),
-                ),
+                                  ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -823,8 +821,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       ? theme.surface
                       : theme.surface.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0x52B8C6DA)),
-                ),
+                                  ),
                 child: Icon(
                   icon,
                   color: enabled
@@ -862,8 +859,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1119,8 +1115,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x52B8C6DA)),
-        ),
+                  ),
         child: Row(
           children: [
             Icon(icon, color: theme.primary, size: 18),
@@ -1370,8 +1365,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   decoration: BoxDecoration(
                     color: theme.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0x52B8C6DA)),
-                  ),
+                                      ),
                   child: Text(
                     "Only riders with the CAPTAIN or ADMIN role can assign roles or remove members.",
                     style: TextStyle(
@@ -1524,8 +1518,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               decoration: BoxDecoration(
                 color: theme.surface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0x52B8C6DA)),
-              ),
+                              ),
               child: ListTile(
                 onTap: () =>
                     _openSubGroupInfo(Map<String, dynamic>.from(subgroup)),
@@ -1613,8 +1606,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x52B8C6DA)),
-        ),
+                  ),
         child: Column(
           children: [
             Icon(icon, color: theme.primary),
@@ -1906,8 +1898,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       decoration: BoxDecoration(
                         color: theme.surface,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: const Color(0x52B8C6DA)),
-                      ),
+                                              ),
                       child: Text(
                         "Add meeting point, checkpoints, rules, notes, and ride setup details here.",
                         style: TextStyle(
@@ -3061,8 +3052,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
+                                                      ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -3569,8 +3559,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Row(
         children: [
           Icon(Icons.location_on, color: theme.primary),
@@ -3596,8 +3585,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Row(
         children: [
           Icon(Icons.location_on, color: theme.primary),
@@ -3811,8 +3799,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       decoration: BoxDecoration(
                         color: theme.surface,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0x52B8C6DA)),
-                      ),
+                                              ),
                       child: Text(
                         description ?? "Add group description",
                         style: TextStyle(

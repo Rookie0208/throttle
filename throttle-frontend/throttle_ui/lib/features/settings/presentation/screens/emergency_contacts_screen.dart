@@ -183,8 +183,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         decoration: BoxDecoration(
                           color: theme.surface,
                           borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: const Color(0x52B8C6DA)),
-                        ),
+                                                  ),
                         child: Form(
                           key: _formKey,
                           child: Column(
@@ -308,8 +307,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
+                                                      ),
                           child: Text(
                             'No emergency contacts saved yet.',
                             style: GoogleFonts.plusJakartaSans(
@@ -324,8 +322,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
+                                                      ),
                           child: Row(
                             children: [
                               Expanded(

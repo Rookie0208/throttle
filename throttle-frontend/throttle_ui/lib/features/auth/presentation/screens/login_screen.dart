@@ -563,8 +563,7 @@ class _SocialSyncCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0x52B8C6DA)),
-          boxShadow: [
+                    boxShadow: [
             BoxShadow(
               color: theme.textPrimary.withValues(alpha: 0.08),
               blurRadius: 15,

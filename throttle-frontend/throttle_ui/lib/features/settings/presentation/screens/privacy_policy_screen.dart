@@ -96,8 +96,7 @@ class _PolicySection extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

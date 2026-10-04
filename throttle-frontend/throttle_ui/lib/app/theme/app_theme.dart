@@ -178,9 +178,10 @@ class AppTheme {
       listTileTheme: ListTileThemeData(
         iconColor: config.textPrimary,
         textColor: config.textPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(isCartoon ? 24 : 20),
-          side: BorderSide(color: borderSoft, width: isCartoon ? 3 : 0),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        minVerticalPadding: 10,
+        shape: const RoundedRectangleBorder(
+          side: BorderSide.none,
         ),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
@@ -188,7 +189,7 @@ class AppTheme {
         linearTrackColor: surfaceColor,
       ),
       iconTheme: IconThemeData(color: config.textPrimary),
-      dividerColor: border,
+      dividerColor: borderSoft.withValues(alpha: isCartoon ? 0.55 : 0.35),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: config.primary,
         selectionColor: config.primary.withValues(alpha: 0.18),
