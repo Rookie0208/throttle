@@ -1,11 +1,5 @@
 package com.ridersclub.bike.service;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -468,6 +462,7 @@ public class BikeRegistryService {
     }
 
     private List<BikeMasterAdminRequest> loadSeedCatalog() {
+        ObjectMapper objectMapper = new ObjectMapper();
         try (InputStream input = new ClassPathResource("data/bike-master-catalog.json").getInputStream()) {
             List<BikeMasterAdminRequest> loaded = objectMapper.readValue(input, new TypeReference<>() {});
             if (loaded != null && !loaded.isEmpty()) {

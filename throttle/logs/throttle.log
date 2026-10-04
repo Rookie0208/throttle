@@ -1,0 +1,74 @@
+2026-09-27 20:37:16.412 INFO  [background-preinit] [n/a] o.h.validator.internal.util.Version (Version.java:18) - HV000001: Hibernate Validator 9.0.1.Final
+2026-09-27 20:37:16.517 INFO  [main] [n/a] c.r.throttle.ThrottleApplication (StartupInfoLogger.java:54) - Starting ThrottleApplication using Java 18.0.2.1 with PID 80116 (/Users/amit/Documents/rookie/gitcode/throttle/throttle/target/classes started by amit in /Users/amit/Documents/rookie/gitcode/throttle/throttle)
+2026-09-27 20:37:16.518 INFO  [main] [n/a] c.r.throttle.ThrottleApplication (SpringApplication.java:652) - No active profile set, falling back to 1 default profile: "default"
+2026-09-27 20:37:17.885 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:291) - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-09-27 20:37:17.887 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:145) - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-09-27 20:37:18.098 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:213) - Finished Spring Data repository scanning in 199 ms. Found 17 JPA repository interfaces.
+2026-09-27 20:37:18.101 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:291) - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-09-27 20:37:18.101 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:145) - Bootstrapping Spring Data Neo4j repositories in DEFAULT mode.
+2026-09-27 20:37:18.115 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:213) - Finished Spring Data repository scanning in 4 ms. Found 1 Neo4j repository interface.
+2026-09-27 20:37:18.461 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:291) - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-09-27 20:37:18.461 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:145) - Bootstrapping Spring Data Neo4j repositories in DEFAULT mode.
+2026-09-27 20:37:18.474 INFO  [main] [n/a] o.s.d.r.c.RepositoryConfigurationDelegate (RepositoryConfigurationDelegate.java:213) - Finished Spring Data repository scanning in 10 ms. Found 0 Neo4j repository interfaces.
+2026-09-27 20:37:19.467 INFO  [main] [n/a] o.s.boot.tomcat.TomcatWebServer (TomcatWebServer.java:114) - Tomcat initialized with port 8080 (http)
+2026-09-27 20:37:19.488 INFO  [main] [n/a] o.a.coyote.http11.Http11NioProtocol (DirectJDKLog.java:168) - Initializing ProtocolHandler ["http-nio-8080"]
+2026-09-27 20:37:19.489 INFO  [main] [n/a] o.a.catalina.core.StandardService (DirectJDKLog.java:168) - Starting service [Tomcat]
+2026-09-27 20:37:19.489 INFO  [main] [n/a] o.a.catalina.core.StandardEngine (DirectJDKLog.java:168) - Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-09-27 20:37:19.557 INFO  [main] [n/a] o.s.b.w.c.s.WebApplicationContextInitializer (WebApplicationContextInitializer.java:77) - Root WebApplicationContext: initialization completed in 2920 ms
+2026-09-27 20:37:19.769 WARN  [main] [n/a] i.n.r.d.DnsServerAddressStreamProviders (DnsServerAddressStreamProviders.java:70) - Can not find io.netty.resolver.dns.macos.MacOSDnsServerAddressStreamProvider in the classpath, fallback to system defaults. This may result in incorrect DNS resolutions on MacOS. Check whether you have a dependency on 'io.netty:netty-resolver-dns-native-macos'
+2026-09-27 20:37:20.327 INFO  [main] [n/a] o.s.b.web.servlet.RegistrationBean (RegistrationBean.java:49) - Filter jwtAuthFilterRegistration was not registered (disabled)
+2026-09-27 20:37:20.330 INFO  [main] [n/a] o.s.b.web.servlet.RegistrationBean (RegistrationBean.java:49) - Filter traceIdFilterRegistration was not registered (disabled)
+2026-09-27 20:37:20.633 INFO  [main] [n/a] org.hibernate.orm.jpa (LogHelper.java:102) - HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-09-27 20:37:20.769 INFO  [main] [n/a] org.hibernate.orm.core (Version.java:41) - HHH000001: Hibernate ORM core version 7.2.1.Final
+2026-09-27 20:37:23.318 INFO  [main] [n/a] o.s.o.j.p.SpringPersistenceUnitInfo (SpringPersistenceUnitInfo.java:128) - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-09-27 20:37:23.756 INFO  [main] [n/a] com.zaxxer.hikari.HikariDataSource (HikariDataSource.java:109) - HikariPool-1 - Starting...
+2026-09-27 20:37:24.609 INFO  [main] [n/a] com.zaxxer.hikari.pool.HikariPool (HikariPool.java:580) - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1c06f19c
+2026-09-27 20:37:24.614 INFO  [main] [n/a] com.zaxxer.hikari.HikariDataSource (HikariDataSource.java:122) - HikariPool-1 - Start completed.
+2026-09-27 20:37:24.862 INFO  [main] [n/a] o.hibernate.orm.connections.pooling (JdbcEnvironmentInitiator.java:179) - HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5433/throttleDB]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 16.12
+	Default catalog/schema: throttleDB/public
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-09-27 20:37:27.470 INFO  [main] [n/a] org.hibernate.orm.core (JtaPlatformInitiator.java:53) - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-09-27 20:37:29.621 WARN  [main] [n/a] org.hibernate.orm.jdbc.warn (SqlExceptionHelper.java:250) - HHH000247: ErrorCode: 0, SQLState: 00000
+2026-09-27 20:37:29.629 WARN  [main] [n/a] org.hibernate.orm.jdbc.warn (SqlExceptionHelper.java:251) - constraint "uk3mdcplktsub3bd9b7rl6ro7bf" of relation "club" does not exist, skipping
+2026-09-27 20:37:30.641 INFO  [main] [n/a] o.s.o.j.LocalContainerEntityManagerFactoryBean (AbstractEntityManagerFactoryBean.java:444) - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-09-27 20:37:31.052 INFO  [main] [n/a] o.s.d.j.r.q.QueryEnhancerFactories (QueryEnhancerFactories.java:48) - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-09-27 20:37:33.374 INFO  [main] [n/a] o.n.driver.internal.DriverFactory (LoggingProviderImpl.java:230) - Driver instance 1946386331 created for server uri 'bolt://localhost:7687'
+2026-09-27 20:37:33.471 INFO  [main] [n/a] c.r.config.LoggingInitializer (LoggingInitializer.java:31) - Backend logs are configured for file: /Users/amit/Documents/rookie/gitcode/throttle/throttle/logs/throttle.log
+2026-09-27 20:37:34.401 WARN  [main] [n/a] o.s.b.j.a.JpaBaseConfiguration$JpaWebConfiguration (JpaBaseConfiguration.java:247) - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-09-27 20:37:34.588 WARN  [main] [n/a] o.s.b.s.a.UserDetailsServiceAutoConfiguration (UserDetailsServiceAutoConfiguration.java:83) - 
+
+Using generated security password: 097ee706-97fe-4e13-8b9b-54e48138ea25
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-09-27 20:37:34.612 INFO  [main] [n/a] o.s.s.c.a.a.c.InitializeUserDetailsBeanManagerConfigurer$InitializeUserDetailsManagerConfigurer (InitializeUserDetailsBeanManagerConfigurer.java:110) - Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-09-27 20:37:40.854 INFO  [main] [n/a] o.s.m.s.b.SimpleBrokerMessageHandler (CompositeLog.java:117) - Starting...
+2026-09-27 20:37:40.862 INFO  [main] [n/a] o.s.m.s.b.SimpleBrokerMessageHandler (CompositeLog.java:117) - BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@3c02b068]]
+2026-09-27 20:37:40.863 INFO  [main] [n/a] o.s.m.s.b.SimpleBrokerMessageHandler (CompositeLog.java:117) - Started.
+2026-09-27 20:37:40.877 INFO  [main] [n/a] o.a.coyote.http11.Http11NioProtocol (DirectJDKLog.java:168) - Starting ProtocolHandler ["http-nio-8080"]
+2026-09-27 20:37:40.905 INFO  [main] [n/a] o.s.boot.tomcat.TomcatWebServer (TomcatWebServer.java:240) - Tomcat started on port 8080 (http) with context path '/'
+2026-09-27 20:37:40.917 INFO  [main] [n/a] c.r.throttle.ThrottleApplication (StartupInfoLogger.java:60) - Started ThrottleApplication in 25.375 seconds (process running for 26.726)
+2026-09-27 20:37:41.232 INFO  [main] [n/a] c.r.u.config.UserRiderIdInitializer (UserRiderIdInitializer.java:43) - USER_INIT action=backfill_rider_ids updatedUsers=0
+2026-09-27 20:38:43.490 INFO  [MessageBroker-1] [n/a] o.s.w.s.c.WebSocketMessageBrokerStats (WebSocketMessageBrokerStats.java:147) - WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+2026-09-27 20:39:54.278 INFO  [http-nio-8080-exec-1] [n/a] o.a.tomcat.util.http.parser.Cookie (DirectJDKLog.java:168) - A cookie header was received [g_state={"i_l":0,"i_ll":1777725219699,"i_e":{"enable_itp_optimization":19},"i_t":1773078395428,"i_b":"bEW0p/d24L69a50ItmevlTvQ7QD2E/mUhavjl2CMw+8","i_et":1777725219657}] that contained an invalid cookie. That cookie will be ignored.
+ Note: further occurrences of this error will be logged at DEBUG level.
+2026-09-27 20:39:54.511 INFO  [http-nio-8080-exec-1] [n/a] o.a.c.c.C.[Tomcat].[localhost].[/] (DirectJDKLog.java:168) - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-09-27 20:39:54.517 INFO  [http-nio-8080-exec-1] [n/a] o.s.web.servlet.DispatcherServlet (FrameworkServlet.java:523) - Initializing Servlet 'dispatcherServlet'
+2026-09-27 20:39:54.850 INFO  [http-nio-8080-exec-1] [n/a] o.s.web.servlet.DispatcherServlet (FrameworkServlet.java:545) - Completed initialization in 330 ms
+2026-09-27 20:42:52.754 INFO  [SpringApplicationShutdownHook] [n/a] o.s.boot.tomcat.GracefulShutdown (GracefulShutdown.java:54) - Commencing graceful shutdown. Waiting for active requests to complete
+2026-09-27 20:42:52.909 INFO  [tomcat-shutdown] [n/a] o.s.boot.tomcat.GracefulShutdown (GracefulShutdown.java:76) - Graceful shutdown complete
+2026-09-27 20:42:53.127 INFO  [SpringApplicationShutdownHook] [n/a] o.s.m.s.b.SimpleBrokerMessageHandler (CompositeLog.java:117) - Stopping...
+2026-09-27 20:42:53.167 INFO  [SpringApplicationShutdownHook] [n/a] o.s.m.s.b.SimpleBrokerMessageHandler (CompositeLog.java:117) - BrokerAvailabilityEvent[available=false, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@3c02b068]]
+2026-09-27 20:42:53.169 INFO  [SpringApplicationShutdownHook] [n/a] o.s.m.s.b.SimpleBrokerMessageHandler (CompositeLog.java:117) - Stopped.
+2026-09-27 20:42:53.984 INFO  [SpringApplicationShutdownHook] [n/a] o.s.o.j.LocalContainerEntityManagerFactoryBean (AbstractEntityManagerFactoryBean.java:667) - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-09-27 20:42:54.264 INFO  [SpringApplicationShutdownHook] [n/a] com.zaxxer.hikari.HikariDataSource (HikariDataSource.java:349) - HikariPool-1 - Shutdown initiated...
+2026-09-27 20:42:54.293 INFO  [SpringApplicationShutdownHook] [n/a] com.zaxxer.hikari.HikariDataSource (HikariDataSource.java:351) - HikariPool-1 - Shutdown completed.

@@ -56,6 +56,7 @@ dependencies:
   url_launcher: ^6.3.1
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.3
   flutter_test:
     sdk: flutter
 
@@ -108,3 +109,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.jpg"
+  adaptive_icon_background: "#FFFFFF"   # or your brand color
+  adaptive_icon_foreground: "assets/icon/app_icon.jpg"

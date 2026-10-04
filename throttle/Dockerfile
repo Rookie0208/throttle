@@ -14,8 +14,9 @@ RUN mvn clean package -DskipTests
 FROM eclipse-temurin:17-jre
 WORKDIR /app
 
-# Create non-root user for security
-RUN groupadd -r spring && useradd -r -g spring spring
+# Create non-root user for security and configure log directory
+RUN groupadd -r spring && useradd -r -g spring spring && \
+    mkdir -p /app/logs && chown -R spring:spring /app/logs
 USER spring:spring
 
 COPY --from=builder /app/target/*.jar app.jar

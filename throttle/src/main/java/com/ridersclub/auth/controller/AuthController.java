@@ -43,11 +43,11 @@ public class AuthController {
     private final JwtService jwtService;
     private final SystemResourceService resourceService;
 
-    public AuthController(AuthService authService, 
-                          TokenBlacklistService tokenBlacklistService,
-                          RefreshTokenService refreshTokenService,
-                          JwtService jwtService,
-                          SystemResourceService resourceService) {
+    public AuthController(AuthService authService,
+            TokenBlacklistService tokenBlacklistService,
+            RefreshTokenService refreshTokenService,
+            JwtService jwtService,
+            SystemResourceService resourceService) {
         this.authService = authService;
         this.tokenBlacklistService = tokenBlacklistService;
         this.refreshTokenService = refreshTokenService;
@@ -76,10 +76,10 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Boolean>> logout(
             @Valid @RequestBody LogoutRequest logoutRequest,
             HttpServletRequest request) {
-        
+
         String authHeader = request.getHeader("Authorization");
         String bearerToken = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
-        
+
         if (bearerToken != null) {
             try {
                 java.util.Date expiration = jwtService.parse(bearerToken).getBody().getExpiration();
@@ -90,43 +90,47 @@ public class AuthController {
                 log.warn("Failed to blacklist access token during logout: {}", e.getMessage());
             }
         }
-        
+
         try {
-            com.ridersclub.auth.entity.RefreshToken token = refreshTokenService.findByToken(logoutRequest.getRefreshToken())
+            com.ridersclub.auth.entity.RefreshToken token = refreshTokenService
+                    .findByToken(logoutRequest.getRefreshToken())
                     .orElseThrow(() -> new RuntimeException("Refresh token not found"));
             refreshTokenService.deleteByToken(token);
             log.info("Refresh token invalidated successfully during logout");
         } catch (Exception e) {
             log.warn("Failed to invalidate refresh token during logout: {}", e.getMessage());
         }
-        
+
         return ResponseEntity.ok(ApiResponse.success(true, "User logged out securely"));
     }
 
     @PostMapping(ApiConstants.Auth.REFRESH)
     public ResponseEntity<ApiResponse<TokenRefreshResponse>> refreshToken(
             @Valid @RequestBody TokenRefreshRequest request) {
-        
+
         String requestRefreshToken = request.getRefreshToken();
         log.info("Processing token refresh request");
-        
+
         return refreshTokenService.findByToken(requestRefreshToken)
                 .map(refreshTokenService::verifyExpiration)
                 .map(com.ridersclub.auth.entity.RefreshToken::getUser)
                 .map(user -> {
                     if (!user.isActive()) {
                         log.warn("Blocked user {} attempted to refresh token", user.getUuid());
-                        throw new com.ridersclub.common.exception.InvalidCredentialsException("Account is blocked. Please contact support.");
+                        throw new com.ridersclub.common.exception.InvalidCredentialsException(
+                                "Account is blocked. Please contact support.");
                     }
                     // Refresh Token Rotation: Delete old one, create new one
                     log.debug("Rotating refresh token for user UUID: {}", user.getUuid());
                     refreshTokenService.deleteByToken(refreshTokenService.findByToken(requestRefreshToken).get());
-                    com.ridersclub.auth.entity.RefreshToken newRefreshToken = refreshTokenService.createRefreshToken(user.getId());
-                    
+                    com.ridersclub.auth.entity.RefreshToken newRefreshToken = refreshTokenService
+                            .createRefreshToken(user.getId());
+
                     long expiresIn = 900L; // 15 mins
                     String roleValue = user.getRole() != null ? user.getRole().name() : "RIDER";
-                    String newAccessToken = jwtService.generate(user.getUuid().toString(), java.util.Map.of("roles", roleValue), expiresIn);
-                    
+                    String newAccessToken = jwtService.generate(user.getUuid().toString(),
+                            java.util.Map.of("roles", roleValue), expiresIn);
+
                     log.info("Tokens successfully refreshed and rotated for user");
                     return ResponseEntity.ok(ApiResponse.success(
                             new TokenRefreshResponse(newAccessToken, newRefreshToken.getToken(), expiresIn),
@@ -134,7 +138,8 @@ public class AuthController {
                 })
                 .orElseThrow(() -> {
                     log.error("Refresh token rejected or not found in database");
-                    return new com.ridersclub.common.exception.InvalidCredentialsException("Refresh token is invalid or expired. Please login again.");
+                    return new com.ridersclub.common.exception.InvalidCredentialsException(
+                            "Refresh token is invalid or expired. Please login again.");
                 });
     }
 
@@ -172,6 +177,7 @@ public class AuthController {
 
     @GetMapping("/features")
     public ResponseEntity<ApiResponse<Map<String, Boolean>>> getFeatureFlags() {
-        return ResponseEntity.ok(ApiResponse.success(resourceService.getFeatureFlags(), "Feature flags retrieved successfully"));
+        return ResponseEntity
+                .ok(ApiResponse.success(resourceService.getFeatureFlags(), "Feature flags retrieved successfully"));
     }
 }

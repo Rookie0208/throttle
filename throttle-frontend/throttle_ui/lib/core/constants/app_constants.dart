@@ -9,7 +9,7 @@ class AppConstants {
       'A powerful tool for managing and optimizing your network traffic.';
 
   static String get apiBaseUrl =>
-      dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1';
+      dotenv.env['API_BASE_URL'] ?? 'http://52.66.165.117:8081/api/v1';
 
   static String get baseUrl {
     final configuredBaseUrl = apiBaseUrl.trim();
@@ -17,12 +17,12 @@ class AppConstants {
       return configuredBaseUrl;
     }
     if (kIsWeb) {
-      return 'http://localhost:8080/api/v1';
+      return 'http://52.66.165.117:8081/api/v1';
     }
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8080/api/v1';
+      return 'http://52.66.165.117:8081/api/v1';
     }
-    return 'http://localhost:8080/api/v1';
+    return 'http://52.66.165.117:8081/api/v1';
   }
 
   static String get webSocketUrl =>
