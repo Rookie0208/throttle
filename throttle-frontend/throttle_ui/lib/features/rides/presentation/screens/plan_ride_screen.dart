@@ -10,6 +10,7 @@ import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
+import 'package:throttle_ui/core/services/location_service.dart';
 
 class PlanRideScreen extends StatefulWidget {
   final String token;
@@ -154,8 +155,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: child,
     );
   }
@@ -492,6 +492,28 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         inviteOptions = [];
         isLoadingInviteOptions = false;
       });
+    }
+  }
+
+  Future<void> _useCurrentLocation() async {
+    try {
+      final pos = await LocationService.getCurrentLocation();
+      if (pos == null) {
+        showError("Location permission denied or service disabled.");
+        return;
+      }
+      final city = await LocationService.getCityName(pos.latitude, pos.longitude);
+      final locationName = city ?? "Current Location";
+      
+      if (!mounted) return;
+      setState(() {
+        startPoint = LatLng(pos.latitude, pos.longitude);
+        resolvedStartQuery = locationName;
+        startLocationController.text = locationName;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      showError("Failed to get current location");
     }
   }
 
@@ -862,8 +884,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -962,9 +983,23 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 subtitle: "Add start and end locations for the ride.",
               ),
               const SizedBox(height: 12),
-              _ModernInputField(
+              _MapboxAutocomplete(
                 controller: startLocationController,
                 hint: "Enter start location",
+                icon: Icons.trip_origin,
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.my_location, color: theme.primary, size: 20),
+                  onPressed: _useCurrentLocation,
+                  tooltip: "Use Current Location",
+                ),
+                theme: theme,
+                mapboxToken: _mapboxPublicToken,
+                onSelected: (point, placeName) {
+                  setState(() {
+                    startPoint = point;
+                    resolvedStartQuery = placeName;
+                  });
+                },
                 onSubmitted: (val) => fetchCoordinates(val, true),
                 onChanged: (_) {
                   setState(() {
@@ -972,14 +1007,20 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     startPoint = null;
                   });
                 },
-                icon: Icons.trip_origin,
-                primaryColor: theme.primary,
-                theme: theme,
               ),
               const SizedBox(height: 10),
-              _ModernInputField(
+              _MapboxAutocomplete(
                 controller: endLocationController,
                 hint: "Enter end location",
+                icon: Icons.flag_outlined,
+                theme: theme,
+                mapboxToken: _mapboxPublicToken,
+                onSelected: (point, placeName) {
+                  setState(() {
+                    endPoint = point;
+                    resolvedEndQuery = placeName;
+                  });
+                },
                 onSubmitted: (val) => fetchCoordinates(val, false),
                 onChanged: (_) {
                   setState(() {
@@ -987,9 +1028,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     endPoint = null;
                   });
                 },
-                icon: Icons.flag_outlined,
-                primaryColor: theme.primary,
-                theme: theme,
               ),
               const SizedBox(height: 12),
               Container(
@@ -998,8 +1036,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0x52B8C6DA)),
-                ),
+                                  ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1083,8 +1120,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0x52B8C6DA)),
-                    ),
+                                          ),
                     child: Row(
                       children: [
                         Container(
@@ -1149,8 +1185,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0x52B8C6DA)),
-                        ),
+                                                  ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1183,8 +1218,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0x52B8C6DA)),
-                        ),
+                                                  ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1230,8 +1264,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0x52B8C6DA)),
-                    ),
+                                          ),
                     child: Row(
                       children: [
                         Container(
@@ -1411,8 +1444,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0x52B8C6DA)),
-              ),
+                              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1534,8 +1566,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(26),
                   ),
-                  border: Border.all(color: const Color(0x52B8C6DA)),
-                ),
+                                  ),
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
@@ -1622,6 +1653,8 @@ class _ModernInputField extends StatefulWidget {
   final IconData? icon;
   final Color primaryColor;
   final AppThemeConfig theme;
+  final FocusNode? focusNode;
+  final Widget? suffixIcon;
 
   const _ModernInputField({
     required this.controller,
@@ -1634,6 +1667,8 @@ class _ModernInputField extends StatefulWidget {
     this.icon,
     required this.primaryColor,
     required this.theme,
+    this.focusNode,
+    this.suffixIcon,
   });
 
   @override
@@ -1681,6 +1716,7 @@ class _ModernInputFieldState extends State<_ModernInputField> {
               Expanded(
                 child: TextField(
                   controller: widget.controller,
+                  focusNode: widget.focusNode,
                   enabled: !widget.disabled,
                   maxLines: widget.maxLines,
                   keyboardType: widget.keyboardType,
@@ -1708,10 +1744,119 @@ class _ModernInputFieldState extends State<_ModernInputField> {
                   onChanged: widget.onChanged,
                 ),
               ),
+              if (widget.suffixIcon != null) ...[
+                widget.suffixIcon!,
+                const SizedBox(width: 4),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MapboxAutocomplete extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final IconData icon;
+  final AppThemeConfig theme;
+  final String mapboxToken;
+  final Function(LatLng point, String placeName) onSelected;
+  final Function(String) onSubmitted;
+  final Function(String) onChanged;
+  final Widget? suffixIcon;
+
+  const _MapboxAutocomplete({
+    required this.controller,
+    required this.hint,
+    required this.icon,
+    required this.theme,
+    required this.mapboxToken,
+    required this.onSelected,
+    required this.onSubmitted,
+    required this.onChanged,
+    this.suffixIcon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RawAutocomplete<Map<String, dynamic>>(
+      textEditingController: controller,
+      focusNode: FocusNode(),
+      optionsBuilder: (textEditingValue) async {
+        final query = textEditingValue.text.trim();
+        if (query.isEmpty || mapboxToken.isEmpty) return const [];
+        try {
+          final url =
+              "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?access_token=$mapboxToken&autocomplete=true&limit=5";
+          final res = await http.get(Uri.parse(url));
+          if (res.statusCode == 200) {
+            final data = json.decode(res.body);
+            return (data['features'] as List).map((f) => f as Map<String, dynamic>);
+          }
+        } catch (_) {}
+        return const [];
+      },
+      displayStringForOption: (option) => option['place_name'] as String,
+      onSelected: (option) {
+        final center = option['center'] as List;
+        final point = LatLng(
+          (center[1] as num).toDouble(),
+          (center[0] as num).toDouble(),
+        );
+        onSelected(point, option['place_name'] as String);
+      },
+      fieldViewBuilder: (context, fieldController, fieldFocusNode, onFieldSubmitted) {
+        return _ModernInputField(
+          controller: fieldController,
+          focusNode: fieldFocusNode,
+          hint: hint,
+          icon: icon,
+          primaryColor: theme.primary,
+          theme: theme,
+          onSubmitted: (val) {
+            onFieldSubmitted();
+            onSubmitted(val);
+          },
+          onChanged: onChanged,
+          suffixIcon: suffixIcon,
+        );
+      },
+      optionsViewBuilder: (context, onSelectedOption, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 8,
+            borderRadius: BorderRadius.circular(12),
+            color: theme.surface,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: 220,
+                maxWidth: MediaQuery.of(context).size.width - 40,
+              ),
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shrinkWrap: true,
+                itemCount: options.length,
+                separatorBuilder: (_, __) => Divider(color: theme.textPrimary.withValues(alpha: 0.1), height: 1),
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    leading: Icon(Icons.location_on, color: theme.primary, size: 20),
+                    title: Text(
+                      option['place_name'] as String,
+                      style: TextStyle(color: theme.textPrimary, fontSize: 13.5),
+                    ),
+                    onTap: () => onSelectedOption(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -473,9 +473,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: colorScheme.primary.withValues(alpha: .24),
-              ),
+
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -555,9 +553,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: colorScheme.primary.withValues(alpha: .24),
-              ),
+
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -699,9 +695,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             decoration: BoxDecoration(
               color: colorScheme.primary.withValues(alpha: .08),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: colorScheme.primary.withValues(alpha: .24),
-              ),
+
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -929,8 +923,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: colorScheme.outlineVariant),
-                ),
+                                  ),
                 child: TabBar(
                   controller: _tabController,
                   indicatorSize: TabBarIndicatorSize.tab,
@@ -1017,11 +1010,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 ? colorScheme.primary.withValues(alpha: 0.08)
                 : colorScheme.surface,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: n.unread
-                  ? colorScheme.primary.withValues(alpha: 0.25)
-                  : colorScheme.outlineVariant,
-            ),
+
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,

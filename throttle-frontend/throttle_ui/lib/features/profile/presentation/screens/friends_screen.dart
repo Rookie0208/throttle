@@ -272,12 +272,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
               ? Center(
                   child: Text("No friends found", style: textTheme.bodyMedium),
                 )
-              : ListView.builder(
+              : ListView.separated(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
                   itemCount: filteredFriends.length,
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    indent: 56,
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+                  ),
                   itemBuilder: (ctx, i) =>
                       _userCard(filteredFriends[i], type: UserCardType.friend),
                 ),
@@ -293,9 +298,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
         child: Text("No pending requests", style: textTheme.bodyMedium),
       );
     }
-    return ListView.builder(
+    return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       itemCount: pendingRequests.length,
+      separatorBuilder: (_, _) => Divider(
+        height: 1,
+        indent: 56,
+        color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+      ),
       itemBuilder: (ctx, i) => _requestCard(pendingRequests[i]),
     );
   }
@@ -313,12 +323,17 @@ class _FriendsScreenState extends State<FriendsScreen> {
                     style: textTheme.bodyMedium,
                   ),
                 )
-              : ListView.builder(
+              : ListView.separated(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
                   itemCount: filteredSuggested.length,
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    indent: 56,
+                    color: Theme.of(context).dividerColor.withValues(alpha: 0.35),
+                  ),
                   itemBuilder: (ctx, i) => _userCard(
                     filteredSuggested[i],
                     type: UserCardType.suggested,
@@ -338,8 +353,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
+              ),
       child: TextField(
         style: textTheme.bodyLarge,
         onChanged: (val) => setState(() => query = val),
@@ -360,14 +374,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
     final riderId = (user['riderId'] ?? '').toString();
     if (name.isEmpty) name = "Unknown Rider";
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           CircleAvatar(
@@ -472,14 +480,8 @@ class _FriendsScreenState extends State<FriendsScreen> {
     if (name.isEmpty) name = "Unknown Rider";
     final riderId = (req['senderRiderId'] ?? '').toString();
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           CircleAvatar(

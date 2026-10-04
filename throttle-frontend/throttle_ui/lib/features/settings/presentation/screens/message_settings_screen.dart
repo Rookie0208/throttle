@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/widgets/app_list_group.dart';
 import 'package:throttle_ui/features/settings/data/controllers/settings_preferences_controller.dart';
 
 class MessageSettingsScreen extends StatefulWidget {
@@ -51,29 +52,34 @@ class _MessageSettingsScreenState extends State<MessageSettingsScreen> {
                       'These settings shape how your direct messaging experience feels inside the app.',
                 ),
                 const SizedBox(height: 16),
-                _toggleTile(
-                  theme: theme,
-                  title: 'Allow message requests',
-                  subtitle:
-                      'Let riders outside your connections start a conversation.',
-                  value: _prefs.allowMessageRequests,
-                  onChanged: _prefs.setAllowMessageRequests,
-                ),
-                _toggleTile(
-                  theme: theme,
-                  title: 'Show message previews',
-                  subtitle:
-                      'Display message snippets in notifications and inbox cards.',
-                  value: _prefs.showMessagePreviews,
-                  onChanged: _prefs.setShowMessagePreviews,
-                ),
-                _toggleTile(
-                  theme: theme,
-                  title: 'Send read receipts',
-                  subtitle:
-                      'Let others know when you have opened a message thread.',
-                  value: _prefs.sendReadReceipts,
-                  onChanged: _prefs.setSendReadReceipts,
+                AppListGroup(
+                  dividerIndent: 16,
+                  children: [
+                    _toggleTile(
+                      theme: theme,
+                      title: 'Allow message requests',
+                      subtitle:
+                          'Let riders outside your connections start a conversation.',
+                      value: _prefs.allowMessageRequests,
+                      onChanged: _prefs.setAllowMessageRequests,
+                    ),
+                    _toggleTile(
+                      theme: theme,
+                      title: 'Show message previews',
+                      subtitle:
+                          'Display message snippets in notifications and inbox cards.',
+                      value: _prefs.showMessagePreviews,
+                      onChanged: _prefs.setShowMessagePreviews,
+                    ),
+                    _toggleTile(
+                      theme: theme,
+                      title: 'Send read receipts',
+                      subtitle:
+                          'Let others know when you have opened a message thread.',
+                      value: _prefs.sendReadReceipts,
+                      onChanged: _prefs.setSendReadReceipts,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -93,8 +99,7 @@ class _MessageSettingsScreenState extends State<MessageSettingsScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -126,31 +131,23 @@ class _MessageSettingsScreenState extends State<MessageSettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
-      child: SwitchListTile(
-        value: value,
-        onChanged: onChanged,
-        activeThumbColor: Colors.white,
-        activeTrackColor: theme.primary,
-        title: Text(
-          title,
-          style: TextStyle(
-            color: theme.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
+    return SwitchListTile(
+      value: value,
+      onChanged: onChanged,
+      activeThumbColor: Colors.white,
+      activeTrackColor: theme.primary,
+      title: Text(
+        title,
+        style: TextStyle(
+          color: theme.textPrimary,
+          fontWeight: FontWeight.w600,
         ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            color: theme.textPrimary.withValues(alpha: 0.65),
-            fontSize: 12,
-          ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: theme.textPrimary.withValues(alpha: 0.65),
+          fontSize: 12,
         ),
       ),
     );
