@@ -6,13 +6,24 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.ridersclub.bike.dto.request.BikeMasterAdminRequest;
 import com.ridersclub.bike.dto.response.BikeMasterResponse;
@@ -36,19 +47,23 @@ import com.ridersclub.admin.service.SystemResourceService;
 @Transactional
 public class BikeRegistryService {
     private static final int FREE_PLAN_BIKE_LIMIT = 3;
-    private static final int DEFAULT_LIMIT = 25;
+    private static final int BRAND_RESULT_LIMIT = 250;
+    private static final int MODEL_RESULT_LIMIT = 150;
+    private static final int VARIANT_RESULT_LIMIT = 150;
+    private static final int SEARCH_RESULT_LIMIT = 120;
 
     private final BikeMasterRepository bikeMasterRepository;
     private final UserRepository userRepository;
     private final UserBikeRepository userBikeRepository;
     private final PlatformTransactionManager transactionManager;
     private final SystemResourceService resourceService;
+    private final ObjectMapper objectMapper;
 
     public int ensureSeedData() {
         TransactionTemplate seedTemplate = new TransactionTemplate(transactionManager);
         seedTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         seedTemplate.setReadOnly(false);
-        Integer inserted = seedTemplate.execute(status -> seedIfEmpty(defaultSeedData()));
+        Integer inserted = seedTemplate.execute(status -> importCatalog(loadSeedCatalog()));
         return inserted == null ? 0 : inserted;
     }
 
@@ -61,7 +76,7 @@ public class BikeRegistryService {
                 .map(String::trim)
                 .distinct()
                 .sorted(Comparator.naturalOrder())
-                .limit(DEFAULT_LIMIT)
+                .limit(BRAND_RESULT_LIMIT)
                 .toList();
     }
 
@@ -77,7 +92,7 @@ public class BikeRegistryService {
                 .map(String::trim)
                 .distinct()
                 .sorted(Comparator.naturalOrder())
-                .limit(DEFAULT_LIMIT)
+                .limit(MODEL_RESULT_LIMIT)
                 .toList();
     }
 
@@ -89,7 +104,7 @@ public class BikeRegistryService {
         }
         List<BikeMasterResponse> directMatches = bikeMasterRepository.findVariants(brand.trim(), model.trim(), normalizeQuery(query))
                 .stream()
-                .limit(DEFAULT_LIMIT)
+                .limit(VARIANT_RESULT_LIMIT)
                 .map(BikeMasterResponse::from)
                 .toList();
         if (!directMatches.isEmpty()) {
@@ -105,7 +120,7 @@ public class BikeRegistryService {
                 .filter(item -> normalizeLookupValue(item.getBrand()).equals(normalizedBrand))
                 .filter(item -> normalizeLookupValue(item.getModel()).equals(normalizedModel))
                 .filter(item -> matchesVariantQuery(item.getVariant(), query))
-                .limit(DEFAULT_LIMIT)
+                .limit(VARIANT_RESULT_LIMIT)
                 .map(BikeMasterResponse::from)
                 .toList();
     }
@@ -115,7 +130,7 @@ public class BikeRegistryService {
         ensureSeedData();
         return bikeMasterRepository.searchActive(normalizeQuery(query))
                 .stream()
-                .limit(DEFAULT_LIMIT)
+                .limit(SEARCH_RESULT_LIMIT)
                 .map(BikeMasterResponse::from)
                 .toList();
     }
@@ -450,6 +465,18 @@ public class BikeRegistryService {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private List<BikeMasterAdminRequest> loadSeedCatalog() {
+        try (InputStream input = new ClassPathResource("data/bike-master-catalog.json").getInputStream()) {
+            List<BikeMasterAdminRequest> loaded = objectMapper.readValue(input, new TypeReference<>() {});
+            if (loaded != null && !loaded.isEmpty()) {
+                return loaded;
+            }
+        } catch (Exception e) {
+            log.warn("Unable to load bike-master-catalog.json, falling back to inline seed list", e);
+        }
+        return defaultSeedData();
     }
 
     private List<BikeMasterAdminRequest> defaultSeedData() {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
+import 'package:throttle_ui/features/bikes/presentation/bike_display_formatters.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/stats_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/settings_screen.dart';
@@ -231,30 +232,11 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  String _bikeTitle(Map<String, dynamic> bike) {
-    final year = bike['year']?.toString() ?? "";
-    final brand = (bike['brand'] ?? bike['make'] ?? bike['title'] ?? '')
-        .toString();
-    final model = (bike['model'] ?? '').toString();
-    final variant = (bike['variant'] ?? '').toString();
-    return [
-      year,
-      brand,
-      model,
-      variant,
-    ].where((part) => part.trim().isNotEmpty).join(" ");
-  }
+  String _bikeTitle(Map<String, dynamic> bike) =>
+      BikeDisplayFormatters.title(bike);
 
-  String _bikeSubtitle(Map<String, dynamic> bike) {
-    final category = (bike['category'] ?? '').toString();
-    final type = (bike['bikeType'] ?? bike['type'] ?? '').toString();
-    final engineCc = bike['engineCc']?.toString();
-    return [
-      if (category.isNotEmpty) category,
-      if (type.isNotEmpty) type,
-      if (engineCc != null && engineCc.isNotEmpty) "${engineCc}cc",
-    ].join(" • ");
-  }
+  String _bikeSubtitle(Map<String, dynamic> bike) =>
+      BikeDisplayFormatters.subtitle(bike);
 
   Future<String?> _pickStringOption({
     required String title,
@@ -481,8 +463,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0x52B8C6DA)),
-        ),
+                  ),
         child: Row(
           children: [
             Expanded(
@@ -1016,8 +997,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         decoration: BoxDecoration(
                           color: theme.surface,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0x52B8C6DA)),
-                        ),
+                                                  ),
                         child: Row(
                           children: [
                             Icon(Icons.two_wheeler, color: theme.primary),
@@ -1258,8 +1238,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0x52B8C6DA)),
-        ),
+                  ),
         child: Row(
           children: [
             Container(
@@ -1393,8 +1372,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
+                                                      ),
                           child: Icon(Icons.settings, color: theme.textPrimary),
                         ),
                       ),
@@ -1414,8 +1392,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
+                                                      ),
                           child: Row(
                             children: [
                               Stack(
@@ -1551,9 +1528,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                             decoration: BoxDecoration(
                               color: theme.surface,
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: const Color(0x52B8C6DA),
-                              ),
                             ),
                             child: Row(
                               children: [
@@ -1644,8 +1618,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0x52B8C6DA)),
-                          ),
+                                                      ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

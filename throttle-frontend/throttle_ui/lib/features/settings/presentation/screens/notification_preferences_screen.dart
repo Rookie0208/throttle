@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/widgets/app_list_group.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/notifications/presentation/screens/notification_screen.dart';
 import 'package:throttle_ui/features/settings/data/controllers/settings_preferences_controller.dart';
@@ -149,8 +150,7 @@ class _NotificationPreferencesScreenState
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
+              ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -180,29 +180,20 @@ class _NotificationPreferencesScreenState
     required String title,
     required List<Widget> children,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x52B8C6DA)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 6),
-            child: Text(
-              title,
-              style: GoogleFonts.lexend(
-                color: theme.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+    return AppListGroup(
+      dividerIndent: 16,
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+        child: Text(
+          title,
+          style: GoogleFonts.lexend(
+            color: theme.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
           ),
-          ...children,
-        ],
+        ),
       ),
+      children: children,
     );
   }
 
