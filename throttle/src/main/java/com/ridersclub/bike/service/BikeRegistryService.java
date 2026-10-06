@@ -57,7 +57,6 @@ public class BikeRegistryService {
     private final UserBikeRepository userBikeRepository;
     private final PlatformTransactionManager transactionManager;
     private final SystemResourceService resourceService;
-    private final ObjectMapper objectMapper;
 
     public int ensureSeedData() {
         TransactionTemplate seedTemplate = new TransactionTemplate(transactionManager);
@@ -468,6 +467,7 @@ public class BikeRegistryService {
     }
 
     private List<BikeMasterAdminRequest> loadSeedCatalog() {
+        ObjectMapper objectMapper = new ObjectMapper();
         try (InputStream input = new ClassPathResource("data/bike-master-catalog.json").getInputStream()) {
             List<BikeMasterAdminRequest> loaded = objectMapper.readValue(input, new TypeReference<>() {});
             if (loaded != null && !loaded.isEmpty()) {

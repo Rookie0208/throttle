@@ -1,17 +1,29 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/core/globals.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
+import 'package:throttle_ui/features/auth/data/services/token_refresh_result.dart';
 
 class AuthService {
   static String get baseUrl => "${AppConstants.baseUrl}/auth";
   static const _storage = FlutterSecureStorage();
   static const String _tokenKey = "jwt_token";
   static const String _refreshTokenKey = "refresh_token";
+  static const Duration _refreshLeadTime = Duration(minutes: 2);
+
+  static String? _cachedAccessToken;
+  static String? _cachedRefreshToken;
+  static DateTime? _accessTokenExpiry;
+  static Timer? _proactiveRefreshTimer;
+  static bool _cacheHydrated = false;
+  static bool _refreshInFlight = false;
+  static Completer<TokenRefreshResult>? _refreshWaiter;
 
   // ================= REGISTER =================
   static Future<Map<String, dynamic>> register({
@@ -33,7 +45,6 @@ class AuthService {
   }) async {
     try {
       final url = Uri.parse("$baseUrl/register");
-print("amit.baseURL : "+url.toString());
       final body = {
         "firstName": firstName,
         "lastName": lastName ?? "",
@@ -325,30 +336,140 @@ print("amit.baseURL : "+url.toString());
 
   // ================= SAVE TOKENS & DATA =================
   static Future<void> saveTokens(String token, String refreshToken) async {
-    await _storage.write(key: _tokenKey, value: token);
-    await _storage.write(key: _refreshTokenKey, value: refreshToken);
+    _applyTokenCache(token, refreshToken);
+    await Future.wait([
+      _storage.write(key: _tokenKey, value: token),
+      _storage.write(key: _refreshTokenKey, value: refreshToken),
+    ]);
     UserSession.init(token);
+    _scheduleProactiveRefresh();
+  }
+
+  static void _applyTokenCache(String accessToken, String refreshToken) {
+    _cachedAccessToken = accessToken;
+    _cachedRefreshToken = refreshToken;
+    _accessTokenExpiry = JwtDecoder.getExpirationDate(accessToken);
+    _cacheHydrated = true;
+  }
+
+  static Future<void> _hydrateCacheFromStorage() async {
+    if (_cacheHydrated &&
+        _cachedAccessToken != null &&
+        _cachedRefreshToken != null) {
+      return;
+    }
+    final results = await Future.wait([
+      _storage.read(key: _tokenKey),
+      _storage.read(key: _refreshTokenKey),
+    ]);
+    final access = results[0];
+    final refresh = results[1];
+    if (access != null && refresh != null) {
+      _applyTokenCache(access, refresh);
+      UserSession.init(access);
+    } else {
+      _cachedAccessToken = access;
+      _cachedRefreshToken = refresh;
+      _accessTokenExpiry =
+          access != null ? JwtDecoder.getExpirationDate(access) : null;
+    }
+    _cacheHydrated = true;
+  }
+
+  static bool _accessTokenNeedsRefresh() {
+    if (_cachedAccessToken == null || _accessTokenExpiry == null) {
+      return true;
+    }
+    return DateTime.now().isAfter(
+      _accessTokenExpiry!.subtract(_refreshLeadTime),
+    );
+  }
+
+  static void _scheduleProactiveRefresh() {
+    _proactiveRefreshTimer?.cancel();
+    if (_accessTokenExpiry == null) {
+      return;
+    }
+    final refreshAt = _accessTokenExpiry!.subtract(_refreshLeadTime);
+    final delay = refreshAt.difference(DateTime.now());
+    if (!delay.isNegative) {
+      _proactiveRefreshTimer = Timer(delay, () {
+        unawaited(refreshToken());
+      });
+      return;
+    }
+    unawaited(refreshToken());
+  }
+
+  /// Keeps the 15-minute access token fresh using the 15-day refresh token.
+  static Future<void> ensureValidAccessToken() async {
+    await _hydrateCacheFromStorage();
+    if (_cachedRefreshToken == null) {
+      return;
+    }
+    if (!_accessTokenNeedsRefresh()) {
+      return;
+    }
+    await refreshToken();
+  }
+
+  /// Restores session on cold start when refresh token is still valid.
+  static Future<bool> restoreSession() async {
+    await _hydrateCacheFromStorage();
+    if (_cachedRefreshToken == null) {
+      return false;
+    }
+    if (_cachedAccessToken != null && !_accessTokenNeedsRefresh()) {
+      _scheduleProactiveRefresh();
+      return true;
+    }
+    final result = await refreshToken();
+    return result == TokenRefreshResult.success;
   }
 
   // ================= GET TOKENS =================
   static Future<String?> getToken() async {
-    return await _storage.read(key: _tokenKey);
+    await ensureValidAccessToken();
+    return _cachedAccessToken;
   }
 
   static Future<String?> getRefreshToken() async {
-    return await _storage.read(key: _refreshTokenKey);
+    await _hydrateCacheFromStorage();
+    return _cachedRefreshToken;
   }
 
   // ================= REFRESH TOKEN =================
-  static Future<bool> refreshToken() async {
-    Logger.info("Attempting to refresh access token...");
-    try {
-      final currentRefreshToken = await getRefreshToken();
-      if (currentRefreshToken == null) {
-        Logger.warn("No refresh token found locally. Cannot refresh.");
-        return false;
-      }
+  static Future<TokenRefreshResult> refreshToken() async {
+    if (_refreshInFlight && _refreshWaiter != null) {
+      return _refreshWaiter!.future;
+    }
 
+    _refreshInFlight = true;
+    _refreshWaiter = Completer<TokenRefreshResult>();
+    try {
+      final result = await _performRefresh();
+      _refreshWaiter!.complete(result);
+      return result;
+    } catch (e, st) {
+      Logger.error("Unexpected refresh failure", e, st);
+      final result = TokenRefreshResult.networkError;
+      _refreshWaiter!.complete(result);
+      return result;
+    } finally {
+      _refreshInFlight = false;
+    }
+  }
+
+  static Future<TokenRefreshResult> _performRefresh() async {
+    Logger.info("Attempting to refresh access token...");
+    await _hydrateCacheFromStorage();
+    final currentRefreshToken = _cachedRefreshToken;
+    if (currentRefreshToken == null) {
+      Logger.warn("No refresh token found locally. Cannot refresh.");
+      return TokenRefreshResult.unauthorized;
+    }
+
+    try {
       final url = Uri.parse("$baseUrl/refresh");
       final response = await http.post(
         url,
@@ -362,57 +483,82 @@ print("amit.baseURL : "+url.toString());
         final newRefreshToken = decoded["data"]?["refreshToken"];
 
         if (newToken != null && newRefreshToken != null) {
-          Logger.info(
-            "Successfully received new tokens. Storing to secure storage.",
-          );
+          Logger.info("Access token refreshed proactively.");
           await saveTokens(newToken, newRefreshToken);
-          return true;
+          return TokenRefreshResult.success;
         }
+        return TokenRefreshResult.unauthorized;
       }
-      // If refresh failed (e.g., token expired or revoked in DB)
-      Logger.warn(
-        "Refresh request rejected by server. Status: ${response.statusCode}",
-      );
-      return false;
+
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        Logger.warn("Refresh token rejected. Status: ${response.statusCode}");
+        return TokenRefreshResult.unauthorized;
+      }
+
+      Logger.warn("Refresh failed with status ${response.statusCode}");
+      return TokenRefreshResult.networkError;
     } catch (e) {
       Logger.error("Network fail during refresh token call", e);
-      return false; // Network fail, maybe retry later
+      return TokenRefreshResult.networkError;
+    }
+  }
+
+  static Future<void> _clearLocalSession() async {
+    _proactiveRefreshTimer?.cancel();
+    _proactiveRefreshTimer = null;
+    _cachedAccessToken = null;
+    _cachedRefreshToken = null;
+    _accessTokenExpiry = null;
+    _cacheHydrated = false;
+    UserSession.clear();
+    await Future.wait([
+      _storage.delete(key: _tokenKey),
+      _storage.delete(key: _refreshTokenKey),
+    ]);
+  }
+
+  static Future<void> _notifyServerLogout(
+    String? accessToken,
+    String? refreshToken,
+  ) async {
+    if (accessToken == null || refreshToken == null) {
+      return;
+    }
+    try {
+      final url = Uri.parse("$baseUrl/logout");
+      await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $accessToken",
+        },
+        body: jsonEncode({"refreshToken": refreshToken}),
+      );
+    } catch (e) {
+      Logger.warn("Background logout API call failed: $e");
     }
   }
 
   // ================= LOGOUT =================
   static Future<void> logout() async {
-    Logger.info("Initiating secure logout...");
-    try {
-      final accessToken = await getToken();
-      final refreshToken = await getRefreshToken();
+    Logger.info("Initiating logout...");
+    await _hydrateCacheFromStorage();
+    final accessToken = _cachedAccessToken;
+    final refreshToken = _cachedRefreshToken;
 
-      if (accessToken != null && refreshToken != null) {
-        final url = Uri.parse("$baseUrl/logout");
-        await http.post(
-          url,
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization":
-                "Bearer $accessToken", // Needs access token for intercept filter
-          },
-          body: jsonEncode({"refreshToken": refreshToken}),
-        );
-      }
-    } catch (e) {
-      Logger.warn("Network completely failed during logout backend call: $e");
-      // Ignored: gracefully proceed to clear local token even if network fails
-    }
+    await _clearLocalSession();
 
-    Logger.info("Clearing local secure storage tokens");
-    await _storage.delete(key: _tokenKey);
-    await _storage.delete(key: _refreshTokenKey);
-    // Disconnect google sign-in safely
-    try {
-      await googleSignIn.signOut();
-    } catch (e) {
-      Logger.warn("Google sign out skipped: $e");
-    }
+    unawaited(_notifyServerLogout(accessToken, refreshToken));
+    unawaited(
+      googleSignIn.signOut().catchError((Object e) {
+        Logger.warn("Google sign out skipped: $e");
+      }),
+    );
+  }
+
+  /// Clears session when refresh token is no longer valid (15-day window ended).
+  static Future<void> logoutDueToExpiredSession() async {
+    await logout();
   }
 
   // ================= GENDER FROM PRONOUN =================

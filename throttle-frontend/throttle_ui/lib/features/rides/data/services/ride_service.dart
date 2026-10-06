@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 class RideService {
   static String get _apiBaseUrl => AppConstants.baseUrl;
@@ -14,10 +15,8 @@ class RideService {
     "ADMIN",
   ];
 
-  static Map<String, String> _headers(String token) => {
-    "Content-Type": "application/json",
-    "Authorization": "Bearer $token",
-  };
+  static Future<Map<String, String>> _headers(String token) =>
+      AuthHeaders.json(token);
 
   static Future<Map<String, dynamic>> createRide(
     Map<String, dynamic> rideData,
@@ -26,7 +25,7 @@ class RideService {
     try {
       final response = await http.post(
         Uri.parse("$_apiBaseUrl/rides/create"),
-        headers: _headers(token),
+        headers: await _headers(token),
         body: jsonEncode(rideData),
       );
 
@@ -47,7 +46,7 @@ class RideService {
   static Future<List<String>> fetchRoles(String token) async {
     final response = await http.get(
       Uri.parse("$_apiBaseUrl/rides/roles"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = jsonDecode(response.body);
@@ -66,7 +65,7 @@ class RideService {
   ) async {
     final response = await http.put(
       Uri.parse("$_apiBaseUrl/participants/$rideUuid/$userUuid/role"),
-      headers: _headers(token),
+      headers: await _headers(token),
       body: jsonEncode({"role": role}),
     );
 
@@ -83,7 +82,7 @@ class RideService {
   ) async {
     final response = await http.delete(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/members/$userUuid"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -95,7 +94,7 @@ class RideService {
   static Future<void> leaveRide(String token, String rideUuid) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/participants/$rideUuid/leave"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -111,7 +110,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/participants/$rideUuid/invite"),
-      headers: _headers(token),
+      headers: await _headers(token),
       body: jsonEncode({"inviteeUuid": inviteeUuid}),
     );
 
@@ -127,7 +126,7 @@ class RideService {
   ) async {
     final response = await http.get(
       Uri.parse("$_apiBaseUrl/participants/$rideUuid/invite-candidates"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -148,7 +147,7 @@ class RideService {
   ) async {
     final response = await http.get(
       Uri.parse("$_apiBaseUrl/participants/invitations/$invitationId"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -162,7 +161,7 @@ class RideService {
   static Future<void> acceptInvitation(String token, int invitationId) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/participants/invitations/$invitationId/accept"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -174,7 +173,7 @@ class RideService {
   static Future<void> rejectInvitation(String token, int invitationId) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/participants/invitations/$invitationId/reject"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -189,7 +188,7 @@ class RideService {
   ) async {
     final response = await http.get(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/session"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -206,7 +205,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/partial-start"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -223,7 +222,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/arrive-start"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -240,7 +239,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/start"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -257,7 +256,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/drop"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -274,7 +273,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/return/start"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -291,7 +290,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/return/end"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -310,7 +309,7 @@ class RideService {
   }) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/location"),
-      headers: _headers(token),
+      headers: await _headers(token),
       body: jsonEncode({"latitude": latitude, "longitude": longitude}),
     );
 
@@ -328,7 +327,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/checkpoints/advance"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     final data = _decodeBody(response.body);
@@ -346,7 +345,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/announcement"),
-      headers: _headers(token),
+      headers: await _headers(token),
       body: jsonEncode({"message": message.trim()}),
     );
 
@@ -363,7 +362,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/sos"),
-      headers: _headers(token),
+      headers: await _headers(token),
       body: jsonEncode({"message": message.trim()}),
     );
 
@@ -382,7 +381,7 @@ class RideService {
   ) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/sos/resolve"),
-      headers: _headers(token),
+      headers: await _headers(token),
       body: jsonEncode({"resolution": resolution.trim().toUpperCase()}),
     );
 
@@ -397,7 +396,7 @@ class RideService {
   static Future<void> completeRide(String token, String rideUuid) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/complete"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -409,7 +408,7 @@ class RideService {
   static Future<void> cancelRide(String token, String rideUuid) async {
     final response = await http.post(
       Uri.parse("$_apiBaseUrl/rides/$rideUuid/cancel"),
-      headers: _headers(token),
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -481,10 +480,7 @@ class RideService {
     final baseUrl = _apiBaseUrl;
     final response = await http.post(
       Uri.parse('$baseUrl/rides/$rideUuid/checkpoints/custom'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
+      headers: await _headers(token),
       body: jsonEncode({
         'title': title,
         if (latitude != null) 'latitude': latitude,

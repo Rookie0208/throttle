@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 class RideMemberService {
   static String get baseUrl => AppConstants.baseUrl;
@@ -19,7 +20,7 @@ class RideMemberService {
   static Future<List<String>> fetchRoles(String token) async {
     final res = await http.get(
       Uri.parse("$baseUrl/rides/roles"),
-      headers: {"Authorization": "Bearer $token"},
+      headers: await AuthHeaders.json(token),
     );
 
     final data = jsonDecode(res.body);
@@ -34,10 +35,7 @@ class RideMemberService {
   ) async {
     await http.put(
       Uri.parse("$baseUrl/participants/$rideUuid/$userUuid/role"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await AuthHeaders.json(token),
       body: jsonEncode({"role": role}),
     );
   }
@@ -49,7 +47,7 @@ class RideMemberService {
   ) async {
     await http.delete(
       Uri.parse("$baseUrl/rides/$rideUuid/members/$userUuid"),
-      headers: {"Authorization": "Bearer $token"},
+      headers: await AuthHeaders.json(token),
     );
   }
 }

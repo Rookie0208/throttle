@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 class GroupService {
   static String get baseUrl => AppConstants.baseUrl;
+
+  static Future<Map<String, String>> _headers(String token) =>
+      AuthHeaders.json(token);
 
   static Future<void> updateRide(
     String token,
@@ -12,10 +16,7 @@ class GroupService {
   ) async {
     await http.put(
       Uri.parse("$baseUrl/rides/$rideUuid"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
       body: jsonEncode(payload),
     );
   }
@@ -28,10 +29,7 @@ class GroupService {
     final url = Uri.parse('$baseUrl/rides/groups/$groupId/pre-ride-info');
     final response = await http.put(
       url,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
+      headers: await _headers(token),
       body: json.encode(preRideInfo),
     );
 
@@ -49,7 +47,7 @@ class GroupService {
     final url = Uri.parse('$baseUrl/rides/groups/$groupId/pre-ride-info');
     final response = await http.get(
       url,
-      headers: {'Authorization': 'Bearer $token'},
+      headers: await _headers(token),
     );
 
     if (response.statusCode == 200) {
@@ -64,10 +62,7 @@ class GroupService {
     try {
       final response = await http.get(
         Uri.parse("$baseUrl/rides/my"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
+        headers: await _headers(token),
       );
 
       final data = jsonDecode(response.body);
@@ -88,10 +83,7 @@ class GroupService {
   ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/participants/$rideUuid"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode == 200) {
@@ -107,10 +99,7 @@ class GroupService {
 
     final response = await http.post(
       url,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
+      headers: await _headers(token),
     );
 
     final Map<String, dynamic> data = response.body.isEmpty
@@ -136,10 +125,7 @@ class GroupService {
 
     final response = await http.get(
       url,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode == 200) {

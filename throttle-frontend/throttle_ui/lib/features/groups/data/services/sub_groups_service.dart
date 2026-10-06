@@ -1,9 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 class SubGroupService {
   static String get baseUrl => AppConstants.baseUrl;
+
+  static Future<Map<String, String>> _headers(String token) =>
+      AuthHeaders.json(token);
 
   /// FETCH SUBGROUPS
   static Future<List<Map<String, dynamic>>> fetchSubGroups(
@@ -12,10 +16,7 @@ class SubGroupService {
   ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/rides/$groupUuid/subgroups"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode == 200) {
@@ -38,10 +39,7 @@ class SubGroupService {
   ) async {
     final response = await http.post(
       Uri.parse("$baseUrl/rides/subgroup"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
       body: jsonEncode(payload),
     );
     final Map<String, dynamic> res = jsonDecode(response.body);
@@ -57,10 +55,7 @@ class SubGroupService {
   ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/rides/groups/$groupUuid"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode == 200) {
@@ -77,10 +72,7 @@ class SubGroupService {
   ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/rides/$rideUuid/main-group"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode == 200) {
@@ -97,10 +89,7 @@ class SubGroupService {
   ) async {
     final response = await http.post(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/join"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     final Map<String, dynamic> res = jsonDecode(response.body);
@@ -114,10 +103,7 @@ class SubGroupService {
   static Future<void> leaveSubGroup(String token, String groupUuid) async {
     final response = await http.delete(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/leave"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -132,10 +118,7 @@ class SubGroupService {
   ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/join-requests"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     final Map<String, dynamic> res = jsonDecode(response.body);
@@ -153,10 +136,7 @@ class SubGroupService {
   ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/rides/join-requests/$requestId"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     final Map<String, dynamic> res = jsonDecode(response.body);
@@ -176,10 +156,7 @@ class SubGroupService {
       Uri.parse(
         "$baseUrl/rides/groups/$groupUuid/join-requests/$requestId/approve",
       ),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -194,10 +171,7 @@ class SubGroupService {
   ) async {
     final response = await http.post(
       Uri.parse("$baseUrl/rides/join-requests/$requestId/approve"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -215,10 +189,7 @@ class SubGroupService {
       Uri.parse(
         "$baseUrl/rides/groups/$groupUuid/join-requests/$requestId/reject",
       ),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -230,10 +201,7 @@ class SubGroupService {
   static Future<void> rejectJoinRequestById(String token, int requestId) async {
     final response = await http.post(
       Uri.parse("$baseUrl/rides/join-requests/$requestId/reject"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -249,10 +217,7 @@ class SubGroupService {
   ) async {
     final response = await http.put(
       Uri.parse("$baseUrl/rides/groups/$groupUuid"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
       body: jsonEncode({"name": name}),
     );
 
@@ -270,10 +235,7 @@ class SubGroupService {
   ) async {
     final response = await http.get(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/members"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode == 200) {
@@ -293,10 +255,7 @@ class SubGroupService {
   ) async {
     final response = await http.put(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/members/$userUuid/role"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
       body: jsonEncode({"role": role}),
     );
 
@@ -313,10 +272,7 @@ class SubGroupService {
   ) async {
     final response = await http.delete(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/members/$userUuid"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -332,10 +288,7 @@ class SubGroupService {
   ) async {
     final response = await http.post(
       Uri.parse("$baseUrl/rides/groups/$groupUuid/members"),
-      headers: {
-        "Authorization": "Bearer $token",
-        "Content-Type": "application/json",
-      },
+      headers: await _headers(token),
       body: jsonEncode({"memberUuids": memberUuids}),
     );
 

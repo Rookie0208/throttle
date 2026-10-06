@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:throttle_ui/features/notifications/data/models/notification_model.dart';
-import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
-import 'package:throttle_ui/core/services/logger_service.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
+import 'package:throttle_ui/core/services/logger_service.dart';
 
 class NotificationService {
   static String get baseUrl => AppConstants.baseUrl;
@@ -17,10 +17,7 @@ class NotificationService {
     try {
       final response = await http.get(
         Uri.parse("$baseUrl/notifications/my"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
+        headers: await AuthHeaders.json(token),
       );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -60,10 +57,7 @@ class NotificationService {
     try {
       final response = await http.put(
         Uri.parse("$baseUrl/notifications/$notificationId/read"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
+        headers: await AuthHeaders.json(token),
         body: jsonEncode({"read": read}),
       );
 
@@ -83,10 +77,7 @@ class NotificationService {
     try {
       final response = await http.delete(
         Uri.parse("$baseUrl/notifications/$notificationId"),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-        },
+        headers: await AuthHeaders.json(token),
       );
 
       return response.statusCode >= 200 && response.statusCode < 300;
@@ -138,10 +129,7 @@ class NotificationService {
   }) async {
     final response = await http.post(
       Uri.parse("$baseUrl/rides/$rideUuid/announcement"),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
+        headers: await AuthHeaders.json(token),
       body: jsonEncode({"message": message}),
     );
 
@@ -324,16 +312,13 @@ class NotificationService {
       ),
     );
 
-    final resolvedToken = token ?? await AuthService.getToken();
+    final resolvedToken = await AuthHeaders.resolve(token);
     if (resolvedToken == null || resolvedToken.isEmpty) return;
 
     try {
       final response = await http.post(
         Uri.parse(_eventEndpoint),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $resolvedToken",
-        },
+        headers: await AuthHeaders.json(resolvedToken),
         body: jsonEncode(payload),
       );
 
