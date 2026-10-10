@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,6 +12,7 @@ import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
+import 'package:throttle_ui/features/groups/data/services/place_service.dart';
 
 class PlanRideScreen extends StatefulWidget {
   final String token;
@@ -155,7 +157,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(18),
-              ),
+      ),
       child: child,
     );
   }
@@ -502,9 +504,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         showError("Location permission denied or service disabled.");
         return;
       }
-      final city = await LocationService.getCityName(pos.latitude, pos.longitude);
+      final city = await LocationService.getCityName(
+        pos.latitude,
+        pos.longitude,
+      );
       final locationName = city ?? "Current Location";
-      
+
       if (!mounted) return;
       setState(() {
         startPoint = LatLng(pos.latitude, pos.longitude);
@@ -525,13 +530,28 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       return false;
     }
 
-    final url =
-        "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?access_token=$_mapboxPublicToken&limit=1&autocomplete=true";
-
     try {
-      final response = await http.get(Uri.parse(url));
+      final uri = Uri.https(
+        'api.mapbox.com',
+        '/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json',
+        {
+          'access_token': _mapboxPublicToken,
+          'limit': '1',
+          'autocomplete': 'true',
+          'types': 'place,locality,address,poi',
+        },
+      );
+      final response = await http.get(uri);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        showError("Failed to look up ${isStart ? "start" : "end"} location");
+        final body = json.decode(response.body);
+        final providerMessage = body is Map<String, dynamic>
+            ? (body['message'] ?? body['error'] ?? '').toString().trim()
+            : '';
+        final statusMessage =
+            response.statusCode == 401 || response.statusCode == 403
+            ? 'Mapbox rejected the location search token or its permissions.'
+            : 'Mapbox location search failed (${response.statusCode}).';
+        showError(providerMessage.isNotEmpty ? providerMessage : statusMessage);
         return false;
       }
 
@@ -884,7 +904,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-              ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1036,7 +1056,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
-                                  ),
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1120,7 +1140,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
-                                          ),
+                    ),
                     child: Row(
                       children: [
                         Container(
@@ -1185,7 +1205,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                                                  ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1218,7 +1238,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                                                  ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1264,7 +1284,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
-                                          ),
+                    ),
                     child: Row(
                       children: [
                         Container(
@@ -1414,12 +1434,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 theme,
               ),
               if (!_isInstantRide)
-                _infoChip(
-                  "🔥",
-                  "Difficulty",
-                  difficulty,
-                  theme,
-                ),
+                _infoChip("🔥", "Difficulty", difficulty, theme),
               if (!_isInstantRide) _infoChip("📋", "Rules", rules, theme),
               if (!_isInstantRide)
                 _infoChip("⏰", "Time", selectedTime.format(context), theme),
@@ -1444,7 +1459,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                              ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1566,7 +1581,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(26),
                   ),
-                                  ),
+                ),
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
@@ -1655,6 +1670,7 @@ class _ModernInputField extends StatefulWidget {
   final AppThemeConfig theme;
   final FocusNode? focusNode;
   final Widget? suffixIcon;
+  final ValueChanged<bool>? onFocusChanged;
 
   const _ModernInputField({
     required this.controller,
@@ -1669,6 +1685,7 @@ class _ModernInputField extends StatefulWidget {
     required this.theme,
     this.focusNode,
     this.suffixIcon,
+    this.onFocusChanged,
   });
 
   @override
@@ -1683,7 +1700,10 @@ class _ModernInputFieldState extends State<_ModernInputField> {
     return Opacity(
       opacity: widget.disabled ? 0.45 : 1,
       child: Focus(
-        onFocusChange: (hasFocus) => setState(() => _isFocused = hasFocus),
+        onFocusChange: (hasFocus) {
+          setState(() => _isFocused = hasFocus);
+          widget.onFocusChanged?.call(hasFocus);
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
@@ -1756,7 +1776,7 @@ class _ModernInputFieldState extends State<_ModernInputField> {
   }
 }
 
-class _MapboxAutocomplete extends StatelessWidget {
+class _MapboxAutocomplete extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
   final IconData icon;
@@ -1780,24 +1800,146 @@ class _MapboxAutocomplete extends StatelessWidget {
   });
 
   @override
+  State<_MapboxAutocomplete> createState() => _MapboxAutocompleteState();
+}
+
+class _MapboxAutocompleteState extends State<_MapboxAutocomplete> {
+  late final FocusNode _focusNode = FocusNode();
+  Timer? _searchDebounce;
+  int _requestGeneration = 0;
+  String? _lookupError;
+  bool _isSearching = false;
+  bool _showSuggestions = false;
+  List<Map<String, dynamic>> _suggestions = const [];
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _requestGeneration++;
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _search(String rawQuery) {
+    _searchDebounce?.cancel();
+    final query = rawQuery.trim();
+    final requestGeneration = ++_requestGeneration;
+    if (query.length < 3) {
+      setState(() {
+        _suggestions = const [];
+        _isSearching = false;
+        _lookupError = null;
+        _showSuggestions = query.isNotEmpty && _focusNode.hasFocus;
+      });
+      return;
+    }
+
+    setState(() {
+      _suggestions = const [];
+      _isSearching = true;
+      _lookupError = null;
+      _showSuggestions = _focusNode.hasFocus;
+    });
+    _searchDebounce = Timer(const Duration(milliseconds: 900), () async {
+      try {
+        final uri = Uri.https(
+          'api.mapbox.com',
+          '/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json',
+          {
+            'access_token': widget.mapboxToken,
+            'autocomplete': 'true',
+            'limit': '5',
+            'types': 'place,locality,address,poi',
+          },
+        );
+        final response = await http.get(uri);
+        if (!mounted || requestGeneration != _requestGeneration) {
+          return;
+        }
+        if (response.statusCode != 200) {
+          await _searchOpenStreetMap(query, requestGeneration);
+          return;
+        }
+
+        final data = json.decode(response.body);
+        final features = data is Map<String, dynamic> ? data['features'] : null;
+        if (features is! List) {
+          setState(() {
+            _isSearching = false;
+            _lookupError = 'Location search returned an invalid response.';
+          });
+          return;
+        }
+        final suggestions = features
+            .whereType<Map>()
+            .map((feature) => Map<String, dynamic>.from(feature))
+            .where(
+              (feature) =>
+                  feature['place_name'] is String &&
+                  feature['center'] is List &&
+                  (feature['center'] as List).length >= 2,
+            )
+            .toList(growable: false);
+        setState(() {
+          _isSearching = false;
+          _suggestions = suggestions;
+          _lookupError = suggestions.isEmpty
+              ? 'No matching locations found.'
+              : null;
+        });
+      } catch (_) {
+        if (!mounted || requestGeneration != _requestGeneration) {
+          return;
+        }
+        await _searchOpenStreetMap(query, requestGeneration);
+      }
+    });
+  }
+
+  Future<void> _searchOpenStreetMap(String query, int requestGeneration) async {
+    try {
+      final places = await PlaceService.searchPlaces(query);
+      if (!mounted || requestGeneration != _requestGeneration) return;
+      final suggestions = places
+          .map((place) {
+            final latitude = double.tryParse(place['latitude'] ?? '');
+            final longitude = double.tryParse(place['longitude'] ?? '');
+            final name = place['fullText'] ?? '';
+            if (latitude == null || longitude == null || name.isEmpty) {
+              return null;
+            }
+            return <String, dynamic>{
+              'place_name': name,
+              'center': <double>[longitude, latitude],
+            };
+          })
+          .whereType<Map<String, dynamic>>()
+          .toList(growable: false);
+      setState(() {
+        _isSearching = false;
+        _suggestions = suggestions;
+        _lookupError = suggestions.isEmpty
+            ? 'No matching locations found.'
+            : null;
+      });
+    } catch (_) {
+      if (!mounted || requestGeneration != _requestGeneration) return;
+      setState(() {
+        _isSearching = false;
+        _suggestions = const [];
+        _lookupError = 'Location search is unavailable. Please try again.';
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final controller = widget.controller;
+    final theme = widget.theme;
     return RawAutocomplete<Map<String, dynamic>>(
       textEditingController: controller,
-      focusNode: FocusNode(),
-      optionsBuilder: (textEditingValue) async {
-        final query = textEditingValue.text.trim();
-        if (query.isEmpty || mapboxToken.isEmpty) return const [];
-        try {
-          final url =
-              "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?access_token=$mapboxToken&autocomplete=true&limit=5";
-          final res = await http.get(Uri.parse(url));
-          if (res.statusCode == 200) {
-            final data = json.decode(res.body);
-            return (data['features'] as List).map((f) => f as Map<String, dynamic>);
-          }
-        } catch (_) {}
-        return const [];
-      },
+      focusNode: _focusNode,
+      optionsBuilder: (textEditingValue) => const [],
       displayStringForOption: (option) => option['place_name'] as String,
       onSelected: (option) {
         final center = option['center'] as List;
@@ -1805,58 +1947,142 @@ class _MapboxAutocomplete extends StatelessWidget {
           (center[1] as num).toDouble(),
           (center[0] as num).toDouble(),
         );
-        onSelected(point, option['place_name'] as String);
+        widget.onSelected(point, option['place_name'] as String);
       },
-      fieldViewBuilder: (context, fieldController, fieldFocusNode, onFieldSubmitted) {
-        return _ModernInputField(
-          controller: fieldController,
-          focusNode: fieldFocusNode,
-          hint: hint,
-          icon: icon,
-          primaryColor: theme.primary,
-          theme: theme,
-          onSubmitted: (val) {
-            onFieldSubmitted();
-            onSubmitted(val);
-          },
-          onChanged: onChanged,
-          suffixIcon: suffixIcon,
-        );
-      },
-      optionsViewBuilder: (context, onSelectedOption, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(12),
-            color: theme.surface,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: 220,
-                maxWidth: MediaQuery.of(context).size.width - 40,
-              ),
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shrinkWrap: true,
-                itemCount: options.length,
-                separatorBuilder: (_, __) => Divider(color: theme.textPrimary.withValues(alpha: 0.1), height: 1),
-                itemBuilder: (context, index) {
-                  final option = options.elementAt(index);
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Icon(Icons.location_on, color: theme.primary, size: 20),
-                    title: Text(
-                      option['place_name'] as String,
-                      style: TextStyle(color: theme.textPrimary, fontSize: 13.5),
+      fieldViewBuilder:
+          (context, fieldController, fieldFocusNode, onFieldSubmitted) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ModernInputField(
+                  controller: fieldController,
+                  focusNode: fieldFocusNode,
+                  hint: widget.hint,
+                  icon: widget.icon,
+                  primaryColor: theme.primary,
+                  theme: theme,
+                  onSubmitted: (val) {
+                    onFieldSubmitted();
+                    widget.onSubmitted(val);
+                  },
+                  onChanged: (value) {
+                    _search(value);
+                    widget.onChanged(value);
+                  },
+                  onFocusChanged: (hasFocus) {
+                    if (!hasFocus) {
+                      setState(() => _showSuggestions = false);
+                    } else if (fieldController.text.trim().isNotEmpty) {
+                      setState(() => _showSuggestions = true);
+                    }
+                  },
+                  suffixIcon: widget.suffixIcon,
+                ),
+                if (_showSuggestions) ...[
+                  const SizedBox(height: 6),
+                  Material(
+                    elevation: 5,
+                    color: theme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    clipBehavior: Clip.antiAlias,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 220),
+                      child: _suggestions.isNotEmpty
+                          ? ListView.separated(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              shrinkWrap: true,
+                              itemCount: _suggestions.length,
+                              separatorBuilder: (_, _) => Divider(
+                                color: theme.textPrimary.withValues(alpha: 0.1),
+                                height: 1,
+                              ),
+                              itemBuilder: (context, index) {
+                                final option = _suggestions[index];
+                                return ListTile(
+                                  dense: true,
+                                  leading: Icon(
+                                    Icons.location_on,
+                                    color: theme.primary,
+                                    size: 20,
+                                  ),
+                                  title: Text(
+                                    option['place_name'] as String,
+                                    style: TextStyle(
+                                      color: theme.textPrimary,
+                                      fontSize: 13.5,
+                                    ),
+                                  ),
+                                  onTap: () {
+                                    final center = option['center'] as List;
+                                    fieldController.text =
+                                        option['place_name'] as String;
+                                    fieldController.selection =
+                                        TextSelection.collapsed(
+                                          offset: fieldController.text.length,
+                                        );
+                                    widget.onSelected(
+                                      LatLng(
+                                        (center[1] as num).toDouble(),
+                                        (center[0] as num).toDouble(),
+                                      ),
+                                      option['place_name'] as String,
+                                    );
+                                    setState(() {
+                                      _showSuggestions = false;
+                                      _suggestions = const [];
+                                    });
+                                    fieldFocusNode.unfocus();
+                                  },
+                                );
+                              },
+                            )
+                          : Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Row(
+                                children: [
+                                  if (_isSearching)
+                                    SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: theme.primary,
+                                      ),
+                                    )
+                                  else
+                                    Icon(
+                                      Icons.info_outline,
+                                      size: 18,
+                                      color: theme.textPrimary.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                    ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _isSearching
+                                          ? 'Searching locations…'
+                                          : _lookupError ??
+                                                'No matching locations found.',
+                                      style: TextStyle(
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                     ),
-                    onTap: () => onSelectedOption(option),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
+                  ),
+                ],
+              ],
+            );
+          },
+      optionsViewBuilder: (context, onSelectedOption, options) =>
+          const SizedBox.shrink(),
     );
   }
 }
