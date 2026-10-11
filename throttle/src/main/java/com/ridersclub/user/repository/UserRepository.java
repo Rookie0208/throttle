@@ -26,6 +26,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByRiderId(String riderId);
 
+    Optional<User> findBySafetyId(String safetyId);
+
     @Query("""
             select u from User u
             where lower(concat(coalesce(u.firstName, ''), ' ', coalesce(u.lastName, ''))) like lower(concat('%', :query, '%'))

@@ -1,11 +1,18 @@
 import 'dart:math';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/emergency_contacts_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/medical_info_screen.dart';
+
+// Universal HTML download fallback for Web
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html if (dart.library.io) 'dart:io';
 
 class SafetyHubScreen extends StatefulWidget {
   const SafetyHubScreen({super.key});
@@ -15,15 +22,17 @@ class SafetyHubScreen extends StatefulWidget {
 }
 
 class _SafetyHubScreenState extends State<SafetyHubScreen> {
+  final GlobalKey _qrRepaintKey = GlobalKey();
   final _instructionsController = TextEditingController();
 
   Map<String, dynamic>? _user;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isDownloading = false;
 
   bool _safetyEnabled = true;
   String _safetyId = '';
-  String _safetyPin = '1234';
+  String _safetyPin = '';
 
   // Privacy controls
   bool _showBloodGroup = true;
@@ -44,14 +53,13 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
     super.dispose();
   }
 
-  String _generateSafetyId(String userUuid) {
+  String _generateFallbackSafetyId(String userUuid) {
     if (userUuid.isNotEmpty) {
       final clean = userUuid.replaceAll('-', '').toUpperCase();
       final suffix = clean.length >= 6 ? clean.substring(0, 6) : 'SAFE99';
       return 'TH-$suffix';
     }
-    final rand = Random().nextInt(899999) + 100000;
-    return 'TH-$rand';
+    return 'TH-RIDER';
   }
 
   Future<void> _loadSafetyProfile() async {
@@ -61,16 +69,28 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
     if (user != null) {
       final userUuid = (user['uuid'] ?? user['id'] ?? '').toString();
 
-      // Check if user has safety instructions stored
-      String instructions = '';
-      if (user['emergencyInstructions'] != null) {
-        instructions = user['emergencyInstructions'].toString();
+      // Read persistent safetyId and safetyPin from backend response
+      String safetyId = (user['safetyId'] ?? '').toString().trim();
+      if (safetyId.isEmpty) {
+        safetyId = _generateFallbackSafetyId(userUuid);
       }
+
+      String safetyPin = (user['safetyPin'] ?? '').toString().trim();
+      if (safetyPin.isEmpty) {
+        // Generate a fixed 4-digit PIN once and save it so it never regenerates on its own
+        safetyPin = (Random().nextInt(8999) + 1000).toString();
+        // Persist it immediately
+        UserService.updateProfile({'safetyPin': safetyPin, 'safetyId': safetyId});
+      }
+
+      final enabled = user['safetyEnabled'] != false;
+      final instructions = (user['emergencyInstructions'] ?? '').toString();
 
       setState(() {
         _user = user;
-        _safetyId = _generateSafetyId(userUuid);
-        _safetyPin = (Random().nextInt(8999) + 1000).toString();
+        _safetyId = safetyId;
+        _safetyPin = safetyPin;
+        _safetyEnabled = enabled;
         _instructionsController.text = instructions;
         _isLoading = false;
       });
@@ -84,6 +104,9 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
     final text = _instructionsController.text.trim();
     final success = await UserService.updateProfile({
       'emergencyInstructions': text,
+      'safetyEnabled': _safetyEnabled,
+      'safetyPin': _safetyPin,
+      'safetyId': _safetyId,
     });
 
     if (!mounted) return;
@@ -94,48 +117,107 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
         content: Text(
           success
               ? 'Safety instructions saved.'
-              : 'Instructions saved locally.',
+              : 'Failed to save instructions.',
         ),
       ),
     );
   }
 
-  void _regenerateSafetyId() {
-    showDialog(
+  Future<void> _toggleSafetyEnabled(bool enabled) async {
+    setState(() => _safetyEnabled = enabled);
+    await UserService.updateProfile({'safetyEnabled': enabled});
+  }
+
+  Future<void> _regenerateSafetyId() async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Regenerate Safety ID?'),
+        title: const Text('Regenerate Safety ID & PIN?'),
         content: const Text(
-          'This will invalidate your current QR code and PIN. Any physical stickers you printed will need to be replaced.',
+          'This will generate a new fixed Safety ID and PIN. Any physical stickers you already printed will need to be replaced.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              final rand = Random().nextInt(899999) + 100000;
-              final newPin = (Random().nextInt(8999) + 1000).toString();
-              setState(() {
-                _safetyId = 'TH-$rand';
-                _safetyPin = newPin;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Generated new Safety ID & PIN')),
-              );
-            },
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('Regenerate'),
           ),
         ],
       ),
     );
+
+    if (confirmed == true && mounted) {
+      final rand = Random().nextInt(899999) + 100000;
+      final newId = 'TH-$rand';
+      final newPin = (Random().nextInt(8999) + 1000).toString();
+
+      setState(() {
+        _safetyId = newId;
+        _safetyPin = newPin;
+      });
+
+      await UserService.updateProfile({
+        'safetyId': newId,
+        'safetyPin': newPin,
+      });
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Generated new Safety ID & PIN')),
+      );
+    }
   }
 
   String get _publicSafetyUrl {
-    return 'http://127.0.0.1:5500/safety.html?id=$_safetyId';
+    return 'https://tinyurl.com/throttle-web?id=$_safetyId';
+  }
+
+  Future<void> _downloadQrBadge() async {
+    setState(() => _isDownloading = true);
+    try {
+      final boundary = _qrRepaintKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) {
+        throw Exception('Could not capture QR badge boundary');
+      }
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final pngBytes = byteData?.buffer.asUint8List();
+
+      if (pngBytes != null) {
+        if (kIsWeb) {
+          final blob = html.Blob([pngBytes], 'image/png');
+          final url = html.Url.createObjectUrlFromBlob(blob);
+          html.AnchorElement(href: url)
+            ..setAttribute('download', 'Throttle_Safety_QR_$_safetyId.png')
+            ..click();
+          html.Url.revokeObjectUrl(url);
+        }
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              kIsWeb
+                  ? 'QR Sticker badge downloaded.'
+                  : 'QR Badge image captured successfully.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to download QR: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
   }
 
   @override
@@ -300,41 +382,65 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
               Switch(
                 value: _safetyEnabled,
                 activeThumbColor: theme.primary,
-                onChanged: (val) {
-                  setState(() => _safetyEnabled = val);
-                },
+                onChanged: _toggleSafetyEnabled,
               ),
             ],
           ),
           const SizedBox(height: 20),
 
-          // QR Code Graphic Container
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Opacity(
-              opacity: _safetyEnabled ? 1.0 : 0.35,
-              child: QrImageView(
-                data: _publicSafetyUrl,
-                version: QrVersions.auto,
-                size: 160.0,
-                backgroundColor: Colors.white,
+          // QR Code Graphic Container captured via RepaintBoundary for high-res download
+          RepaintBoundary(
+            key: _qrRepaintKey,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'THROTTLE EMERGENCY ID',
+                    style: GoogleFonts.bebasNeue(
+                      color: Colors.black87,
+                      fontSize: 18,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Opacity(
+                    opacity: _safetyEnabled ? 1.0 : 0.35,
+                    child: QrImageView(
+                      data: _publicSafetyUrl,
+                      version: QrVersions.auto,
+                      size: 160.0,
+                      backgroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _safetyId,
+                    style: GoogleFonts.lexend(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 16),
 
-          // ID and PIN details
+          // ID and Fixed PIN details
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
@@ -387,7 +493,7 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _safetyPin,
+                      _safetyPin.isNotEmpty ? _safetyPin : '----',
                       style: GoogleFonts.lexend(
                         color: theme.primary,
                         fontSize: 16,
@@ -401,14 +507,38 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Action row
+          // Action row: Download QR Badge & Regenerate ID
           Row(
             children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isDownloading ? null : _downloadQrBadge,
+                  icon: _isDownloading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_rounded, size: 16),
+                  label: const Text('Download QR'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primary,
+                    foregroundColor: theme.brightness == Brightness.dark
+                        ? Colors.black
+                        : Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _regenerateSafetyId,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Regenerate ID'),
+                  label: const Text('Regenerate'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: theme.textPrimary,
                     side: BorderSide(
@@ -670,7 +800,6 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
                 subtitle,
                 style: TextStyle(
                   color: theme.textPrimary.withValues(alpha: 0.55),
-                  fontSize: 12,
                 ),
               ),
             ],

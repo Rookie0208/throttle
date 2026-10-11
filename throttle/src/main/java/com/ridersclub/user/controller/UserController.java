@@ -87,4 +87,12 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.success(true, "Bike removed successfully"));
     }
+
+    @GetMapping("/safety/{safetyId}")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getPublicSafetyProfile(
+            @PathVariable("safetyId") String safetyId) {
+        UserProfileResponse profile = userService.getPublicSafetyProfile(safetyId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.success(profile, "Safety profile fetched"));
+    }
 }

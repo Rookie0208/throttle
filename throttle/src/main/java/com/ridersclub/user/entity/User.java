@@ -89,6 +89,20 @@ public class User {
     @Column(length = 1000)
     private String currentMedication;
 
+    @Column(length = 32, unique = true)
+    private String safetyId;
+
+    @Column(length = 10)
+    private String safetyPin;
+
+    private Boolean safetyEnabled = true;
+
+    @Column(length = 1000)
+    private String emergencyInstructions;
+
+    @Column(length = 255)
+    private String safetyPrivacySettings;
+
     public boolean hasRole(String string) {
         return role.name().equals(string);
     }
