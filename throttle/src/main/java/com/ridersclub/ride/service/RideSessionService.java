@@ -113,6 +113,7 @@ public class RideSessionService {
         return RideSessionResponse.builder()
                 .rideUuid(ride.getUuid())
                 .title(ride.getTitle())
+                .rideType(ride.getRideType() != null ? ride.getRideType().name() : null)
                 .rideStatus(ride.getStatus().name())
                 .scheduledStartTime(ride.getStartTime())
                 .rideStartedAt(ride.getRideStartedAt())

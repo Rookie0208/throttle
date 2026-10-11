@@ -14,6 +14,7 @@ import lombok.Setter;
 public class RideSessionResponse {
     private String rideUuid;
     private String title;
+    private String rideType;
     private String rideStatus;
     private LocalDateTime scheduledStartTime;
     private LocalDateTime rideStartedAt;

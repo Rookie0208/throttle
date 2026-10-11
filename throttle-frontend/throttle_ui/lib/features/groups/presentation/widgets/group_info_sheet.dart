@@ -40,6 +40,13 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       widget.rideGroup["isSubGroup"] == true ||
       widget.rideGroup["parentGroupUuid"] != null;
 
+  bool _isSoloRideFor(Map<String, dynamic> preRideInfo) =>
+      (widget.rideGroup["rideType"] ?? preRideInfo["rideType"] ?? "")
+          .toString()
+          .trim()
+          .toUpperCase() ==
+      "SOLO";
+
   bool get _isGroupLocked {
     final groupStatus = (widget.rideGroup["status"] ?? "")
         .toString()
@@ -393,7 +400,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       decoration: BoxDecoration(
                         color: theme.surface,
                         borderRadius: BorderRadius.circular(14),
-                                              ),
+                      ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedRole,
@@ -727,7 +734,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                 decoration: BoxDecoration(
                   color: theme.surface,
                   borderRadius: BorderRadius.circular(14),
-                                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -821,7 +828,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       ? theme.surface
                       : theme.surface.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
-                                  ),
+                ),
                 child: Icon(
                   icon,
                   color: enabled
@@ -859,7 +866,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(18),
-              ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1075,12 +1082,14 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     Map<String, dynamic>? endLocation,
     Map<String, dynamic>? meetingPointLocation,
     List<Map<String, dynamic>> checkpointLocations = const [],
+    bool includeMeetingPoint = true,
   }) async {
     final points = _buildRidePreviewPoints(
       startLocation: startLocation,
       endLocation: endLocation,
       meetingPointLocation: meetingPointLocation,
       checkpointLocations: checkpointLocations,
+      includeMeetingPoint: includeMeetingPoint,
     );
 
     if (points.isEmpty) {
@@ -1092,7 +1101,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       MaterialPageRoute(
         builder: (_) => RidePreviewMapScreen(
           title: title,
-          subtitle: "Start, destination, checkpoints, and meeting point",
+          subtitle: includeMeetingPoint
+              ? "Start, destination, checkpoints, and meeting point"
+              : "Start, destination, and checkpoints",
           points: points,
         ),
       ),
@@ -1115,7 +1126,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(14),
-                  ),
+        ),
         child: Row(
           children: [
             Icon(icon, color: theme.primary, size: 18),
@@ -1365,7 +1376,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                   decoration: BoxDecoration(
                     color: theme.surface,
                     borderRadius: BorderRadius.circular(14),
-                                      ),
+                  ),
                   child: Text(
                     "Only riders with the CAPTAIN or ADMIN role can assign roles or remove members.",
                     style: TextStyle(
@@ -1518,7 +1529,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
               decoration: BoxDecoration(
                 color: theme.surface,
                 borderRadius: BorderRadius.circular(14),
-                              ),
+              ),
               child: ListTile(
                 onTap: () =>
                     _openSubGroupInfo(Map<String, dynamic>.from(subgroup)),
@@ -1606,7 +1617,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         decoration: BoxDecoration(
           color: theme.surface,
           borderRadius: BorderRadius.circular(14),
-                  ),
+        ),
         child: Column(
           children: [
             Icon(icon, color: theme.primary),
@@ -1754,6 +1765,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
         ),
         if (widget.rideGroup["preRideInfo"] != null &&
             (widget.rideGroup["preRideInfo"] as Map).isNotEmpty &&
+            !_isSoloRideFor(
+              Map<String, dynamic>.from(widget.rideGroup["preRideInfo"]),
+            ) &&
             ((widget.rideGroup["preRideInfo"]["meetingPoint"] ?? "")
                 .toString()
                 .trim()
@@ -1785,6 +1799,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     final preRideInfo = Map<String, dynamic>.from(
       widget.rideGroup["preRideInfo"] ?? {},
     );
+    final isSoloRide = _isSoloRideFor(preRideInfo);
     final startLocation = _normalizeLocation(
       preRideInfo["startLocation"] ?? widget.rideGroup["startLocation"],
     );
@@ -1864,6 +1879,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           endLocation: endLocation,
                           meetingPointLocation: meetingPointLocation,
                           checkpointLocations: checkpointLocations,
+                          includeMeetingPoint: !isSoloRide,
                         ),
                         icon: const Icon(Icons.map_outlined, size: 18),
                         label: const Text("See Ride Preview"),
@@ -1898,9 +1914,11 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       decoration: BoxDecoration(
                         color: theme.surface,
                         borderRadius: BorderRadius.circular(18),
-                                              ),
+                      ),
                       child: Text(
-                        "Add meeting point, checkpoints, rules, notes, and ride setup details here.",
+                        isSoloRide
+                            ? "Add checkpoints, rules, notes, and ride setup details here."
+                            : "Add meeting point, checkpoints, rules, notes, and ride setup details here.",
                         style: TextStyle(
                           color: theme.textPrimary.withValues(alpha: 0.65),
                         ),
@@ -1910,9 +1928,10 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if ((preRideInfo["meetingPoint"] ?? "")
-                            .toString()
-                            .isNotEmpty)
+                        if (!isSoloRide &&
+                            (preRideInfo["meetingPoint"] ?? "")
+                                .toString()
+                                .isNotEmpty)
                           _preRideHeroCard(
                             preRideInfo,
                             theme,
@@ -2146,6 +2165,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
     final existingPreRide = Map<String, dynamic>.from(
       widget.rideGroup["preRideInfo"] ?? {},
     );
+    final isSoloRide = _isSoloRideFor(existingPreRide);
 
     final meetingController = TextEditingController(
       text: existingPreRide["meetingPoint"]?.toString() ?? "",
@@ -2776,149 +2796,156 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 16),
-                  Text(
-                    "Meeting Point",
-                    style: TextStyle(color: theme.textPrimary, fontSize: 16),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: meetingController,
-                    focusNode: meetingFocusNode,
-                    style: TextStyle(color: theme.textPrimary),
-                    decoration:
-                        _inputDecoration(
-                          "Search meetup location",
-                          theme,
-                        ).copyWith(
-                          prefixIcon: Icon(Icons.search, color: theme.primary),
-                          suffixIcon: isMeetingSearchLoading
-                              ? Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: theme.primary,
+                  if (!isSoloRide) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      "Meeting Point",
+                      style: TextStyle(color: theme.textPrimary, fontSize: 16),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: meetingController,
+                      focusNode: meetingFocusNode,
+                      style: TextStyle(color: theme.textPrimary),
+                      decoration:
+                          _inputDecoration(
+                            "Search meetup location",
+                            theme,
+                          ).copyWith(
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: theme.primary,
+                            ),
+                            suffixIcon: isMeetingSearchLoading
+                                ? Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: theme.primary,
+                                      ),
                                     ),
-                                  ),
-                                )
-                              : (meetingController.text.trim().isNotEmpty
-                                    ? IconButton(
-                                        onPressed: () {
-                                          meetingController.clear();
-                                          selectedMeetingLocation = null;
-                                          clearMeetingSuggestions(
-                                            setModalState,
-                                          );
-                                        },
-                                        icon: Icon(
-                                          Icons.close,
-                                          color: theme.textPrimary.withValues(
-                                            alpha: 0.6,
+                                  )
+                                : (meetingController.text.trim().isNotEmpty
+                                      ? IconButton(
+                                          onPressed: () {
+                                            meetingController.clear();
+                                            selectedMeetingLocation = null;
+                                            clearMeetingSuggestions(
+                                              setModalState,
+                                            );
+                                          },
+                                          icon: Icon(
+                                            Icons.close,
+                                            color: theme.textPrimary.withValues(
+                                              alpha: 0.6,
+                                            ),
                                           ),
-                                        ),
-                                      )
-                                    : null),
-                        ),
-                    onChanged: (value) {
-                      selectedMeetingLocation = null;
-                      scheduleMeetingSearch(setModalState, value);
-                    },
-                  ),
-                  if (selectedMeetingLocation != null) ...[
-                    const SizedBox(height: 10),
-                    _locationPreviewTile(
-                      label: "Selected Meeting Point",
-                      value: _locationName(selectedMeetingLocation),
-                      theme: theme,
-                      onTap: _hasCoordinates(selectedMeetingLocation)
-                          ? () => _openLocationPreview(
-                              "Meeting Point",
-                              selectedMeetingLocation,
-                            )
-                          : null,
-                      icon: Icons.people_alt_outlined,
+                                        )
+                                      : null),
+                          ),
+                      onChanged: (value) {
+                        selectedMeetingLocation = null;
+                        scheduleMeetingSearch(setModalState, value);
+                      },
                     ),
-                  ],
-                  const SizedBox(height: 10),
-                  Text(
-                    "Search and pin the exact meeting point. Riders will be able to open it directly on the map.",
-                    style: TextStyle(
-                      color: theme.textPrimary.withValues(alpha: 0.6),
-                      fontSize: 12,
-                    ),
-                  ),
-                  if (meetingSearchError != null &&
-                      meetingController.text.trim().length >= 3) ...[
+                    if (selectedMeetingLocation != null) ...[
+                      const SizedBox(height: 10),
+                      _locationPreviewTile(
+                        label: "Selected Meeting Point",
+                        value: _locationName(selectedMeetingLocation),
+                        theme: theme,
+                        onTap: _hasCoordinates(selectedMeetingLocation)
+                            ? () => _openLocationPreview(
+                                "Meeting Point",
+                                selectedMeetingLocation,
+                              )
+                            : null,
+                        icon: Icons.people_alt_outlined,
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     Text(
-                      meetingSearchError!,
-                      style: const TextStyle(
-                        color: Colors.orangeAccent,
+                      "Search and pin the exact meeting point. Riders will be able to open it directly on the map.",
+                      style: TextStyle(
+                        color: theme.textPrimary.withValues(alpha: 0.6),
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (meetingSearchError != null &&
+                        meetingController.text.trim().length >= 3) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        meetingSearchError!,
+                        style: const TextStyle(
+                          color: Colors.orangeAccent,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (meetingSuggestions.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        decoration: BoxDecoration(
+                          color: AppColors.background,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.white12),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: meetingSuggestions.length,
+                          separatorBuilder: (context, index) => const Divider(
+                            height: 1,
+                            color: AppColors.white12,
+                          ),
+                          itemBuilder: (context, index) {
+                            final suggestion = meetingSuggestions[index];
+                            final title = suggestion["title"] ?? "";
+                            final subtitle = suggestion["subtitle"] ?? "";
+
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(
+                                Icons.location_on_outlined,
+                                color: AppColors.primary,
+                              ),
+                              title: Text(
+                                title,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              subtitle: subtitle.isEmpty
+                                  ? null
+                                  : Text(
+                                      subtitle,
+                                      style: TextStyle(
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.65,
+                                        ),
+                                      ),
+                                    ),
+                              onTap: () => selectMeetingSuggestion(
+                                setModalState,
+                                suggestion,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Text(
+                      "Type at least 3 characters and pick a place from the search results.",
+                      style: TextStyle(
+                        color: theme.textPrimary.withValues(alpha: 0.6),
                         fontSize: 12,
                       ),
                     ),
                   ],
-                  if (meetingSuggestions.isNotEmpty) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 220),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.white12),
-                      ),
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: meetingSuggestions.length,
-                        separatorBuilder: (context, index) =>
-                            const Divider(height: 1, color: AppColors.white12),
-                        itemBuilder: (context, index) {
-                          final suggestion = meetingSuggestions[index];
-                          final title = suggestion["title"] ?? "";
-                          final subtitle = suggestion["subtitle"] ?? "";
-
-                          return ListTile(
-                            dense: true,
-                            leading: const Icon(
-                              Icons.location_on_outlined,
-                              color: AppColors.primary,
-                            ),
-                            title: Text(
-                              title,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            subtitle: subtitle.isEmpty
-                                ? null
-                                : Text(
-                                    subtitle,
-                                    style: TextStyle(
-                                      color: theme.textPrimary.withValues(
-                                        alpha: 0.65,
-                                      ),
-                                    ),
-                                  ),
-                            onTap: () => selectMeetingSuggestion(
-                              setModalState,
-                              suggestion,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Text(
-                    "Type at least 3 characters and pick a place from the search results.",
-                    style: TextStyle(
-                      color: theme.textPrimary.withValues(alpha: 0.6),
-                      fontSize: 12,
-                    ),
-                  ),
                 ],
               );
             }
@@ -3052,7 +3079,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                           decoration: BoxDecoration(
                             color: theme.surface,
                             borderRadius: BorderRadius.circular(10),
-                                                      ),
+                          ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -3167,13 +3194,14 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       style: TextStyle(color: theme.textPrimary, fontSize: 16),
                     ),
                     const SizedBox(height: 12),
-                    _preview(
-                      "Meeting Point",
-                      selectedMeetingLocation != null
-                          ? _locationName(selectedMeetingLocation)
-                          : meetingController.text,
-                      theme,
-                    ),
+                    if (!isSoloRide)
+                      _preview(
+                        "Meeting Point",
+                        selectedMeetingLocation != null
+                            ? _locationName(selectedMeetingLocation)
+                            : meetingController.text,
+                        theme,
+                      ),
                     _preview(
                       "Start",
                       selectedStartLocation == null
@@ -3272,6 +3300,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                         endLocation: selectedEndLocation,
                         meetingPointLocation: selectedMeetingLocation,
                         checkpointLocations: checkpointLocations,
+                        includeMeetingPoint: !isSoloRide,
                       ),
                       icon: const Icon(Icons.map_outlined, size: 18),
                       label: const Text("See Ride Preview"),
@@ -3361,9 +3390,9 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                             final hasTypedEnd = endLocationController.text
                                 .trim()
                                 .isNotEmpty;
-                            final hasTypedMeeting = meetingController.text
-                                .trim()
-                                .isNotEmpty;
+                            final hasTypedMeeting =
+                                !isSoloRide &&
+                                meetingController.text.trim().isNotEmpty;
 
                             if (hasTypedStart &&
                                 selectedStartLocation == null) {
@@ -3407,10 +3436,12 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                               "endLocation": _serializeLocation(
                                 selectedEndLocation,
                               ),
-                              "meetingPoint": meetingController.text.trim(),
-                              "meetingPointLocation": _serializeLocation(
-                                selectedMeetingLocation,
-                              ),
+                              "meetingPoint": isSoloRide
+                                  ? ""
+                                  : meetingController.text.trim(),
+                              "meetingPointLocation": isSoloRide
+                                  ? null
+                                  : _serializeLocation(selectedMeetingLocation),
                               "fuelStops": fuelController.text.trim(),
                               "checkpointList": checkpoints,
                               "checkpointLocations": _serializeLocationList(
@@ -3559,7 +3590,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(12),
-              ),
+      ),
       child: Row(
         children: [
           Icon(Icons.location_on, color: theme.primary),
@@ -3585,7 +3616,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(12),
-              ),
+      ),
       child: Row(
         children: [
           Icon(Icons.location_on, color: theme.primary),
@@ -3799,7 +3830,7 @@ class _RideInfoScreenState extends State<RideInfoScreen> {
                       decoration: BoxDecoration(
                         color: theme.surface,
                         borderRadius: BorderRadius.circular(14),
-                                              ),
+                      ),
                       child: Text(
                         description ?? "Add group description",
                         style: TextStyle(

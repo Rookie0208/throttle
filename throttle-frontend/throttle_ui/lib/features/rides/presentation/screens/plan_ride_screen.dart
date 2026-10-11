@@ -1,8 +1,7 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:throttle_ui/features/groups/data/services/place_service.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
@@ -80,11 +79,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     super.dispose();
   }
 
-  String get _mapboxPublicToken =>
-      dotenv.env["MAPBOX_PUBLIC_TOKEN"]?.trim() ?? "";
-
-  bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
-
   bool get _isInstantRide => widget.instantRide;
 
   List<String> get _steps => _isInstantRide
@@ -97,9 +91,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       _isInstantRide ? "Create Instant Ride" : "Create Ride";
 
   String get _routeStatusLabel {
-    if (!_hasMapboxToken) {
-      return "Mapbox is required to resolve exact ride coordinates.";
-    }
     if (startPoint != null && endPoint != null) {
       return "Start and destination are resolved with exact coordinates.";
     }
@@ -155,7 +146,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(18),
-              ),
+      ),
       child: child,
     );
   }
@@ -502,9 +493,12 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
         showError("Location permission denied or service disabled.");
         return;
       }
-      final city = await LocationService.getCityName(pos.latitude, pos.longitude);
+      final city = await LocationService.getCityName(
+        pos.latitude,
+        pos.longitude,
+      );
       final locationName = city ?? "Current Location";
-      
+
       if (!mounted) return;
       setState(() {
         startPoint = LatLng(pos.latitude, pos.longitude);
@@ -520,38 +514,22 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   Future<bool> fetchCoordinates(String placeName, bool isStart) async {
     final query = placeName.trim();
     if (query.isEmpty) return false;
-    if (!_hasMapboxToken) {
-      showError("Add a Mapbox public token to continue");
-      return false;
-    }
-
-    final url =
-        "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?access_token=$_mapboxPublicToken&limit=1&autocomplete=true";
 
     try {
-      final response = await http.get(Uri.parse(url));
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        showError("Failed to look up ${isStart ? "start" : "end"} location");
-        return false;
-      }
-
-      final data = json.decode(response.body) as Map<String, dynamic>;
-      final features = data["features"];
-      if (features is! List || features.isEmpty) {
+      final places = await PlaceService.searchPlaces(query);
+      if (places.isEmpty) {
         showError("No map result found for \"$query\"");
         return false;
       }
 
-      final center = (features.first as Map<String, dynamic>)["center"];
-      if (center is! List || center.length < 2) {
-        showError("Invalid map response for \"$query\"");
+      final latitude = double.tryParse(places.first['latitude'] ?? '');
+      final longitude = double.tryParse(places.first['longitude'] ?? '');
+      if (latitude == null || longitude == null) {
+        showError("Invalid map result for \"$query\"");
         return false;
       }
 
-      final point = LatLng(
-        (center[1] as num).toDouble(),
-        (center[0] as num).toDouble(),
-      );
+      final point = LatLng(latitude, longitude);
 
       if (!mounted) return false;
       setState(() {
@@ -576,11 +554,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
     if (startName.isEmpty || endName.isEmpty) {
       showError("Start and End locations are required");
-      return false;
-    }
-
-    if (!_hasMapboxToken) {
-      showError("Mapbox is not configured yet");
       return false;
     }
 
@@ -789,6 +762,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     : 1,
                 token: widget.token,
                 rideUuid: rideUuid,
+                rideType: rideType,
               ),
             ),
           );
@@ -884,7 +858,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       decoration: BoxDecoration(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-              ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -983,7 +957,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 subtitle: "Add start and end locations for the ride.",
               ),
               const SizedBox(height: 12),
-              _MapboxAutocomplete(
+              _PlaceAutocomplete(
                 controller: startLocationController,
                 hint: "Enter start location",
                 icon: Icons.trip_origin,
@@ -993,7 +967,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   tooltip: "Use Current Location",
                 ),
                 theme: theme,
-                mapboxToken: _mapboxPublicToken,
                 onSelected: (point, placeName) {
                   setState(() {
                     startPoint = point;
@@ -1009,12 +982,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 },
               ),
               const SizedBox(height: 10),
-              _MapboxAutocomplete(
+              _PlaceAutocomplete(
                 controller: endLocationController,
                 hint: "Enter end location",
                 icon: Icons.flag_outlined,
                 theme: theme,
-                mapboxToken: _mapboxPublicToken,
                 onSelected: (point, placeName) {
                   setState(() {
                     endPoint = point;
@@ -1036,7 +1008,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
-                                  ),
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1120,7 +1092,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
-                                          ),
+                    ),
                     child: Row(
                       children: [
                         Container(
@@ -1185,7 +1157,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                                                  ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1218,7 +1190,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                         decoration: BoxDecoration(
                           color: Colors.transparent,
                           borderRadius: BorderRadius.circular(14),
-                                                  ),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1264,7 +1236,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     decoration: BoxDecoration(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
-                                          ),
+                    ),
                     child: Row(
                       children: [
                         Container(
@@ -1414,12 +1386,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 theme,
               ),
               if (!_isInstantRide)
-                _infoChip(
-                  "🔥",
-                  "Difficulty",
-                  difficulty,
-                  theme,
-                ),
+                _infoChip("🔥", "Difficulty", difficulty, theme),
               if (!_isInstantRide) _infoChip("📋", "Rules", rules, theme),
               if (!_isInstantRide)
                 _infoChip("⏰", "Time", selectedTime.format(context), theme),
@@ -1444,7 +1411,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
               decoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                              ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1566,7 +1533,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(26),
                   ),
-                                  ),
+                ),
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
@@ -1655,6 +1622,7 @@ class _ModernInputField extends StatefulWidget {
   final AppThemeConfig theme;
   final FocusNode? focusNode;
   final Widget? suffixIcon;
+  final ValueChanged<bool>? onFocusChanged;
 
   const _ModernInputField({
     required this.controller,
@@ -1669,6 +1637,7 @@ class _ModernInputField extends StatefulWidget {
     required this.theme,
     this.focusNode,
     this.suffixIcon,
+    this.onFocusChanged,
   });
 
   @override
@@ -1683,7 +1652,10 @@ class _ModernInputFieldState extends State<_ModernInputField> {
     return Opacity(
       opacity: widget.disabled ? 0.45 : 1,
       child: Focus(
-        onFocusChange: (hasFocus) => setState(() => _isFocused = hasFocus),
+        onFocusChange: (hasFocus) {
+          setState(() => _isFocused = hasFocus);
+          widget.onFocusChanged?.call(hasFocus);
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
@@ -1756,23 +1728,21 @@ class _ModernInputFieldState extends State<_ModernInputField> {
   }
 }
 
-class _MapboxAutocomplete extends StatelessWidget {
+class _PlaceAutocomplete extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
   final IconData icon;
   final AppThemeConfig theme;
-  final String mapboxToken;
   final Function(LatLng point, String placeName) onSelected;
   final Function(String) onSubmitted;
   final Function(String) onChanged;
   final Widget? suffixIcon;
 
-  const _MapboxAutocomplete({
+  const _PlaceAutocomplete({
     required this.controller,
     required this.hint,
     required this.icon,
     required this.theme,
-    required this.mapboxToken,
     required this.onSelected,
     required this.onSubmitted,
     required this.onChanged,
@@ -1780,83 +1750,210 @@ class _MapboxAutocomplete extends StatelessWidget {
   });
 
   @override
+  State<_PlaceAutocomplete> createState() => _PlaceAutocompleteState();
+}
+
+class _PlaceAutocompleteState extends State<_PlaceAutocomplete> {
+  late final FocusNode _focusNode = FocusNode();
+  Timer? _debounce;
+  int _requestId = 0;
+  bool _showSuggestions = false;
+  bool _isSearching = false;
+  String? _searchError;
+  List<Map<String, String>> _suggestions = const [];
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _requestId++;
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _search(String rawQuery) {
+    _debounce?.cancel();
+    final query = rawQuery.trim();
+    final requestId = ++_requestId;
+    if (query.length < 3) {
+      setState(() {
+        _suggestions = const [];
+        _isSearching = false;
+        _searchError = null;
+        _showSuggestions = query.isNotEmpty && _focusNode.hasFocus;
+      });
+      return;
+    }
+
+    setState(() {
+      _suggestions = const [];
+      _isSearching = true;
+      _searchError = null;
+      _showSuggestions = _focusNode.hasFocus;
+    });
+    _debounce = Timer(const Duration(milliseconds: 900), () async {
+      try {
+        final places = await PlaceService.searchPlaces(query);
+        if (!mounted || requestId != _requestId) return;
+        setState(() {
+          _suggestions = places;
+          _isSearching = false;
+          _searchError = places.isEmpty ? 'No matching locations found.' : null;
+        });
+      } catch (_) {
+        if (!mounted || requestId != _requestId) return;
+        setState(() {
+          _suggestions = const [];
+          _isSearching = false;
+          _searchError =
+              'Location search is unavailable. Check your connection.';
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return RawAutocomplete<Map<String, dynamic>>(
-      textEditingController: controller,
-      focusNode: FocusNode(),
-      optionsBuilder: (textEditingValue) async {
-        final query = textEditingValue.text.trim();
-        if (query.isEmpty || mapboxToken.isEmpty) return const [];
-        try {
-          final url =
-              "https://api.mapbox.com/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json?access_token=$mapboxToken&autocomplete=true&limit=5";
-          final res = await http.get(Uri.parse(url));
-          if (res.statusCode == 200) {
-            final data = json.decode(res.body);
-            return (data['features'] as List).map((f) => f as Map<String, dynamic>);
-          }
-        } catch (_) {}
-        return const [];
-      },
-      displayStringForOption: (option) => option['place_name'] as String,
-      onSelected: (option) {
-        final center = option['center'] as List;
-        final point = LatLng(
-          (center[1] as num).toDouble(),
-          (center[0] as num).toDouble(),
-        );
-        onSelected(point, option['place_name'] as String);
-      },
-      fieldViewBuilder: (context, fieldController, fieldFocusNode, onFieldSubmitted) {
-        return _ModernInputField(
-          controller: fieldController,
-          focusNode: fieldFocusNode,
-          hint: hint,
-          icon: icon,
+    final theme = widget.theme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ModernInputField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          hint: widget.hint,
+          icon: widget.icon,
           primaryColor: theme.primary,
           theme: theme,
-          onSubmitted: (val) {
-            onFieldSubmitted();
-            onSubmitted(val);
+          onSubmitted: widget.onSubmitted,
+          onChanged: (value) {
+            _search(value);
+            widget.onChanged(value);
           },
-          onChanged: onChanged,
-          suffixIcon: suffixIcon,
-        );
-      },
-      optionsViewBuilder: (context, onSelectedOption, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 8,
-            borderRadius: BorderRadius.circular(12),
+          onFocusChanged: (hasFocus) {
+            if (!hasFocus) {
+              setState(() => _showSuggestions = false);
+            } else if (widget.controller.text.trim().isNotEmpty) {
+              setState(() => _showSuggestions = true);
+            }
+          },
+          suffixIcon: widget.suffixIcon,
+        ),
+        if (_showSuggestions) ...[
+          const SizedBox(height: 6),
+          Material(
+            elevation: 5,
             color: theme.surface,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
             child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: 220,
-                maxWidth: MediaQuery.of(context).size.width - 40,
-              ),
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                shrinkWrap: true,
-                itemCount: options.length,
-                separatorBuilder: (_, __) => Divider(color: theme.textPrimary.withValues(alpha: 0.1), height: 1),
-                itemBuilder: (context, index) {
-                  final option = options.elementAt(index);
-                  return ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: Icon(Icons.location_on, color: theme.primary, size: 20),
-                    title: Text(
-                      option['place_name'] as String,
-                      style: TextStyle(color: theme.textPrimary, fontSize: 13.5),
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: _suggestions.isNotEmpty
+                  ? ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      shrinkWrap: true,
+                      itemCount: _suggestions.length,
+                      separatorBuilder: (_, _) => Divider(
+                        color: theme.textPrimary.withValues(alpha: 0.1),
+                        height: 1,
+                      ),
+                      itemBuilder: (context, index) {
+                        final place = _suggestions[index];
+                        final title = place['title'] ?? place['fullText'] ?? '';
+                        final subtitle = place['subtitle'] ?? '';
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            Icons.location_on,
+                            color: theme.primary,
+                            size: 20,
+                          ),
+                          title: Text(
+                            title,
+                            style: TextStyle(
+                              color: theme.textPrimary,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          subtitle: subtitle.isEmpty
+                              ? null
+                              : Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: theme.textPrimary.withValues(
+                                      alpha: 0.65,
+                                    ),
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                          onTap: () {
+                            final name = place['fullText'] ?? title;
+                            final latitude = double.tryParse(
+                              place['latitude'] ?? '',
+                            );
+                            final longitude = double.tryParse(
+                              place['longitude'] ?? '',
+                            );
+                            if (latitude == null || longitude == null) return;
+                            widget.controller.value = TextEditingValue(
+                              text: name,
+                              selection: TextSelection.collapsed(
+                                offset: name.length,
+                              ),
+                            );
+                            widget.onSelected(
+                              LatLng(latitude, longitude),
+                              name,
+                            );
+                            setState(() {
+                              _showSuggestions = false;
+                              _suggestions = const [];
+                            });
+                            _focusNode.unfocus();
+                          },
+                        );
+                      },
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          if (_isSearching)
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: theme.primary,
+                              ),
+                            )
+                          else
+                            Icon(
+                              Icons.info_outline,
+                              size: 18,
+                              color: theme.textPrimary.withValues(alpha: 0.6),
+                            ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _isSearching
+                                  ? 'Searching locations…'
+                                  : _searchError ??
+                                        'Enter at least 3 characters.',
+                              style: TextStyle(
+                                color: theme.textPrimary.withValues(alpha: 0.7),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    onTap: () => onSelectedOption(option),
-                  );
-                },
-              ),
             ),
           ),
-        );
-      },
+        ],
+      ],
     );
   }
 }

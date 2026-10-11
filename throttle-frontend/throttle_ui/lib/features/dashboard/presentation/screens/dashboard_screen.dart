@@ -73,7 +73,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return BoxDecoration(
       color: color ?? theme.surface.withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(30),
-          );
+    );
   }
 
   BoxDecoration _cardDecoration(AppThemeConfig theme, {Color? color}) {
@@ -175,8 +175,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Map<String, dynamic> get _userData =>
-      _hasLoadedFreshProfile
+  Map<String, dynamic> get _userData => _hasLoadedFreshProfile
       ? (_profileData ?? const {})
       : (widget.userData ?? const {});
 
@@ -278,9 +277,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   bool _isClosedRideStatus(String status) {
-    return {"COMPLETED", "CANCELLED", "ENDED", "ARCHIVED"}.contains(
-      status.toUpperCase(),
-    );
+    return {
+      "COMPLETED",
+      "CANCELLED",
+      "ENDED",
+      "ARCHIVED",
+    }.contains(status.toUpperCase());
   }
 
   String _normalizedRideStatus(Map<String, dynamic>? ride) {
@@ -308,11 +310,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return first["name"].toString();
       }
     }
-    return (ride?["meetingPoint"] ??
-            ride?["startLocation"] ??
-            ride?["location"] ??
-            "Start point")
-        .toString();
+    final isSoloRide =
+        (ride?["rideType"] ?? "").toString().trim().toUpperCase() == "SOLO";
+    return (isSoloRide
+                ? (ride?["startLocation"] ?? ride?["location"])
+                : (ride?["meetingPoint"] ??
+                      ride?["startLocation"] ??
+                      ride?["location"]))
+            ?.toString() ??
+        "Start point";
   }
 
   int _rideMemberCount(Map<String, dynamic>? ride) {
@@ -400,6 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             memberCount: _rideMemberCount(ride),
             token: widget.token,
             rideUuid: (ride["uuid"] ?? ride["id"]).toString(),
+            rideType: (ride["rideType"] ?? "").toString(),
           );
 
     await Navigator.push(context, MaterialPageRoute(builder: (_) => target));
@@ -1484,7 +1491,7 @@ class StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-                boxShadow: [
+        boxShadow: [
           BoxShadow(
             color: theme.textPrimary.withValues(alpha: 0.08),
             blurRadius: 20,
