@@ -8,6 +8,7 @@ import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/signup_screen.dart';
 import 'package:throttle_ui/app/main_screen.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
+import 'package:throttle_ui/core/utils/app_feedback.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/otp_screen.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 
@@ -22,6 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
+  String? _emailError;
+  String? _passwordError;
   bool isLoading = false;
 
   StreamSubscription? _googleAuthSubscription;
@@ -130,28 +133,40 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    AppFeedback.showError(message, context: context);
   }
 
   Future<void> login() async {
-    if (emailController.text.trim().isEmpty) {
-      showError("Email is required");
-      return;
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+    });
+
+    bool hasValidationError = false;
+    if (email.isEmpty) {
+      setState(() => _emailError = "Please enter your email");
+      hasValidationError = true;
+    } else if (!email.contains("@") || !email.contains(".")) {
+      setState(() => _emailError = "Please enter a valid email address");
+      hasValidationError = true;
     }
 
-    if (passwordController.text.isEmpty) {
-      showError("Password is required");
-      return;
+    if (password.isEmpty) {
+      setState(() => _passwordError = "Please enter your password");
+      hasValidationError = true;
     }
+
+    if (hasValidationError) return;
 
     setState(() => isLoading = true);
 
     try {
       final result = await AuthService.login(
-        email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        email: email,
+        password: password,
       );
       await Logger.warn("This is the second data : $result");
       if (result["success"]) {
@@ -175,7 +190,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
-        showError(result["message"] ?? "Login failed");
+        showError(result["message"] ?? "Invalid email or password");
       }
     } finally {
       // ✅ Make sure spinner always stops
@@ -338,6 +353,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         hint: "Rider Email",
                         icon: Icons.alternate_email_rounded,
                         theme: theme,
+                        errorText: _emailError,
+                        onChanged: (_) {
+                          if (_emailError != null) {
+                            setState(() => _emailError = null);
+                          }
+                        },
                       ),
                       const SizedBox(height: 16),
 
@@ -348,6 +369,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Icons.lock_outline_rounded,
                         isPassword: true,
                         theme: theme,
+                        errorText: _passwordError,
+                        onChanged: (_) {
+                          if (_passwordError != null) {
+                            setState(() => _passwordError = null);
+                          }
+                        },
                       ),
                       const SizedBox(height: 24),
 
@@ -488,6 +515,8 @@ class _LoginInputField extends StatefulWidget {
   final IconData icon;
   final bool isPassword;
   final dynamic theme;
+  final String? errorText;
+  final ValueChanged<String>? onChanged;
 
   const _LoginInputField({
     required this.controller,
@@ -495,6 +524,8 @@ class _LoginInputField extends StatefulWidget {
     required this.icon,
     this.isPassword = false,
     required this.theme,
+    this.errorText,
+    this.onChanged,
   });
 
   @override
@@ -506,46 +537,90 @@ class _LoginInputFieldState extends State<_LoginInputField> {
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      onFocusChange: (hasFocus) => setState(() => _isFocused = hasFocus),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          color: widget.theme.surface.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: _isFocused ? widget.theme.primary : const Color(0x52B8C6DA),
-            width: _isFocused ? 1.5 : 1,
+    final hasError = widget.errorText != null && widget.errorText!.isNotEmpty;
+    final borderColor = hasError
+        ? const Color(0xFFFF4D4F)
+        : _isFocused
+        ? widget.theme.primary
+        : const Color(0x52B8C6DA);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Focus(
+          onFocusChange: (hasFocus) => setState(() => _isFocused = hasFocus),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            decoration: BoxDecoration(
+              color: widget.theme.surface.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: borderColor,
+                width: hasError || _isFocused ? 1.5 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: hasError
+                      ? const Color(0xFFFF4D4F).withValues(alpha: 0.12)
+                      : widget.theme.textPrimary.withValues(alpha: 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: widget.controller,
+              obscureText: widget.isPassword,
+              onChanged: widget.onChanged,
+              style: GoogleFonts.lexend(color: widget.theme.textPrimary),
+              decoration: InputDecoration(
+                hintText: widget.hint,
+                hintStyle: GoogleFonts.lexend(
+                  color: widget.theme.textPrimary.withValues(alpha: 0.4),
+                  fontSize: 14,
+                ),
+                prefixIcon: Icon(
+                  widget.icon,
+                  color: hasError
+                      ? const Color(0xFFFF4D4F)
+                      : _isFocused
+                      ? widget.theme.primary
+                      : widget.theme.textPrimary.withValues(alpha: 0.6),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 18),
+              ),
+            ),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: widget.theme.textPrimary.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
         ),
-        child: TextField(
-          controller: widget.controller,
-          obscureText: widget.isPassword,
-          style: GoogleFonts.lexend(color: widget.theme.textPrimary),
-          decoration: InputDecoration(
-            hintText: widget.hint,
-            hintStyle: GoogleFonts.lexend(
-              color: widget.theme.textPrimary.withValues(alpha: 0.4),
-              fontSize: 14,
+        if (hasError) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 14,
+                  color: Color(0xFFFF4D4F),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    widget.errorText!,
+                    style: GoogleFonts.lexend(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFFFF4D4F),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            prefixIcon: Icon(
-              widget.icon,
-              color: _isFocused
-                  ? widget.theme.primary
-                  : widget.theme.textPrimary.withValues(alpha: 0.6),
-            ),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 18),
           ),
-        ),
-      ),
+        ],
+      ],
     );
   }
 }

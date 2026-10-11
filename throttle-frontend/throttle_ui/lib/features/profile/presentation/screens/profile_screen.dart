@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
 import 'package:throttle_ui/features/bikes/presentation/bike_display_formatters.dart';
+import 'package:throttle_ui/features/bikes/presentation/bike_details_modal.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/stats_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/settings_screen.dart';
@@ -880,37 +881,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
-  Future<void> _removeBike(Map<String, dynamic> bike) async {
-    final bikeId = int.tryParse((bike['id'] ?? "").toString());
-    if (bikeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Unable to remove this bike")),
-      );
-      return;
-    }
-
-    setState(() => _bikeActionLoading = true);
-    final result = await UserService.deleteBike(bikeId);
-    if (!mounted) return;
-    setState(() => _bikeActionLoading = false);
-
-    if (result["success"] == true) {
-      await _refreshProfile();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result["message"] ?? "Bike removed")),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result["message"]?.toString() ?? "Failed to remove bike",
-          ),
-        ),
-      );
-    }
-  }
-
   Future<void> _openBikeManager() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -998,105 +968,112 @@ class _ProfileScreenState extends State<ProfileScreen>
                           color: theme.surface,
                           borderRadius: BorderRadius.circular(16),
                                                   ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.two_wheeler, color: theme.primary),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          title.isEmpty ? "Bike" : title,
-                                          style: TextStyle(
-                                            color: theme.textPrimary,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                      if ((bike['primary'] ?? false) == true)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: theme.primary.withValues(
-                                              alpha: 0.12,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                          ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            Navigator.pop(context);
+                            BikeDetailsModal.show(
+                              this.context,
+                              bike: bike,
+                              userData: _userData,
+                              onBikeUpdated: () async {
+                                await _refreshProfile();
+                                if (mounted) {
+                                  await _openBikeManager();
+                                }
+                              },
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.two_wheeler, color: theme.primary),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
                                           child: Text(
-                                            "Primary",
+                                            title.isEmpty ? "Bike" : title,
                                             style: TextStyle(
-                                              color: theme.primary,
-                                              fontSize: 11,
+                                              color: theme.textPrimary,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                         ),
-                                      if ((bike['verified'] ?? false) != true)
-                                        Container(
-                                          margin: const EdgeInsets.only(
-                                            left: 6,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.orange.withValues(
-                                              alpha: 0.12,
+                                        if ((bike['primary'] ?? false) == true)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
                                             ),
-                                            borderRadius: BorderRadius.circular(
-                                              999,
+                                            decoration: BoxDecoration(
+                                              color: theme.primary.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius: BorderRadius.circular(
+                                                999,
+                                              ),
                                             ),
-                                          ),
-                                          child: const Text(
-                                            "Unverified",
-                                            style: TextStyle(
-                                              color: Colors.orange,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
+                                            child: Text(
+                                              "Primary",
+                                              style: TextStyle(
+                                                color: theme.primary,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                             ),
                                           ),
+                                        if ((bike['verified'] ?? false) != true)
+                                          Container(
+                                            margin: const EdgeInsets.only(
+                                              left: 6,
+                                            ),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.orange.withValues(
+                                                alpha: 0.12,
+                                              ),
+                                              borderRadius: BorderRadius.circular(
+                                                999,
+                                              ),
+                                            ),
+                                            child: const Text(
+                                              "Unverified",
+                                              style: TextStyle(
+                                                color: Colors.orange,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      subtitle.isEmpty
+                                          ? "Bike details"
+                                          : subtitle,
+                                      style: TextStyle(
+                                        color: theme.textPrimary.withValues(
+                                          alpha: 0.6,
                                         ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    subtitle.isEmpty
-                                        ? "Bike details"
-                                        : subtitle,
-                                    style: TextStyle(
-                                      color: theme.textPrimary.withValues(
-                                        alpha: 0.6,
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                            IconButton(
-                              onPressed: _bikeActionLoading
-                                  ? null
-                                  : () async {
-                                      await _removeBike(bike);
-                                      if (!mounted) return;
-                                      Navigator.of(this.context).pop();
-                                      await _openBikeManager();
-                                    },
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.redAccent,
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: theme.textPrimary.withValues(alpha: 0.4),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       );
                     }),
@@ -1521,7 +1498,22 @@ class _ProfileScreenState extends State<ProfileScreen>
 
                         // Bike Details
                         GestureDetector(
-                          onTap: _openBikeManager,
+                          onTap: () {
+                            if (bikes.isNotEmpty) {
+                              final primaryBike = bikes.firstWhere(
+                                (b) => (b['primary'] ?? false) == true,
+                                orElse: () => bikes.first,
+                              );
+                              BikeDetailsModal.show(
+                                context,
+                                bike: primaryBike,
+                                userData: _userData,
+                                onBikeUpdated: _refreshProfile,
+                              );
+                            } else {
+                              _openBikeManager();
+                            }
+                          },
                           child: Container(
                             padding: const EdgeInsets.all(12),
                             margin: const EdgeInsets.only(bottom: 16),
@@ -1529,85 +1521,68 @@ class _ProfileScreenState extends State<ProfileScreen>
                               color: theme.surface,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  height: 36,
-                                  width: 36,
-                                  decoration: BoxDecoration(
-                                    color: theme.primary.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    Icons.directions_bike,
-                                    color: theme.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        bikes.isNotEmpty
-                                            ? _bikeTitle(bikes.first)
-                                            : "Add Your First Bike",
-                                        style: TextStyle(
-                                          color: theme.textPrimary,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+                            child: Builder(
+                              builder: (context) {
+                                final primaryBike = bikes.isNotEmpty
+                                    ? bikes.firstWhere(
+                                        (b) => (b['primary'] ?? false) == true,
+                                        orElse: () => bikes.first,
+                                      )
+                                    : null;
+
+                                return Row(
+                                  children: [
+                                    Container(
+                                      height: 36,
+                                      width: 36,
+                                      decoration: BoxDecoration(
+                                        color: theme.primary.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      Text(
-                                        bikes.isNotEmpty
-                                            ? "${_bikeSubtitle(bikes.first)} • ${bikes.length} registered"
-                                            : "Tap to register your bike",
-                                        style: TextStyle(
-                                          color: theme.textPrimary.withValues(
-                                            alpha: 0.6,
-                                          ),
-                                          fontSize: 12,
-                                        ),
+                                      child: Icon(
+                                        Icons.directions_bike,
+                                        color: theme.primary,
                                       ),
-                                      if (bikes.isNotEmpty &&
-                                          (bikes.first['verified'] ?? false) !=
-                                              true)
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 6,
-                                          ),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.orange.withValues(
-                                                alpha: 0.12,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(999),
-                                            ),
-                                            child: const Text(
-                                              "Unverified bike",
-                                              style: TextStyle(
-                                                color: Colors.orange,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            primaryBike != null
+                                                ? _bikeTitle(primaryBike)
+                                                : "Add Your First Bike",
+                                            style: TextStyle(
+                                              color: theme.textPrimary,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.chevron_right,
-                                  color: theme.textPrimary.withValues(
-                                    alpha: 0.4,
-                                  ),
-                                ),
-                              ],
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            bikes.isNotEmpty
+                                                ? "${bikes.length} ${bikes.length == 1 ? 'bike' : 'bikes'} registered"
+                                                : "Tap to register your bike",
+                                            style: TextStyle(
+                                              color: theme.textPrimary.withValues(
+                                                alpha: 0.6,
+                                              ),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.chevron_right,
+                                      color: theme.textPrimary.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ),

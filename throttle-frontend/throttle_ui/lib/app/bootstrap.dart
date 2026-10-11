@@ -6,6 +6,8 @@ import 'package:throttle_ui/app/main_screen.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/onboarding_screen.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 
+import 'package:throttle_ui/core/utils/app_feedback.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env", isOptional: true);
@@ -26,6 +28,7 @@ class MyApp extends StatelessWidget {
       animation: ThemeController.instance,
       builder: (context, _) {
         return MaterialApp(
+          navigatorKey: AppNavigation.navigatorKey,
           debugShowCheckedModeBanner: false,
           theme: AppTheme.buildTheme(ThemeController.instance.theme),
           themeAnimationDuration: const Duration(milliseconds: 280),

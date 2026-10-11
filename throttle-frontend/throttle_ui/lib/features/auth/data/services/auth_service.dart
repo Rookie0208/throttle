@@ -4,10 +4,12 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/material.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/core/globals.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
+import 'package:throttle_ui/core/utils/app_feedback.dart';
 import 'package:throttle_ui/features/auth/data/services/token_refresh_result.dart';
 
 class AuthService {
@@ -556,9 +558,19 @@ class AuthService {
     );
   }
 
-  /// Clears session when refresh token is no longer valid (15-day window ended).
+  /// Clears session when refresh token is no longer valid (15-day window ended)
+  /// and shows a clean, user-friendly re-login modal.
   static Future<void> logoutDueToExpiredSession() async {
     await logout();
+    // Prompt the user with a friendly, non-technical security sheet
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppFeedback.showSessionExpiredModal(() {
+        final navState = AppNavigation.navigatorKey.currentState;
+        if (navState != null) {
+          navState.pushNamedAndRemoveUntil('/', (route) => false);
+        }
+      });
+    });
   }
 
   // ================= GENDER FROM PRONOUN =================

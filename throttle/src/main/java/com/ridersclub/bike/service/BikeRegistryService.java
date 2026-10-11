@@ -267,6 +267,25 @@ public class BikeRegistryService {
         }
     }
 
+    public UserProfileResponse.UserBikeDto setPrimaryBike(String userUuid, Long bikeId) {
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        UserBike bike = userBikeRepository.findByIdAndUserId(bikeId, user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Bike not found"));
+
+        clearPrimaryBike(user.getId());
+        bike.setPrimary(true);
+        UserBike savedBike = userBikeRepository.save(bike);
+
+        if (savedBike.getType() != null && !savedBike.getType().isBlank()) {
+            user.setBikeType(savedBike.getType());
+            userRepository.save(user);
+        }
+
+        return mapUserBike(savedBike);
+    }
+
     public UserProfileResponse.UserBikeDto mapUserBike(UserBike bike) {
         String bikeType = bike.getType() == null ? "" : bike.getType();
         return new UserProfileResponse.UserBikeDto(
