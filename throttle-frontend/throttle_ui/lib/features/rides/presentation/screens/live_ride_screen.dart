@@ -752,45 +752,20 @@ class _LiveRideScreenState extends State<LiveRideScreen>
   }
 
   Future<void> _showEmergencySosPrompt(AppThemeConfig theme) async {
-    bool canceled = false;
-    final dialogFuture = showDialog<bool>(
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: theme.surface,
-          title: Text(
-            "Emergency SOS",
-            style: GoogleFonts.bebasNeue(
-              color: theme.textPrimary,
-              letterSpacing: 1.1,
-            ),
-          ),
-          content: Text(
-            "Sending SOS to all riders",
-            style: TextStyle(color: theme.textPrimary.withValues(alpha: 0.65)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                canceled = true;
-                Navigator.of(context).pop(false);
-              },
-              child: const Text("Cancel"),
-            ),
-          ],
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return _SosCountdownSheet(
+          theme: theme,
+          durationSeconds: 3,
         );
       },
     );
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!canceled && mounted && Navigator.canPop(context)) {
-        Navigator.of(context).pop(true);
-      }
-    });
-
-    final result = await dialogFuture;
-    if (result == true) {
+    if (confirmed == true && mounted) {
       await _sendSos("Emergency SOS sent to all riders");
     }
   }
@@ -2614,6 +2589,224 @@ class _LiveRideScreenState extends State<LiveRideScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SosCountdownSheet extends StatefulWidget {
+  final AppThemeConfig theme;
+  final int durationSeconds;
+
+  const _SosCountdownSheet({
+    required this.theme,
+    this.durationSeconds = 3,
+  });
+
+  @override
+  State<_SosCountdownSheet> createState() => _SosCountdownSheetState();
+}
+
+class _SosCountdownSheetState extends State<_SosCountdownSheet>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(seconds: widget.durationSeconds),
+    );
+
+    _controller.forward();
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: Colors.redAccent.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade700.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red.shade600,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'EMERGENCY SOS',
+                          style: GoogleFonts.bebasNeue(
+                            color: Colors.red.shade600,
+                            fontSize: 24,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        Text(
+                          'Broadcasting alert to ride members',
+                          style: TextStyle(
+                            color: theme.textPrimary.withValues(alpha: 0.7),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+
+              // Animated Countdown Text & Sliding Transition Bar
+              AnimatedBuilder(
+                animation: _controller,
+                builder: (context, _) {
+                  final remaining = ((1.0 - _controller.value) *
+                          widget.durationSeconds)
+                      .ceil();
+                  final progress = _controller.value;
+
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Sending in ${remaining}s...',
+                            style: GoogleFonts.lexend(
+                              color: theme.textPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                          Text(
+                            '${(progress * 100).toInt()}%',
+                            style: TextStyle(
+                              color: Colors.red.shade400,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Sliding progress bar track
+                      Container(
+                        height: 10,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: theme.background,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FractionallySizedBox(
+                            widthFactor: progress.clamp(0.0, 1.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.amber.shade600,
+                                    Colors.red.shade700,
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withValues(alpha: 0.5),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Cancel button
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () {
+                    _controller.stop();
+                    Navigator.of(context).pop(false);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.textPrimary,
+                    side: BorderSide(
+                      color: theme.textPrimary.withValues(alpha: 0.2),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel SOS',
+                    style: GoogleFonts.lexend(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
