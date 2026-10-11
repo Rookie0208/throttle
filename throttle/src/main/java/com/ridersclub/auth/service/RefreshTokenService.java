@@ -16,8 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class RefreshTokenService {
-    // 30 days
-    private final long refreshTokenDurationMs = 2592000000L;
+    // 15 days — long-lived session via refresh + 15-minute access tokens
+    private final long refreshTokenDurationMs = 1_296_000_000L;
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;

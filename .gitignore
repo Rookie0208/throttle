@@ -32,3 +32,10 @@ __pycache__/
 AGENTS.md
 CLAUDE.md
 GEMINI.md
+
+# keys and cridentials
+*.pem
+*.sh
+*.csv
+*credentials*
+*accessKeys*

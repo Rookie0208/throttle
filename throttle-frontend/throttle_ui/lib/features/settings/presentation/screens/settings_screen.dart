@@ -4,8 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
 import 'package:throttle_ui/features/profile/presentation/screens/friends_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/bike_management_screen.dart';
-import 'package:throttle_ui/features/settings/presentation/screens/emergency_contacts_screen.dart';
-import 'package:throttle_ui/features/settings/presentation/screens/medical_info_screen.dart';
+import 'package:throttle_ui/features/settings/presentation/screens/safety_hub_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/message_settings_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/notification_preferences_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/privacy_settings_screen.dart';
@@ -472,30 +471,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             },
                           ),
                           _settingsTile(
-                            icon: Icons.contact_phone_outlined,
-                            title: "Emergency Contacts",
-                            subtitle: "Add up to 3 contacts",
+                            icon: Icons.shield_rounded,
+                            title: "Throttle Safety",
+                            subtitle: "Safety ID, emergency contacts & medical info",
                             theme: theme,
                             onTap: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      const EmergencyContactsScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                          _settingsTile(
-                            icon: Icons.medical_information_outlined,
-                            title: "Medical Info",
-                            subtitle: "Blood group, allergies, medication",
-                            theme: theme,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const MedicalInfoScreen(),
+                                  builder: (_) => const SafetyHubScreen(),
                                 ),
                               );
                             },

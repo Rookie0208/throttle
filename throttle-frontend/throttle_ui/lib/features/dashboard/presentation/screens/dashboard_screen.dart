@@ -8,6 +8,7 @@ import 'package:throttle_ui/features/notifications/presentation/screens/notifica
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/core/services/weather_service.dart';
@@ -491,8 +492,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _connectNotificationSocket() {
-    if (_userUuid == null || widget.token.isEmpty) {
+  Future<void> _connectNotificationSocket() async {
+    final token = await AuthHeaders.resolve(widget.token);
+    if (_userUuid == null || token == null || token.isEmpty) {
       return;
     }
 
@@ -505,7 +507,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _notificationClient = StompClient(
       config: StompConfig(
         url: socketUrl,
-        webSocketConnectHeaders: {'Authorization': 'Bearer ${widget.token}'},
+        webSocketConnectHeaders: {'Authorization': 'Bearer $token'},
         onConnect: (StompFrame frame) {
           _notificationClient?.subscribe(
             destination: '/topic/notifications/$_userUuid',

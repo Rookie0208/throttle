@@ -101,6 +101,7 @@ public class ApiConstants {
         public static final String DETAILS = "/{userId}";
         public static final String MY_BIKES = "/me/bikes";
         public static final String MY_BIKE = "/me/bikes/{bikeId}";
+        public static final String MY_BIKE_PRIMARY = "/me/bikes/{bikeId}/primary";
     }
 
     public static final class Bikes {

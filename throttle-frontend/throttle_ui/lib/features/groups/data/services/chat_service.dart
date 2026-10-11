@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
-import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 class ChatService {
   StompClient? stompClient;
@@ -11,7 +11,7 @@ class ChatService {
   String? _groupId;
 
   static Future<List<dynamic>> fetchMessages(String groupId) async {
-    final token = await AuthService.getToken();
+    final token = await AuthHeaders.resolve();
 
     final response = await http.get(
       Uri.parse("${AppConstants.baseUrl}/chat/$groupId"),
@@ -35,11 +35,27 @@ class ChatService {
   }) {
     disconnect();
     _groupId = groupId;
+    _openSocket(
+      groupId: groupId,
+      token: token,
+      onMessageReceived: onMessageReceived,
+    );
+  }
+
+  Future<void> _openSocket({
+    required String groupId,
+    required String token,
+    required Function(dynamic) onMessageReceived,
+  }) async {
+    final resolvedToken = await AuthHeaders.resolve(token);
+    if (resolvedToken == null) {
+      return;
+    }
 
     stompClient = StompClient(
       config: StompConfig.sockJS(
         url: AppConstants.webSocketUrl,
-        stompConnectHeaders: {'Authorization': 'Bearer $token'},
+        stompConnectHeaders: {'Authorization': 'Bearer $resolvedToken'},
 
         reconnectDelay: const Duration(seconds: 5),
 

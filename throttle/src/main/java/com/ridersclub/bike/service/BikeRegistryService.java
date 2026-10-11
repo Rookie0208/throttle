@@ -57,7 +57,6 @@ public class BikeRegistryService {
     private final UserBikeRepository userBikeRepository;
     private final PlatformTransactionManager transactionManager;
     private final SystemResourceService resourceService;
-    private final ObjectMapper objectMapper;
 
     public int ensureSeedData() {
         TransactionTemplate seedTemplate = new TransactionTemplate(transactionManager);
@@ -268,6 +267,25 @@ public class BikeRegistryService {
         }
     }
 
+    public UserProfileResponse.UserBikeDto setPrimaryBike(String userUuid, Long bikeId) {
+        User user = userRepository.findByUuid(userUuid)
+                .orElseThrow(() -> new UserNotFoundException("User not found"));
+
+        UserBike bike = userBikeRepository.findByIdAndUserId(bikeId, user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Bike not found"));
+
+        clearPrimaryBike(user.getId());
+        bike.setPrimary(true);
+        UserBike savedBike = userBikeRepository.save(bike);
+
+        if (savedBike.getType() != null && !savedBike.getType().isBlank()) {
+            user.setBikeType(savedBike.getType());
+            userRepository.save(user);
+        }
+
+        return mapUserBike(savedBike);
+    }
+
     public UserProfileResponse.UserBikeDto mapUserBike(UserBike bike) {
         String bikeType = bike.getType() == null ? "" : bike.getType();
         return new UserProfileResponse.UserBikeDto(
@@ -468,6 +486,7 @@ public class BikeRegistryService {
     }
 
     private List<BikeMasterAdminRequest> loadSeedCatalog() {
+        ObjectMapper objectMapper = new ObjectMapper();
         try (InputStream input = new ClassPathResource("data/bike-master-catalog.json").getInputStream()) {
             List<BikeMasterAdminRequest> loaded = objectMapper.readValue(input, new TypeReference<>() {});
             if (loaded != null && !loaded.isEmpty()) {

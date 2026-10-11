@@ -122,6 +122,11 @@ public class UserService {
         boolean isFriend = viewer != null && !isSelf && friendshipRepository.existsByUserAndFriend(viewer, user);
         String visibilityMode = isSelf ? "self" : isFriend ? "friend" : "public";
 
+        if (isSelf && (user.getSafetyId() == null || user.getSafetyPin() == null)) {
+            ensureSafetyCredentials(user);
+            userRepository.save(user);
+        }
+
         UserProfileResponse response = new UserProfileResponse(user);
         response.setBikeLimit(resolveDynamicBikeLimit(user));
 
@@ -377,11 +382,65 @@ public class UserService {
         if (request.getCurrentMedication() != null)
             user.setCurrentMedication(request.getCurrentMedication());
 
+        if (request.getSafetyPin() != null)
+            user.setSafetyPin(request.getSafetyPin());
+
+        if (request.getSafetyEnabled() != null)
+            user.setSafetyEnabled(request.getSafetyEnabled());
+
+        if (request.getEmergencyInstructions() != null)
+            user.setEmergencyInstructions(request.getEmergencyInstructions());
+
+        if (request.getSafetyPrivacySettings() != null)
+            user.setSafetyPrivacySettings(request.getSafetyPrivacySettings());
+
+        // Ensure safetyId and safetyPin exist
+        ensureSafetyCredentials(user);
+
         userRepository.save(user);
 
         UserProfileResponse response = new UserProfileResponse(user);
         response.setBikeLimit(resolveDynamicBikeLimit(user));
         return response;
+    }
+
+    public UserProfileResponse getPublicSafetyProfile(String safetyId) {
+        User user = userRepository.findBySafetyId(safetyId)
+                .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("Safety ID not found"));
+
+        if (Boolean.FALSE.equals(user.getSafetyEnabled())) {
+            UserProfileResponse disabled = new UserProfileResponse();
+            disabled.setSafetyId(user.getSafetyId());
+            disabled.setSafetyEnabled(false);
+            disabled.setPublicMessage("This Safety ID has been disabled by the rider.");
+            return disabled;
+        }
+
+        UserProfileResponse res = new UserProfileResponse();
+        res.setFirstName(user.getFirstName());
+        res.setLastName(user.getLastName());
+        res.setBloodGroup(user.getBloodGroup());
+        res.setAllergies(user.getAllergies());
+        res.setCurrentMedication(user.getCurrentMedication());
+        res.setEmergencyContacts(user.getEmergencyContacts());
+        res.setSafetyId(user.getSafetyId());
+        res.setSafetyPin(user.getSafetyPin());
+        res.setSafetyEnabled(user.getSafetyEnabled());
+        res.setEmergencyInstructions(user.getEmergencyInstructions());
+        res.setSafetyPrivacySettings(user.getSafetyPrivacySettings());
+        return res;
+    }
+
+    private void ensureSafetyCredentials(User user) {
+        if (user.getSafetyId() == null || user.getSafetyId().isBlank()) {
+            String cleanUuid = user.getUuid().replaceAll("-", "").toUpperCase();
+            String code = cleanUuid.length() >= 6 ? cleanUuid.substring(0, 6) : "SAFE99";
+            user.setSafetyId("TH-" + code);
+        }
+        if (user.getSafetyPin() == null || user.getSafetyPin().isBlank()) {
+            int randomPin = 1000 + (int) (Math.random() * 9000);
+            user.setSafetyPin(String.valueOf(randomPin));
+        }
     }
 
     private int resolveDynamicBikeLimit(User user) {
