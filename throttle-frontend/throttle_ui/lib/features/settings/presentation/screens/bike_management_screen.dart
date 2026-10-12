@@ -4,8 +4,10 @@ import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
 import 'package:throttle_ui/features/bikes/presentation/bike_display_formatters.dart';
+import 'package:throttle_ui/features/bikes/presentation/bike_details_modal.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/subscription_screen.dart';
+import 'package:throttle_ui/core/utils/app_feedback.dart';
 
 class BikeManagementScreen extends StatefulWidget {
   const BikeManagementScreen({super.key});
@@ -108,36 +110,6 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
   String _bikeSubtitle(Map<String, dynamic> bike) =>
       BikeDisplayFormatters.subtitle(bike);
 
-  Future<void> _removeBike(Map<String, dynamic> bike) async {
-    final bikeId = int.tryParse((bike['id'] ?? '').toString());
-    if (bikeId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to remove this bike')),
-      );
-      return;
-    }
-
-    setState(() => _bikeActionLoading = true);
-    final result = await UserService.deleteBike(bikeId);
-    if (!mounted) return;
-    setState(() => _bikeActionLoading = false);
-
-    if (result['success'] == true) {
-      await _refreshProfile();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Bike removed')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['message']?.toString() ?? 'Failed to remove bike',
-          ),
-        ),
-      );
-    }
-  }
 
   Future<String?> _pickStringOption({
     required String title,
@@ -494,16 +466,14 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
                 }
                 await _refreshProfile();
                 if (!mounted) return;
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(content: Text(result['message'] ?? 'Bike added')),
+                AppFeedback.showSuccess(
+                  result['message'] ?? 'Bike added successfully',
+                  context: this.context,
                 );
               } else {
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      result['message']?.toString() ?? 'Failed to add bike',
-                    ),
-                  ),
+                AppFeedback.showError(
+                  result['message']?.toString() ?? 'Failed to add bike',
+                  context: this.context,
                 );
               }
             }
@@ -875,89 +845,97 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
                           ..._bikes.map((bike) {
                             final title = _bikeTitle(bike);
                             final subtitle = _bikeSubtitle(bike);
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: theme.surface,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: const Color(0x52B8C6DA),
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(18),
+                              onTap: () {
+                                BikeDetailsModal.show(
+                                  context,
+                                  bike: bike,
+                                  userData: _userData,
+                                  onBikeUpdated: _refreshProfile,
+                                );
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: theme.surface,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: const Color(0x52B8C6DA),
+                                  ),
                                 ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: theme.primary.withValues(
-                                        alpha: 0.12,
-                                      ),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: Icon(
-                                      Icons.two_wheeler,
-                                      color: theme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
-                                          children: [
-                                            Text(
-                                              title.isEmpty ? 'Bike' : title,
-                                              style: TextStyle(
-                                                color: theme.textPrimary,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            if ((bike['primary'] ?? false) ==
-                                                true)
-                                              _pill(
-                                                theme,
-                                                text: 'Primary',
-                                                color: theme.primary,
-                                              ),
-                                            if ((bike['verified'] ?? false) !=
-                                                true)
-                                              _pill(
-                                                theme,
-                                                text: 'Unverified',
-                                                color: Colors.orange,
-                                              ),
-                                          ],
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: theme.primary.withValues(
+                                          alpha: 0.12,
                                         ),
-                                        if (subtitle.isNotEmpty) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            subtitle,
-                                            style: TextStyle(
-                                              color: theme.textPrimary
-                                                  .withValues(alpha: 0.65),
-                                            ),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: Icon(
+                                        Icons.two_wheeler,
+                                        color: theme.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
+                                            children: [
+                                              Text(
+                                                title.isEmpty ? 'Bike' : title,
+                                                style: TextStyle(
+                                                  color: theme.textPrimary,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              if ((bike['primary'] ?? false) ==
+                                                  true)
+                                                _pill(
+                                                  theme,
+                                                  text: 'Primary',
+                                                  color: theme.primary,
+                                                ),
+                                              if ((bike['verified'] ?? false) !=
+                                                  true)
+                                                _pill(
+                                                  theme,
+                                                  text: 'Unverified',
+                                                  color: Colors.orange,
+                                                ),
+                                            ],
                                           ),
+                                          if (subtitle.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              subtitle,
+                                              style: TextStyle(
+                                                color: theme.textPrimary
+                                                    .withValues(alpha: 0.65),
+                                              ),
+                                            ),
+                                          ],
                                         ],
-                                      ],
+                                      ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    onPressed: _bikeActionLoading
-                                        ? null
-                                        : () => _removeBike(bike),
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      color: Colors.redAccent,
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: theme.textPrimary.withValues(
+                                        alpha: 0.4,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             );
                           }),

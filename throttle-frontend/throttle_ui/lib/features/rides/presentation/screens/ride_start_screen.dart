@@ -24,6 +24,7 @@ class RideStartScreen extends StatefulWidget {
   final int memberCount;
   final String token;
   final String rideUuid;
+  final String rideType;
 
   const RideStartScreen({
     super.key,
@@ -34,6 +35,7 @@ class RideStartScreen extends StatefulWidget {
     required this.memberCount,
     required this.token,
     required this.rideUuid,
+    this.rideType = "",
   });
 
   @override
@@ -85,6 +87,13 @@ class _RideStartScreenState extends State<RideStartScreen>
   String get _rideStatus =>
       (_session?["rideStatus"] ?? "SCHEDULED").toString().toUpperCase();
 
+  bool get _isSoloRide =>
+      (_session?["rideType"] ?? widget.rideType)
+          .toString()
+          .trim()
+          .toUpperCase() ==
+      "SOLO";
+
   String get _currentUserState =>
       (_session?["currentUserState"] ?? "JOINED").toString().toUpperCase();
 
@@ -127,6 +136,11 @@ class _RideStartScreenState extends State<RideStartScreen>
     }
     if (_rideStatus == "CANCELLED") {
       return _RideStartAction.cancelled;
+    }
+    if (_isSoloRide) {
+      return _canManageRide
+          ? _RideStartAction.beginJourney
+          : _RideStartAction.waitForCaptain;
     }
     if (_currentUserState == "JOINED") {
       return _RideStartAction.startToMeeting;
@@ -182,6 +196,7 @@ class _RideStartScreenState extends State<RideStartScreen>
           _session?["rideStartedAt"] != null);
 
   bool get _isOngoingToMeeting =>
+      !_isSoloRide &&
       !_isRideClosed &&
       (_currentUserState == "EN_ROUTE" ||
           _currentUserState == "AT_START_POINT");
@@ -250,6 +265,7 @@ class _RideStartScreenState extends State<RideStartScreen>
   bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
 
   String get _phaseTitle {
+    if (_isSoloRide) return "Ready for your solo ride";
     switch (_currentUserState) {
       case "EN_ROUTE":
         return "On the way to the meeting point";
@@ -441,6 +457,7 @@ class _RideStartScreenState extends State<RideStartScreen>
   }
 
   bool _shouldRefreshMeetingRoute() {
+    if (_isSoloRide) return false;
     final currentLocation = _mapCurrentLocation;
     if (currentLocation == null || _meetingPointLocation == null) {
       return false;
@@ -456,6 +473,7 @@ class _RideStartScreenState extends State<RideStartScreen>
   }
 
   Future<void> _refreshMeetingRoute({bool force = false}) async {
+    if (_isSoloRide) return;
     final current = _mapCurrentLocation;
     final meeting = _meetingPointLocation;
     final meetingLat = _toDouble(meeting?['latitude']);
@@ -667,7 +685,7 @@ class _RideStartScreenState extends State<RideStartScreen>
   }
 
   void _handleTopToast(String previousState, String nextState) {
-    if (previousState == nextState) {
+    if (_isSoloRide || previousState == nextState) {
       return;
     }
 
@@ -727,25 +745,28 @@ class _RideStartScreenState extends State<RideStartScreen>
               const SizedBox(height: 18),
               _HelpItem(
                 number: 1,
-                title: "Leave Home",
-                desc:
-                    "Slide start when you head to the meeting point. Your personal timer starts here.",
+                title: _isSoloRide ? "Start Ride" : "Leave Home",
+                desc: _isSoloRide
+                    ? "Start the ride when you are ready. Live tracking begins right away."
+                    : "Slide start when you head to the meeting point. Your personal timer starts here.",
                 theme: theme,
               ),
               const SizedBox(height: 16),
               _HelpItem(
                 number: 2,
-                title: "Follow Live Route",
-                desc:
-                    "The live map keeps your current position and meetup target in focus while you travel.",
+                title: _isSoloRide ? "Track Your Ride" : "Follow Live Route",
+                desc: _isSoloRide
+                    ? "Your live map tracks your position and ride progress."
+                    : "The live map keeps your current position and meetup target in focus while you travel.",
                 theme: theme,
               ),
               const SizedBox(height: 16),
               _HelpItem(
                 number: 3,
-                title: "Check In",
-                desc:
-                    "When you reach the meeting point, slide again to mark arrival and wait for the main ride start.",
+                title: _isSoloRide ? "Finish Ride" : "Check In",
+                desc: _isSoloRide
+                    ? "End the ride when you are done."
+                    : "When you reach the meeting point, slide again to mark arrival and wait for the main ride start.",
                 theme: theme,
               ),
             ],
@@ -756,6 +777,9 @@ class _RideStartScreenState extends State<RideStartScreen>
   }
 
   String _statusLabel() {
+    if (_isSoloRide && _rideStatus == "PARTIAL_STARTED") {
+      return "READY";
+    }
     switch (_rideStatus) {
       case "PARTIAL_STARTED":
         return "EN ROUTE";
@@ -1326,7 +1350,8 @@ class _RideStartScreenState extends State<RideStartScreen>
           const SizedBox(height: 16),
           Row(
             children: [
-              _info(Icons.location_on, "Meetup", _meetingPoint, theme),
+              if (!_isSoloRide)
+                _info(Icons.location_on, "Meetup", _meetingPoint, theme),
               _info(
                 Icons.people,
                 "Riders",
@@ -1419,20 +1444,22 @@ class _RideStartScreenState extends State<RideStartScreen>
           const SizedBox(height: 10),
           Row(
             children: [
-              _progressTile(
-                Icons.navigation_outlined,
-                "En Route",
-                _enRouteCount,
-                theme.secondary,
-                theme,
-              ),
-              _progressTile(
-                Icons.location_on_outlined,
-                "At Start",
-                _atStartCount,
-                Colors.amber,
-                theme,
-              ),
+              if (!_isSoloRide) ...[
+                _progressTile(
+                  Icons.navigation_outlined,
+                  "En Route",
+                  _enRouteCount,
+                  theme.secondary,
+                  theme,
+                ),
+                _progressTile(
+                  Icons.location_on_outlined,
+                  "At Start",
+                  _atStartCount,
+                  Colors.amber,
+                  theme,
+                ),
+              ],
               _progressTile(
                 Icons.two_wheeler,
                 "In Ride",
@@ -1540,6 +1567,13 @@ class _RideStartScreenState extends State<RideStartScreen>
   }
 
   Widget _liveRouteMap(AppThemeConfig theme) {
+    if (_isSoloRide) {
+      return _mapFallbackCard(
+        theme,
+        title: "Solo Ride",
+        message: "Start your ride to begin live tracking.",
+      );
+    }
     final current = _mapCurrentLocation;
     final meeting = _meetingPointLocation;
     final participants = List<Map<String, dynamic>>.from(
@@ -1955,9 +1989,10 @@ class _RideStartScreenState extends State<RideStartScreen>
     final arrivedAt = _currentUserArrivedAtStartAt;
     final timeToMeetingSeconds = _currentUserTimeToMeetingSeconds;
 
-    String subtitle =
-        "Your personal ride timer started when you left for the meetup.";
-    if (arrivedAt != null && timeToMeetingSeconds != null) {
+    String subtitle = _isSoloRide
+        ? "Your solo ride timer starts when you begin the ride."
+        : "Your personal ride timer started when you left for the meetup.";
+    if (!_isSoloRide && arrivedAt != null && timeToMeetingSeconds != null) {
       subtitle =
           "You reached the meeting point in ${_formatDurationSeconds(timeToMeetingSeconds)}.";
     } else if (startedAt != null) {

@@ -6,7 +6,6 @@ import 'package:throttle_ui/features/groups/presentation/widgets/group_info_shee
 import 'package:throttle_ui/features/groups/presentation/screens/invite_member_screen.dart';
 import 'package:throttle_ui/features/groups/data/services/sub_groups_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_service.dart';
-import 'package:throttle_ui/app/theme/app_colors.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
@@ -332,80 +331,82 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
         ),
       ),
       child: GestureDetector(
-      onLongPress: () {
-        final id = msg['id'];
-        if (id == null ||
-            (msg['messageType'] ?? '').toString().toUpperCase() == 'SYSTEM') {
-          return;
-        }
-        setState(() => replyingTo = Map<String, dynamic>.from(msg));
-      },
-      child: Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isMe ? theme.primary : theme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: isMe ? null : Border.all(color: const Color(0x52B8C6DA)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (replyPreview.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.only(left: 8),
-                decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(
-                      color: isMe ? Colors.white70 : theme.primary,
-                      width: 2,
+        onLongPress: () {
+          final id = msg['id'];
+          if (id == null ||
+              (msg['messageType'] ?? '').toString().toUpperCase() == 'SYSTEM') {
+            return;
+          }
+          setState(() => replyingTo = Map<String, dynamic>.from(msg));
+        },
+        child: Align(
+          alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            decoration: BoxDecoration(
+              color: isMe ? theme.primary : theme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: isMe ? null : Border.all(color: const Color(0x52B8C6DA)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (replyPreview.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(left: 8),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: BorderSide(
+                          color: isMe ? Colors.white70 : theme.primary,
+                          width: 2,
+                        ),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (msg['replyToSenderName'] ?? 'Rider').toString(),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isMe
+                                ? Colors.white70
+                                : theme.textPrimary.withValues(alpha: .65),
+                          ),
+                        ),
+                        Text(
+                          replyPreview,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isMe ? Colors.white70 : theme.textPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-              ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      (msg['replyToSenderName'] ?? 'Rider').toString(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isMe
-                            ? Colors.white70
-                            : theme.textPrimary.withValues(alpha: .65),
-                      ),
+                if (!isMe)
+                  Text(
+                    senderName,
+                    style: TextStyle(
+                      color: theme.textPrimary.withValues(alpha: 0.65),
+                      fontSize: 12,
                     ),
-                    Text(
-                      replyPreview,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isMe ? Colors.white70 : theme.textPrimary,
-                      ),
-                    ),
-                  ],
+                  ),
+                Text(
+                  body,
+                  style: TextStyle(
+                    color: isMe ? Colors.white : theme.textPrimary,
+                  ),
                 ),
-              ),
-            if (!isMe)
-              Text(
-                senderName,
-                style: TextStyle(
-                  color: theme.textPrimary.withValues(alpha: 0.65),
-                  fontSize: 12,
-                ),
-              ),
-            Text(
-              body,
-              style: TextStyle(color: isMe ? Colors.white : theme.textPrimary),
+              ],
             ),
-          ],
+          ),
         ),
       ),
-      ),
-    )
     );
   }
 
@@ -786,10 +787,17 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
       group["locations"] ?? const [],
     );
 
+    final isSoloRide =
+        (group["rideType"] ?? "").toString().trim().toUpperCase() == "SOLO";
     final startLocation = locations.isNotEmpty
         ? (locations.first["name"] ?? "Start point").toString()
-        : (group["meetingPoint"] ?? group["startLocation"] ?? "Start point")
-              .toString();
+        : (isSoloRide
+                      ? (group["startLocation"] ?? group["location"])
+                      : (group["meetingPoint"] ??
+                            group["startLocation"] ??
+                            group["location"]))
+                  ?.toString() ??
+              "Start point";
 
     /// ✅ Rider count (prefer joined riders if available)
     final memberCount =
@@ -815,6 +823,7 @@ class _GroupChatScreenState extends State<GroupChatScreen> {
             memberCount: memberCount,
             token: widget.token,
             rideUuid: _rideUuid,
+            rideType: (group["rideType"] ?? "").toString(),
           );
 
     Navigator.push(context, MaterialPageRoute(builder: (_) => target));

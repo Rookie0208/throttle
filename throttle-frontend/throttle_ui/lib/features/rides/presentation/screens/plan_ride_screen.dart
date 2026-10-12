@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:throttle_ui/features/groups/data/services/place_service.dart';
 import 'package:throttle_ui/features/profile/data/services/friend_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/rides/data/services/ride_refresh_notifier.dart';
@@ -82,11 +80,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
     super.dispose();
   }
 
-  String get _mapboxPublicToken =>
-      dotenv.env["MAPBOX_PUBLIC_TOKEN"]?.trim() ?? "";
-
-  bool get _hasMapboxToken => _mapboxPublicToken.isNotEmpty;
-
   bool get _isInstantRide => widget.instantRide;
 
   List<String> get _steps => _isInstantRide
@@ -99,9 +92,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
       _isInstantRide ? "Create Instant Ride" : "Create Ride";
 
   String get _routeStatusLabel {
-    if (!_hasMapboxToken) {
-      return "Mapbox is required to resolve exact ride coordinates.";
-    }
     if (startPoint != null && endPoint != null) {
       return "Start and destination are resolved with exact coordinates.";
     }
@@ -525,53 +515,22 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
   Future<bool> fetchCoordinates(String placeName, bool isStart) async {
     final query = placeName.trim();
     if (query.isEmpty) return false;
-    if (!_hasMapboxToken) {
-      showError("Add a Mapbox public token to continue");
-      return false;
-    }
 
     try {
-      final uri = Uri.https(
-        'api.mapbox.com',
-        '/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json',
-        {
-          'access_token': _mapboxPublicToken,
-          'limit': '1',
-          'autocomplete': 'true',
-          'types': 'place,locality,address,poi',
-        },
-      );
-      final response = await http.get(uri);
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        final body = json.decode(response.body);
-        final providerMessage = body is Map<String, dynamic>
-            ? (body['message'] ?? body['error'] ?? '').toString().trim()
-            : '';
-        final statusMessage =
-            response.statusCode == 401 || response.statusCode == 403
-            ? 'Mapbox rejected the location search token or its permissions.'
-            : 'Mapbox location search failed (${response.statusCode}).';
-        showError(providerMessage.isNotEmpty ? providerMessage : statusMessage);
-        return false;
-      }
-
-      final data = json.decode(response.body) as Map<String, dynamic>;
-      final features = data["features"];
-      if (features is! List || features.isEmpty) {
+      final places = await PlaceService.searchPlaces(query);
+      if (places.isEmpty) {
         showError("No map result found for \"$query\"");
         return false;
       }
 
-      final center = (features.first as Map<String, dynamic>)["center"];
-      if (center is! List || center.length < 2) {
-        showError("Invalid map response for \"$query\"");
+      final latitude = double.tryParse(places.first['latitude'] ?? '');
+      final longitude = double.tryParse(places.first['longitude'] ?? '');
+      if (latitude == null || longitude == null) {
+        showError("Invalid map result for \"$query\"");
         return false;
       }
 
-      final point = LatLng(
-        (center[1] as num).toDouble(),
-        (center[0] as num).toDouble(),
-      );
+      final point = LatLng(latitude, longitude);
 
       if (!mounted) return false;
       setState(() {
@@ -596,11 +555,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
 
     if (startName.isEmpty || endName.isEmpty) {
       showError("Start and End locations are required");
-      return false;
-    }
-
-    if (!_hasMapboxToken) {
-      showError("Mapbox is not configured yet");
       return false;
     }
 
@@ -809,6 +763,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                     : 1,
                 token: widget.token,
                 rideUuid: rideUuid,
+                rideType: rideType,
               ),
             ),
           );
@@ -1003,7 +958,7 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 subtitle: "Add start and end locations for the ride.",
               ),
               const SizedBox(height: 12),
-              _MapboxAutocomplete(
+              _PlaceAutocomplete(
                 controller: startLocationController,
                 hint: "Enter start location",
                 icon: Icons.trip_origin,
@@ -1013,7 +968,6 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                   tooltip: "Use Current Location",
                 ),
                 theme: theme,
-                mapboxToken: _mapboxPublicToken,
                 onSelected: (point, placeName) {
                   setState(() {
                     startPoint = point;
@@ -1029,12 +983,11 @@ class _PlanRideScreenState extends State<PlanRideScreen> {
                 },
               ),
               const SizedBox(height: 10),
-              _MapboxAutocomplete(
+              _PlaceAutocomplete(
                 controller: endLocationController,
                 hint: "Enter end location",
                 icon: Icons.flag_outlined,
                 theme: theme,
-                mapboxToken: _mapboxPublicToken,
                 onSelected: (point, placeName) {
                   setState(() {
                     endPoint = point;
@@ -1776,23 +1729,21 @@ class _ModernInputFieldState extends State<_ModernInputField> {
   }
 }
 
-class _MapboxAutocomplete extends StatefulWidget {
+class _PlaceAutocomplete extends StatefulWidget {
   final TextEditingController controller;
   final String hint;
   final IconData icon;
   final AppThemeConfig theme;
-  final String mapboxToken;
   final Function(LatLng point, String placeName) onSelected;
   final Function(String) onSubmitted;
   final Function(String) onChanged;
   final Widget? suffixIcon;
 
-  const _MapboxAutocomplete({
+  const _PlaceAutocomplete({
     required this.controller,
     required this.hint,
     required this.icon,
     required this.theme,
-    required this.mapboxToken,
     required this.onSelected,
     required this.onSubmitted,
     required this.onChanged,
@@ -1800,35 +1751,35 @@ class _MapboxAutocomplete extends StatefulWidget {
   });
 
   @override
-  State<_MapboxAutocomplete> createState() => _MapboxAutocompleteState();
+  State<_PlaceAutocomplete> createState() => _PlaceAutocompleteState();
 }
 
-class _MapboxAutocompleteState extends State<_MapboxAutocomplete> {
+class _PlaceAutocompleteState extends State<_PlaceAutocomplete> {
   late final FocusNode _focusNode = FocusNode();
-  Timer? _searchDebounce;
-  int _requestGeneration = 0;
-  String? _lookupError;
-  bool _isSearching = false;
+  Timer? _debounce;
+  int _requestId = 0;
   bool _showSuggestions = false;
-  List<Map<String, dynamic>> _suggestions = const [];
+  bool _isSearching = false;
+  String? _searchError;
+  List<Map<String, String>> _suggestions = const [];
 
   @override
   void dispose() {
-    _searchDebounce?.cancel();
-    _requestGeneration++;
+    _debounce?.cancel();
+    _requestId++;
     _focusNode.dispose();
     super.dispose();
   }
 
   void _search(String rawQuery) {
-    _searchDebounce?.cancel();
+    _debounce?.cancel();
     final query = rawQuery.trim();
-    final requestGeneration = ++_requestGeneration;
+    final requestId = ++_requestId;
     if (query.length < 3) {
       setState(() {
         _suggestions = const [];
         _isSearching = false;
-        _lookupError = null;
+        _searchError = null;
         _showSuggestions = query.isNotEmpty && _focusNode.hasFocus;
       });
       return;
@@ -1837,252 +1788,173 @@ class _MapboxAutocompleteState extends State<_MapboxAutocomplete> {
     setState(() {
       _suggestions = const [];
       _isSearching = true;
-      _lookupError = null;
+      _searchError = null;
       _showSuggestions = _focusNode.hasFocus;
     });
-    _searchDebounce = Timer(const Duration(milliseconds: 900), () async {
+    _debounce = Timer(const Duration(milliseconds: 900), () async {
       try {
-        final uri = Uri.https(
-          'api.mapbox.com',
-          '/geocoding/v5/mapbox.places/${Uri.encodeComponent(query)}.json',
-          {
-            'access_token': widget.mapboxToken,
-            'autocomplete': 'true',
-            'limit': '5',
-            'types': 'place,locality,address,poi',
-          },
-        );
-        final response = await http.get(uri);
-        if (!mounted || requestGeneration != _requestGeneration) {
-          return;
-        }
-        if (response.statusCode != 200) {
-          await _searchOpenStreetMap(query, requestGeneration);
-          return;
-        }
-
-        final data = json.decode(response.body);
-        final features = data is Map<String, dynamic> ? data['features'] : null;
-        if (features is! List) {
-          setState(() {
-            _isSearching = false;
-            _lookupError = 'Location search returned an invalid response.';
-          });
-          return;
-        }
-        final suggestions = features
-            .whereType<Map>()
-            .map((feature) => Map<String, dynamic>.from(feature))
-            .where(
-              (feature) =>
-                  feature['place_name'] is String &&
-                  feature['center'] is List &&
-                  (feature['center'] as List).length >= 2,
-            )
-            .toList(growable: false);
+        final places = await PlaceService.searchPlaces(query);
+        if (!mounted || requestId != _requestId) return;
         setState(() {
+          _suggestions = places;
           _isSearching = false;
-          _suggestions = suggestions;
-          _lookupError = suggestions.isEmpty
-              ? 'No matching locations found.'
-              : null;
+          _searchError = places.isEmpty ? 'No matching locations found.' : null;
         });
       } catch (_) {
-        if (!mounted || requestGeneration != _requestGeneration) {
-          return;
-        }
-        await _searchOpenStreetMap(query, requestGeneration);
+        if (!mounted || requestId != _requestId) return;
+        setState(() {
+          _suggestions = const [];
+          _isSearching = false;
+          _searchError =
+              'Location search is unavailable. Check your connection.';
+        });
       }
     });
   }
 
-  Future<void> _searchOpenStreetMap(String query, int requestGeneration) async {
-    try {
-      final places = await PlaceService.searchPlaces(query);
-      if (!mounted || requestGeneration != _requestGeneration) return;
-      final suggestions = places
-          .map((place) {
-            final latitude = double.tryParse(place['latitude'] ?? '');
-            final longitude = double.tryParse(place['longitude'] ?? '');
-            final name = place['fullText'] ?? '';
-            if (latitude == null || longitude == null || name.isEmpty) {
-              return null;
-            }
-            return <String, dynamic>{
-              'place_name': name,
-              'center': <double>[longitude, latitude],
-            };
-          })
-          .whereType<Map<String, dynamic>>()
-          .toList(growable: false);
-      setState(() {
-        _isSearching = false;
-        _suggestions = suggestions;
-        _lookupError = suggestions.isEmpty
-            ? 'No matching locations found.'
-            : null;
-      });
-    } catch (_) {
-      if (!mounted || requestGeneration != _requestGeneration) return;
-      setState(() {
-        _isSearching = false;
-        _suggestions = const [];
-        _lookupError = 'Location search is unavailable. Please try again.';
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final controller = widget.controller;
     final theme = widget.theme;
-    return RawAutocomplete<Map<String, dynamic>>(
-      textEditingController: controller,
-      focusNode: _focusNode,
-      optionsBuilder: (textEditingValue) => const [],
-      displayStringForOption: (option) => option['place_name'] as String,
-      onSelected: (option) {
-        final center = option['center'] as List;
-        final point = LatLng(
-          (center[1] as num).toDouble(),
-          (center[0] as num).toDouble(),
-        );
-        widget.onSelected(point, option['place_name'] as String);
-      },
-      fieldViewBuilder:
-          (context, fieldController, fieldFocusNode, onFieldSubmitted) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ModernInputField(
-                  controller: fieldController,
-                  focusNode: fieldFocusNode,
-                  hint: widget.hint,
-                  icon: widget.icon,
-                  primaryColor: theme.primary,
-                  theme: theme,
-                  onSubmitted: (val) {
-                    onFieldSubmitted();
-                    widget.onSubmitted(val);
-                  },
-                  onChanged: (value) {
-                    _search(value);
-                    widget.onChanged(value);
-                  },
-                  onFocusChanged: (hasFocus) {
-                    if (!hasFocus) {
-                      setState(() => _showSuggestions = false);
-                    } else if (fieldController.text.trim().isNotEmpty) {
-                      setState(() => _showSuggestions = true);
-                    }
-                  },
-                  suffixIcon: widget.suffixIcon,
-                ),
-                if (_showSuggestions) ...[
-                  const SizedBox(height: 6),
-                  Material(
-                    elevation: 5,
-                    color: theme.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    clipBehavior: Clip.antiAlias,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 220),
-                      child: _suggestions.isNotEmpty
-                          ? ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              shrinkWrap: true,
-                              itemCount: _suggestions.length,
-                              separatorBuilder: (_, _) => Divider(
-                                color: theme.textPrimary.withValues(alpha: 0.1),
-                                height: 1,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ModernInputField(
+          controller: widget.controller,
+          focusNode: _focusNode,
+          hint: widget.hint,
+          icon: widget.icon,
+          primaryColor: theme.primary,
+          theme: theme,
+          onSubmitted: widget.onSubmitted,
+          onChanged: (value) {
+            _search(value);
+            widget.onChanged(value);
+          },
+          onFocusChanged: (hasFocus) {
+            if (!hasFocus) {
+              setState(() => _showSuggestions = false);
+            } else if (widget.controller.text.trim().isNotEmpty) {
+              setState(() => _showSuggestions = true);
+            }
+          },
+          suffixIcon: widget.suffixIcon,
+        ),
+        if (_showSuggestions) ...[
+          const SizedBox(height: 6),
+          Material(
+            elevation: 5,
+            color: theme.surface,
+            borderRadius: BorderRadius.circular(12),
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: _suggestions.isNotEmpty
+                  ? ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      shrinkWrap: true,
+                      itemCount: _suggestions.length,
+                      separatorBuilder: (_, _) => Divider(
+                        color: theme.textPrimary.withValues(alpha: 0.1),
+                        height: 1,
+                      ),
+                      itemBuilder: (context, index) {
+                        final place = _suggestions[index];
+                        final title = place['title'] ?? place['fullText'] ?? '';
+                        final subtitle = place['subtitle'] ?? '';
+                        return ListTile(
+                          dense: true,
+                          leading: Icon(
+                            Icons.location_on,
+                            color: theme.primary,
+                            size: 20,
+                          ),
+                          title: Text(
+                            title,
+                            style: TextStyle(
+                              color: theme.textPrimary,
+                              fontSize: 13.5,
+                            ),
+                          ),
+                          subtitle: subtitle.isEmpty
+                              ? null
+                              : Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: theme.textPrimary.withValues(
+                                      alpha: 0.65,
+                                    ),
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                          onTap: () {
+                            final name = place['fullText'] ?? title;
+                            final latitude = double.tryParse(
+                              place['latitude'] ?? '',
+                            );
+                            final longitude = double.tryParse(
+                              place['longitude'] ?? '',
+                            );
+                            if (latitude == null || longitude == null) return;
+                            widget.controller.value = TextEditingValue(
+                              text: name,
+                              selection: TextSelection.collapsed(
+                                offset: name.length,
                               ),
-                              itemBuilder: (context, index) {
-                                final option = _suggestions[index];
-                                return ListTile(
-                                  dense: true,
-                                  leading: Icon(
-                                    Icons.location_on,
-                                    color: theme.primary,
-                                    size: 20,
-                                  ),
-                                  title: Text(
-                                    option['place_name'] as String,
-                                    style: TextStyle(
-                                      color: theme.textPrimary,
-                                      fontSize: 13.5,
-                                    ),
-                                  ),
-                                  onTap: () {
-                                    final center = option['center'] as List;
-                                    fieldController.text =
-                                        option['place_name'] as String;
-                                    fieldController.selection =
-                                        TextSelection.collapsed(
-                                          offset: fieldController.text.length,
-                                        );
-                                    widget.onSelected(
-                                      LatLng(
-                                        (center[1] as num).toDouble(),
-                                        (center[0] as num).toDouble(),
-                                      ),
-                                      option['place_name'] as String,
-                                    );
-                                    setState(() {
-                                      _showSuggestions = false;
-                                      _suggestions = const [];
-                                    });
-                                    fieldFocusNode.unfocus();
-                                  },
-                                );
-                              },
+                            );
+                            widget.onSelected(
+                              LatLng(latitude, longitude),
+                              name,
+                            );
+                            setState(() {
+                              _showSuggestions = false;
+                              _suggestions = const [];
+                            });
+                            _focusNode.unfocus();
+                          },
+                        );
+                      },
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          if (_isSearching)
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: theme.primary,
+                              ),
                             )
-                          : Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Row(
-                                children: [
-                                  if (_isSearching)
-                                    SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: theme.primary,
-                                      ),
-                                    )
-                                  else
-                                    Icon(
-                                      Icons.info_outline,
-                                      size: 18,
-                                      color: theme.textPrimary.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                    ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      _isSearching
-                                          ? 'Searching locations…'
-                                          : _lookupError ??
-                                                'No matching locations found.',
-                                      style: TextStyle(
-                                        color: theme.textPrimary.withValues(
-                                          alpha: 0.7,
-                                        ),
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                          else
+                            Icon(
+                              Icons.info_outline,
+                              size: 18,
+                              color: theme.textPrimary.withValues(alpha: 0.6),
+                            ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _isSearching
+                                  ? 'Searching locations…'
+                                  : _searchError ??
+                                        'Enter at least 3 characters.',
+                              style: TextStyle(
+                                color: theme.textPrimary.withValues(alpha: 0.7),
+                                fontSize: 13,
                               ),
                             ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ],
-            );
-          },
-      optionsViewBuilder: (context, onSelectedOption, options) =>
-          const SizedBox.shrink(),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 import 'package:throttle_ui/core/services/logger_service.dart';
 
 class RideRealtimeService {
@@ -14,6 +15,22 @@ class RideRealtimeService {
     required VoidCallback onRideUpdated,
   }) {
     disconnect();
+    _connect(
+      token: token,
+      rideUuid: rideUuid,
+      onRideUpdated: onRideUpdated,
+    );
+  }
+
+  Future<void> _connect({
+    required String token,
+    required String rideUuid,
+    required VoidCallback onRideUpdated,
+  }) async {
+    final resolvedToken = await AuthHeaders.resolve(token);
+    if (resolvedToken == null) {
+      return;
+    }
 
     final socketUrl = AppConstants.baseUrl
         .replaceAll('http://', 'ws://')
@@ -26,7 +43,7 @@ class RideRealtimeService {
           'wss://',
           'https://',
         ),
-        stompConnectHeaders: {'Authorization': 'Bearer $token'},
+        stompConnectHeaders: {'Authorization': 'Bearer $resolvedToken'},
         reconnectDelay: const Duration(seconds: 5),
         onConnect: (frame) {
           _client?.subscribe(

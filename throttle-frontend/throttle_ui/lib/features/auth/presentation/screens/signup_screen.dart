@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:throttle_ui/app/main_screen.dart';
 import 'package:throttle_ui/app/theme/theme_controller.dart';
+import 'package:throttle_ui/core/utils/app_feedback.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/bikes/data/models/bike_catalog_item.dart';
 import 'package:throttle_ui/features/bikes/data/services/bike_registry_service.dart';
@@ -25,6 +26,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
   int step = 0;
   bool obscurePassword = true;
+
+  String? _firstNameError;
+  String? _riderIdError;
+  String? _emailError;
+  String? _passwordError;
+  String? _pronounError;
 
   String pronoun = "";
   String preference = "";
@@ -104,42 +111,56 @@ class _SignupScreenState extends State<SignupScreen> {
 
   Future<void> next() async {
     if (step == 0) {
+      setState(() {
+        _firstNameError = null;
+        _riderIdError = null;
+        _emailError = null;
+        _passwordError = null;
+        _pronounError = null;
+      });
+
+      bool hasError = false;
+
       if (firstNameController.text.trim().isEmpty) {
-        showError("First name is required");
-        return;
+        setState(() => _firstNameError = "First name is required");
+        hasError = true;
       }
-      if (emailController.text.trim().isEmpty) {
-        showError("Email is required");
-        return;
-      }
-      if (pronoun.isEmpty) {
-        showError("Please select your pronoun");
-        return;
+
+      final email = emailController.text.trim();
+      if (email.isEmpty) {
+        setState(() => _emailError = "Email is required");
+        hasError = true;
+      } else if (!email.contains("@") || !email.contains(".")) {
+        setState(() => _emailError = "Please enter a valid email address");
+        hasError = true;
       }
 
       final riderId = riderIdController.text.trim();
-      if (riderId.isEmpty) {
-        showError("Rider ID is required");
-        return;
-      }
-
       final riderIdPattern = RegExp(r'^[A-Za-z0-9._]{3,30}$');
-      if (!riderIdPattern.hasMatch(riderId)) {
-        showError(
-          "Rider ID must be 3-30 characters and use only letters, numbers, dots, or underscores",
-        );
-        return;
+      if (riderId.isEmpty) {
+        setState(() => _riderIdError = "Rider ID is required");
+        hasError = true;
+      } else if (!riderIdPattern.hasMatch(riderId)) {
+        setState(() => _riderIdError = "Must be 3-30 characters (letters, numbers, '.', '_')");
+        hasError = true;
       }
 
-      if (!emailController.text.contains("@")) {
-        showError("Enter a valid email");
-        return;
+      if (!widget.isGoogleRegistration) {
+        if (passwordController.text.isEmpty) {
+          setState(() => _passwordError = "Password is required");
+          hasError = true;
+        } else if (passwordController.text.length < 6) {
+          setState(() => _passwordError = "Password must be at least 6 characters");
+          hasError = true;
+        }
       }
 
-      if (!widget.isGoogleRegistration && passwordController.text.length < 6) {
-        showError("Password must be at least 6 characters");
-        return;
+      if (pronoun.isEmpty) {
+        setState(() => _pronounError = "Please select your pronoun");
+        hasError = true;
       }
+
+      if (hasError) return;
     }
 
     if (step == 2) {
@@ -325,9 +346,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    AppFeedback.showError(message, context: context);
   }
 
   Future<String?> _pickStringOption({
@@ -596,30 +615,79 @@ class _SignupScreenState extends State<SignupScreen> {
     TextEditingController controller, {
     TextInputType type = TextInputType.text,
     bool isPassword = false,
+    String? errorText,
+    ValueChanged<String>? onChanged,
   }) {
-    return TextField(
-      controller: controller,
-      keyboardType: type,
-      readOnly: hint == "Email" && widget.isGoogleRegistration,
-      obscureText: isPassword ? obscurePassword : false,
-      style: GoogleFonts.plusJakartaSans(color: _theme.textPrimary),
-      decoration: InputDecoration(
-        hintText: hint,
-        fillColor: _cardColor,
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  obscurePassword ? Icons.visibility_off : Icons.visibility,
-                  color: _textMuted,
+    final hasError = errorText != null && errorText.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          controller: controller,
+          keyboardType: type,
+          readOnly: hint == "Email" && widget.isGoogleRegistration,
+          obscureText: isPassword ? obscurePassword : false,
+          onChanged: onChanged,
+          style: GoogleFonts.plusJakartaSans(color: _theme.textPrimary),
+          decoration: InputDecoration(
+            hintText: hint,
+            fillColor: _cardColor,
+            enabledBorder: hasError
+                ? OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFFF4D4F), width: 1.5),
+                  )
+                : null,
+            focusedBorder: hasError
+                ? OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFFF4D4F), width: 1.5),
+                  )
+                : null,
+            suffixIcon: isPassword
+                ? IconButton(
+                    icon: Icon(
+                      obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: _textMuted,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        obscurePassword = !obscurePassword;
+                      });
+                    },
+                  )
+                : null,
+          ),
+        ),
+        if (hasError) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.info_outline_rounded,
+                  size: 13,
+                  color: Color(0xFFFF4D4F),
                 ),
-                onPressed: () {
-                  setState(() {
-                    obscurePassword = !obscurePassword;
-                  });
-                },
-              )
-            : null,
-      ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    errorText,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFFFF4D4F),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -837,16 +905,40 @@ class _SignupScreenState extends State<SignupScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            thinInput("First Name", firstNameController),
+                            thinInput(
+                              "First Name",
+                              firstNameController,
+                              errorText: _firstNameError,
+                              onChanged: (_) {
+                                if (_firstNameError != null) {
+                                  setState(() => _firstNameError = null);
+                                }
+                              },
+                            ),
                             const SizedBox(height: 20),
                             thinInput("Last Name", surNameController),
                             const SizedBox(height: 20),
-                            thinInput("Rider ID", riderIdController),
+                            thinInput(
+                              "Rider ID",
+                              riderIdController,
+                              errorText: _riderIdError,
+                              onChanged: (_) {
+                                if (_riderIdError != null) {
+                                  setState(() => _riderIdError = null);
+                                }
+                              },
+                            ),
                             const SizedBox(height: 20),
                             thinInput(
                               "Email",
                               emailController,
                               type: TextInputType.emailAddress,
+                              errorText: _emailError,
+                              onChanged: (_) {
+                                if (_emailError != null) {
+                                  setState(() => _emailError = null);
+                                }
+                              },
                             ),
                             const SizedBox(height: 20),
                             if (!widget.isGoogleRegistration) ...[
@@ -854,13 +946,21 @@ class _SignupScreenState extends State<SignupScreen> {
                                 "Password",
                                 passwordController,
                                 isPassword: true,
+                                errorText: _passwordError,
+                                onChanged: (_) {
+                                  if (_passwordError != null) {
+                                    setState(() => _passwordError = null);
+                                  }
+                                },
                               ),
                               const SizedBox(height: 30),
                             ],
                             Text(
                               "Pronoun",
                               style: TextStyle(
-                                color: _textSecondary,
+                                color: _pronounError != null
+                                    ? const Color(0xFFFF4D4F)
+                                    : _textSecondary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -868,8 +968,32 @@ class _SignupScreenState extends State<SignupScreen> {
                             optionGrid(
                               pronouns,
                               pronoun,
-                              (v) => setState(() => pronoun = v),
+                              (v) => setState(() {
+                                pronoun = v;
+                                _pronounError = null;
+                              }),
                             ),
+                            if (_pronounError != null) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline_rounded,
+                                    size: 13,
+                                    color: Color(0xFFFF4D4F),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _pronounError!,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFFFF4D4F),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
-import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 class ClubChatService {
   StompClient? _stompClient;
@@ -11,7 +11,7 @@ class ClubChatService {
   String? _channelUuid;
 
   static Future<List<dynamic>> fetchMessages(String channelUuid) async {
-    final token = await AuthService.getToken();
+    final token = await AuthHeaders.resolve();
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}/clubs/chat/$channelUuid'),
       headers: {
@@ -34,12 +34,28 @@ class ClubChatService {
   }) {
     disconnect();
     _channelUuid = channelUuid;
+    _openSocket(
+      channelUuid: channelUuid,
+      token: token,
+      onMessageReceived: onMessageReceived,
+    );
+  }
+
+  Future<void> _openSocket({
+    required String channelUuid,
+    required String token,
+    required void Function(dynamic message) onMessageReceived,
+  }) async {
+    final resolvedToken = await AuthHeaders.resolve(token);
+    if (resolvedToken == null) {
+      return;
+    }
 
     final socketUrl = AppConstants.baseUrl.replaceAll('/api/v1', '/ws-friends');
     _stompClient = StompClient(
       config: StompConfig.sockJS(
         url: socketUrl,
-        stompConnectHeaders: {'Authorization': 'Bearer $token'},
+        stompConnectHeaders: {'Authorization': 'Bearer $resolvedToken'},
         reconnectDelay: const Duration(seconds: 5),
         onConnect: (_) {
           isConnected = true;

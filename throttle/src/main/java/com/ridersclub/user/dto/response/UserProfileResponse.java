@@ -30,6 +30,11 @@ public class UserProfileResponse {
     private String bloodGroup;
     private String allergies;
     private String currentMedication;
+    private String safetyId;
+    private String safetyPin;
+    private Boolean safetyEnabled;
+    private String emergencyInstructions;
+    private String safetyPrivacySettings;
 
     // Stats
     private int totalRides;
@@ -68,6 +73,11 @@ public class UserProfileResponse {
         this.bloodGroup = user.getBloodGroup();
         this.allergies = user.getAllergies();
         this.currentMedication = user.getCurrentMedication();
+        this.safetyId = user.getSafetyId();
+        this.safetyPin = user.getSafetyPin();
+        this.safetyEnabled = user.getSafetyEnabled();
+        this.emergencyInstructions = user.getEmergencyInstructions();
+        this.safetyPrivacySettings = user.getSafetyPrivacySettings();
         this.subscriptionActive = user.isSubscriptionActive();
         this.bikeLimit = user.isSubscriptionActive() ? 999 : 3;
     }

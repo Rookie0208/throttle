@@ -86,6 +86,13 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
   Map<String, dynamic> get _ride => widget.ride ?? const {};
   Map<String, dynamic> get _data => {..._ride, ...?_session};
 
+  bool get _isSoloRide =>
+      (_data["rideType"] ?? _preRideInfo["rideType"] ?? "")
+          .toString()
+          .trim()
+          .toUpperCase() ==
+      "SOLO";
+
   Map<String, dynamic> get _preRideInfo {
     final sessionPreRide = _session?["preRideInfo"];
     if (sessionPreRide is Map<String, dynamic>) return sessionPreRide;
@@ -357,20 +364,25 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
       );
     }
 
+    final startLocation =
+        _mapValue(_preRideInfo["startLocation"]) ??
+        _mapValue(data["startLocation"]);
     addStop(
       id: "start",
-      title: _value(data["meetingPoint"], _preRideInfo["meetingPoint"]),
+      title: _isSoloRide
+          ? _value(startLocation?["name"], "Start")
+          : _value(data["meetingPoint"], _preRideInfo["meetingPoint"]),
       kind: "start",
-      location:
-          _mapValue(data["meetingPointLocation"]) ??
-          _mapValue(_preRideInfo["meetingPointLocation"]) ??
-          _mapValue(_preRideInfo["startLocation"]) ??
-          _mapValue(data["startLocation"]),
+      location: _isSoloRide
+          ? startLocation
+          : _mapValue(data["meetingPointLocation"]) ??
+                _mapValue(_preRideInfo["meetingPointLocation"]) ??
+                startLocation,
       time:
           _parseDate(data["rideStartedAt"]) ??
           _parseDate(data["scheduledStartTime"]) ??
           _parseDate(_ride["startTime"]),
-      subtitle: "Meetup start",
+      subtitle: _isSoloRide ? "Ride start" : "Meetup start",
       status: _value(data["rideStatus"], data["status"]).toUpperCase(),
     );
 
@@ -570,7 +582,8 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
           data["currentUserReturnRideDurationSeconds"],
         );
         final phaseDurations = <_SummaryPhase>[
-          _SummaryPhase("To meetup", timeToMeeting, theme.tertiary),
+          if (!_isSoloRide)
+            _SummaryPhase("To meetup", timeToMeeting, theme.tertiary),
           _SummaryPhase("Main ride", groupRideDuration, theme.primary),
           _SummaryPhase("Return", returnRideDuration, theme.secondary),
         ].where((phase) => phase.duration > Duration.zero).toList();
@@ -747,14 +760,16 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
                                     theme,
                                   ),
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: _statCard(
-                                    "Meetup",
-                                    meetingPoint,
-                                    theme,
+                                if (!_isSoloRide) ...[
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _statCard(
+                                      "Meetup",
+                                      meetingPoint,
+                                      theme,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ],
@@ -770,6 +785,7 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
                           enRouteCount: enRouteCount,
                           returnRideStartedCount: returnRideStartedCount,
                           returnRideCompletedCount: returnRideCompletedCount,
+                          isSoloRide: _isSoloRide,
                         ),
                         if (checkpoints.isNotEmpty) ...[
                           const SizedBox(height: 18),
@@ -781,7 +797,11 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
                         ],
                         if (phaseDurations.isNotEmpty) ...[
                           const SizedBox(height: 18),
-                          _buildPhaseChart(theme, phaseDurations),
+                          _buildPhaseChart(
+                            theme,
+                            phaseDurations,
+                            isSoloRide: _isSoloRide,
+                          ),
                         ],
                         const SizedBox(height: 18),
                         _buildParticipantStateChart(
@@ -791,6 +811,7 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
                           inRideCount: inRideCount,
                           returnRideStartedCount: returnRideStartedCount,
                           returnRideCompletedCount: returnRideCompletedCount,
+                          isSoloRide: _isSoloRide,
                         ),
                       ]),
                       const SizedBox(height: 18),
@@ -843,11 +864,12 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
                         _buildSetupGrid(
                           theme,
                           setupItems: [
-                            _SetupItem(
-                              icon: Icons.place_outlined,
-                              label: "Meeting point",
-                              value: meetingPoint,
-                            ),
+                            if (!_isSoloRide)
+                              _SetupItem(
+                                icon: Icons.place_outlined,
+                                label: "Meeting point",
+                                value: meetingPoint,
+                              ),
                             _SetupItem(
                               icon: Icons.local_gas_station_outlined,
                               label: "Fuel stops",
@@ -1027,6 +1049,7 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
     required int enRouteCount,
     required int returnRideStartedCount,
     required int returnRideCompletedCount,
+    required bool isSoloRide,
   }) {
     return Column(
       children: [
@@ -1041,29 +1064,33 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _statCard("At meetup", "$atStartCount ready", theme),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _statCard(
-                "Returning",
-                "$returnRideStartedCount back",
-                theme,
+        if (!isSoloRide) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _statCard("At meetup", "$atStartCount ready", theme),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _statCard(
+                  "Returning",
+                  "$returnRideStartedCount back",
+                  theme,
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 10),
         Row(
           children: [
-            Expanded(
-              child: _statCard("En route", "$enRouteCount inbound", theme),
-            ),
-            const SizedBox(width: 10),
+            if (!isSoloRide) ...[
+              Expanded(
+                child: _statCard("En route", "$enRouteCount inbound", theme),
+              ),
+              const SizedBox(width: 10),
+            ],
             Expanded(
               child: _statCard(
                 "Return done",
@@ -1125,7 +1152,11 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
     );
   }
 
-  Widget _buildPhaseChart(AppThemeConfig theme, List<_SummaryPhase> phases) {
+  Widget _buildPhaseChart(
+    AppThemeConfig theme,
+    List<_SummaryPhase> phases, {
+    required bool isSoloRide,
+  }) {
     final totalMinutes = phases.fold<int>(
       0,
       (sum, phase) => sum + phase.duration.inMinutes,
@@ -1149,7 +1180,9 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            "How your ride time was split across meetup, main ride, and return.",
+            isSoloRide
+                ? "How your ride time was split across the ride and return."
+                : "How your ride time was split across meetup, main ride, and return.",
             style: TextStyle(
               color: theme.textPrimary.withValues(alpha: 0.6),
               fontSize: 12,
@@ -1226,10 +1259,13 @@ class _RideSummaryScreenState extends State<RideSummaryScreen> {
     required int inRideCount,
     required int returnRideStartedCount,
     required int returnRideCompletedCount,
+    required bool isSoloRide,
   }) {
     final bars = <_StateBar>[
-      _StateBar("En route", enRouteCount, theme.tertiary),
-      _StateBar("At start", atStartCount, theme.secondary),
+      if (!isSoloRide) ...[
+        _StateBar("En route", enRouteCount, theme.tertiary),
+        _StateBar("At start", atStartCount, theme.secondary),
+      ],
       _StateBar("In ride", inRideCount, theme.primary),
       _StateBar("Return", returnRideStartedCount, Colors.orangeAccent),
       _StateBar("Done", returnRideCompletedCount, Colors.green),

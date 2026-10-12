@@ -33,4 +33,15 @@ public class UpdateProfileRequest {
 
     @Size(max = 1000)
     private String currentMedication;
+
+    @Size(max = 10)
+    private String safetyPin;
+
+    private Boolean safetyEnabled;
+
+    @Size(max = 1000)
+    private String emergencyInstructions;
+
+    @Size(max = 255)
+    private String safetyPrivacySettings;
 }

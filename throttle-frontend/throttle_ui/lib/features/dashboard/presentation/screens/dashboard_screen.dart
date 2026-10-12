@@ -8,6 +8,7 @@ import 'package:throttle_ui/features/notifications/presentation/screens/notifica
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/core/constants/app_constants.dart';
+import 'package:throttle_ui/core/network/auth_headers.dart';
 
 import 'package:throttle_ui/core/services/location_service.dart';
 import 'package:throttle_ui/core/services/weather_service.dart';
@@ -72,7 +73,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return BoxDecoration(
       color: color ?? theme.surface.withValues(alpha: 0.5),
       borderRadius: BorderRadius.circular(30),
-          );
+    );
   }
 
   BoxDecoration _cardDecoration(AppThemeConfig theme, {Color? color}) {
@@ -174,8 +175,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Map<String, dynamic> get _userData =>
-      _hasLoadedFreshProfile
+  Map<String, dynamic> get _userData => _hasLoadedFreshProfile
       ? (_profileData ?? const {})
       : (widget.userData ?? const {});
 
@@ -277,9 +277,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   bool _isClosedRideStatus(String status) {
-    return {"COMPLETED", "CANCELLED", "ENDED", "ARCHIVED"}.contains(
-      status.toUpperCase(),
-    );
+    return {
+      "COMPLETED",
+      "CANCELLED",
+      "ENDED",
+      "ARCHIVED",
+    }.contains(status.toUpperCase());
   }
 
   String _normalizedRideStatus(Map<String, dynamic>? ride) {
@@ -307,11 +310,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return first["name"].toString();
       }
     }
-    return (ride?["meetingPoint"] ??
-            ride?["startLocation"] ??
-            ride?["location"] ??
-            "Start point")
-        .toString();
+    final isSoloRide =
+        (ride?["rideType"] ?? "").toString().trim().toUpperCase() == "SOLO";
+    return (isSoloRide
+                ? (ride?["startLocation"] ?? ride?["location"])
+                : (ride?["meetingPoint"] ??
+                      ride?["startLocation"] ??
+                      ride?["location"]))
+            ?.toString() ??
+        "Start point";
   }
 
   int _rideMemberCount(Map<String, dynamic>? ride) {
@@ -399,6 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             memberCount: _rideMemberCount(ride),
             token: widget.token,
             rideUuid: (ride["uuid"] ?? ride["id"]).toString(),
+            rideType: (ride["rideType"] ?? "").toString(),
           );
 
     await Navigator.push(context, MaterialPageRoute(builder: (_) => target));
@@ -491,8 +499,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _connectNotificationSocket() {
-    if (_userUuid == null || widget.token.isEmpty) {
+  Future<void> _connectNotificationSocket() async {
+    final token = await AuthHeaders.resolve(widget.token);
+    if (_userUuid == null || token == null || token.isEmpty) {
       return;
     }
 
@@ -505,7 +514,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _notificationClient = StompClient(
       config: StompConfig(
         url: socketUrl,
-        webSocketConnectHeaders: {'Authorization': 'Bearer ${widget.token}'},
+        webSocketConnectHeaders: {'Authorization': 'Bearer $token'},
         onConnect: (StompFrame frame) {
           _notificationClient?.subscribe(
             destination: '/topic/notifications/$_userUuid',
@@ -1482,7 +1491,7 @@ class StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.surface,
         borderRadius: BorderRadius.circular(24),
-                boxShadow: [
+        boxShadow: [
           BoxShadow(
             color: theme.textPrimary.withValues(alpha: 0.08),
             blurRadius: 20,

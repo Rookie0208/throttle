@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:throttle_ui/core/utils/app_feedback.dart';
 import 'package:throttle_ui/features/auth/data/services/auth_service.dart';
 import 'package:throttle_ui/features/notifications/data/services/notification_service.dart';
 import 'package:throttle_ui/features/auth/presentation/screens/signup_screen.dart';
@@ -18,9 +19,7 @@ class _OtpScreenState extends State<OtpScreen> {
   bool isLoading = false;
 
   void showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    AppFeedback.showError(message, context: context);
   }
 
   Future<void> verify() async {

@@ -6,12 +6,12 @@ class UserSession {
 
   static void init(String jwtToken) {
     token = jwtToken;
-
     final decoded = JwtDecoder.decode(jwtToken);
-
-    print("JWT DATA => $decoded");
-
-    /// change key if needed
     userId = decoded["sub"] ?? decoded["userId"];
+  }
+
+  static void clear() {
+    userId = null;
+    token = null;
   }
 }

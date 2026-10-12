@@ -138,4 +138,32 @@ class UserService {
       return {"success": false, "message": e.toString()};
     }
   }
+
+  static Future<Map<String, dynamic>> setPrimaryBike(int bikeId) async {
+    try {
+      final response = await ApiService.put(
+        '/users/me/bikes/$bikeId/primary',
+        {},
+        authorized: true,
+      );
+      final decoded = jsonDecode(response['body']);
+      if (response['status'] == 200 || response['status'] == 201) {
+        return {
+          "success": true,
+          "data": decoded['data'],
+          "message": decoded['message'] ?? "Primary bike updated successfully",
+        };
+      }
+      return {
+        "success": false,
+        "message":
+            decoded['error']?['message'] ??
+            decoded['message'] ??
+            "Failed to set primary bike",
+      };
+    } catch (e, st) {
+      await Logger.error("Exception during set primary bike", e, st);
+      return {"success": false, "message": e.toString()};
+    }
+  }
 }

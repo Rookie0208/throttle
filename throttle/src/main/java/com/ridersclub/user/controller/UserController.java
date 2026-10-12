@@ -87,4 +87,22 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.success(true, "Bike removed successfully"));
     }
+
+    @PutMapping(ApiConstants.Users.MY_BIKE_PRIMARY)
+    public ResponseEntity<ApiResponse<UserProfileResponse.UserBikeDto>> setPrimaryBike(
+            Authentication user,
+            @PathVariable("bikeId") Long bikeId) {
+        String uuid = (String) user.getPrincipal();
+        UserProfileResponse.UserBikeDto updated = bikeRegistryService.setPrimaryBike(uuid, bikeId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.success(updated, "Primary bike updated successfully"));
+    }
+
+    @GetMapping("/safety/{safetyId}")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> getPublicSafetyProfile(
+            @PathVariable("safetyId") String safetyId) {
+        UserProfileResponse profile = userService.getPublicSafetyProfile(safetyId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.success(profile, "Safety profile fetched"));
+    }
 }

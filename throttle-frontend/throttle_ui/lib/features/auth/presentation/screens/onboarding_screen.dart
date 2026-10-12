@@ -52,7 +52,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     final page = pages[currentIndex];
-    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -79,10 +78,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               const Spacer(),
 
-              Icon(
-                page["icon"] as IconData,
-                size: 100,
-                color: colorScheme.primary,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset(
+                  'assets/branding/throttle_logo.png',
+                  width: 120,
+                  height: 120,
+                  fit: BoxFit.cover,
+                ),
               ),
 
               const SizedBox(height: 40),

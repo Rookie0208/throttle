@@ -1070,7 +1070,10 @@ public class RideService {
                 Ride ride = group.getRide();
                 Map<String, Object> startLocation = sanitizeLocation(request.getStartLocation());
                 Map<String, Object> endLocation = sanitizeLocation(request.getEndLocation());
-                Map<String, Object> meetingPointLocation = sanitizeLocation(request.getMeetingPointLocation());
+                boolean soloRide = ride.getRideType() == RideType.SOLO;
+                Map<String, Object> meetingPointLocation = soloRide
+                                ? null
+                                : sanitizeLocation(request.getMeetingPointLocation());
                 List<Map<String, Object>> checkpointLocations = sanitizeLocationList(request.getCheckpointLocations());
                 List<String> checkpointLabels = request.getCheckpointList();
                 if ((checkpointLabels == null || checkpointLabels.isEmpty()) && !checkpointLocations.isEmpty()) {
@@ -1082,7 +1085,9 @@ public class RideService {
                 }
 
                 if (isPreRideSetupEditable(ride)) {
-                        group.setPreRideMeetingPoint(trimToNull(request.getMeetingPoint()));
+                        group.setPreRideMeetingPoint(soloRide
+                                        ? null
+                                        : trimToNull(request.getMeetingPoint()));
                         group.setPreRideStartLocation(writeJson(startLocation));
                         group.setPreRideEndLocation(writeJson(endLocation));
                         if ((group.getPreRideMeetingPoint() == null || group.getPreRideMeetingPoint().isBlank())
