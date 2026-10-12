@@ -10,7 +10,6 @@ import 'package:throttle_ui/app/theme/theme_controller.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/live_ride_screen.dart';
 import 'package:throttle_ui/features/rides/presentation/screens/ride_start_screen.dart';
 import 'package:throttle_ui/core/services/location_service.dart';
-import 'package:throttle_ui/features/groups/data/services/place_service.dart';
 
 class PlanRideScreen extends StatefulWidget {
   final String token;

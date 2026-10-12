@@ -109,8 +109,6 @@ class _BikeManagementScreenState extends State<BikeManagementScreen> {
 
   String _bikeSubtitle(Map<String, dynamic> bike) =>
       BikeDisplayFormatters.subtitle(bike);
-
-
   Future<String?> _pickStringOption({
     required String title,
     required Future<List<String>> Function(String query) loader,

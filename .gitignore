@@ -5,6 +5,7 @@
 
 # Env
 .env
+.env.example
 
 # Mac
 .DS_Store
