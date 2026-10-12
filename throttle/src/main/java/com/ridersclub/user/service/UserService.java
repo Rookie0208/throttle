@@ -405,8 +405,25 @@ public class UserService {
     }
 
     public UserProfileResponse getPublicSafetyProfile(String safetyId) {
-        User user = userRepository.findBySafetyId(safetyId)
-                .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("Safety ID not found"));
+        String cleanId = safetyId != null ? safetyId.trim() : "";
+        User user = userRepository.findBySafetyId(cleanId)
+                .or(() -> userRepository.findByRiderId(cleanId))
+                .or(() -> userRepository.findByUuid(cleanId))
+                .or(() -> {
+                    if (cleanId.toUpperCase().startsWith("TH-")) {
+                        String prefix = cleanId.substring(3).toLowerCase();
+                        return userRepository.findAll().stream()
+                                .filter(u -> u.getUuid() != null && u.getUuid().replace("-", "").toLowerCase().startsWith(prefix))
+                                .findFirst();
+                    }
+                    return java.util.Optional.empty();
+                })
+                .orElseThrow(() -> new com.ridersclub.common.exception.UserNotFoundException("Safety ID or Rider not found"));
+
+        if (user.getSafetyId() == null || user.getSafetyId().isBlank()) {
+            ensureSafetyCredentials(user);
+            userRepository.save(user);
+        }
 
         if (Boolean.FALSE.equals(user.getSafetyEnabled())) {
             UserProfileResponse disabled = new UserProfileResponse();

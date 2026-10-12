@@ -10,9 +10,7 @@ import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/emergency_contacts_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/medical_info_screen.dart';
 
-// Universal HTML download fallback for Web
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html if (dart.library.io) 'dart:io';
+import 'package:throttle_ui/core/utils/file_download_helper.dart';
 
 class SafetyHubScreen extends StatefulWidget {
   const SafetyHubScreen({super.key});
@@ -71,16 +69,25 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
 
       // Read persistent safetyId and safetyPin from backend response
       String safetyId = (user['safetyId'] ?? '').toString().trim();
+      bool needsUpdate = false;
+      final updateData = <String, dynamic>{};
+
       if (safetyId.isEmpty) {
         safetyId = _generateFallbackSafetyId(userUuid);
+        updateData['safetyId'] = safetyId;
+        needsUpdate = true;
       }
 
       String safetyPin = (user['safetyPin'] ?? '').toString().trim();
       if (safetyPin.isEmpty) {
         // Generate a fixed 4-digit PIN once and save it so it never regenerates on its own
         safetyPin = (Random().nextInt(8999) + 1000).toString();
-        // Persist it immediately
-        UserService.updateProfile({'safetyPin': safetyPin, 'safetyId': safetyId});
+        updateData['safetyPin'] = safetyPin;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        UserService.updateProfile(updateData);
       }
 
       final enabled = user['safetyEnabled'] != false;
@@ -173,7 +180,8 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
   }
 
   String get _publicSafetyUrl {
-    return 'https://tinyurl.com/throttle-web?id=$_safetyId';
+    final id = _safetyId.isNotEmpty ? _safetyId : 'TH-RIDER';
+    return 'https://rookie0208.github.io/throttle-web/safety-id.html?id=$id';
   }
 
   Future<void> _downloadQrBadge() async {
@@ -191,12 +199,7 @@ class _SafetyHubScreenState extends State<SafetyHubScreen> {
 
       if (pngBytes != null) {
         if (kIsWeb) {
-          final blob = html.Blob([pngBytes], 'image/png');
-          final url = html.Url.createObjectUrlFromBlob(blob);
-          html.AnchorElement(href: url)
-            ..setAttribute('download', 'Throttle_Safety_QR_$_safetyId.png')
-            ..click();
-          html.Url.revokeObjectUrl(url);
+          downloadBytes(pngBytes, 'Throttle_Safety_QR_$_safetyId.png');
         }
 
         if (!mounted) return;
