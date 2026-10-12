@@ -10,13 +10,7 @@ import 'package:throttle_ui/features/profile/data/services/user_service.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/emergency_contacts_screen.dart';
 import 'package:throttle_ui/features/settings/presentation/screens/medical_info_screen.dart';
 
-<<<<<<< HEAD
 import 'package:throttle_ui/core/utils/file_download_helper.dart';
-=======
-// Universal HTML download fallback for Web
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html if (dart.library.io) 'dart:io';
->>>>>>> main
 
 class SafetyHubScreen extends StatefulWidget {
   const SafetyHubScreen({super.key});
