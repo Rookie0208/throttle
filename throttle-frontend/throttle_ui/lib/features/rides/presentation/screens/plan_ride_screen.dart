@@ -1799,13 +1799,15 @@ class _PlaceAutocompleteState extends State<_PlaceAutocomplete> {
           _isSearching = false;
           _searchError = places.isEmpty ? 'No matching locations found.' : null;
         });
-      } catch (_) {
+      } catch (error) {
         if (!mounted || requestId != _requestId) return;
         setState(() {
           _suggestions = const [];
           _isSearching = false;
-          _searchError =
-              'Location search is unavailable. Check your connection.';
+          _searchError = error.toString().replaceFirst(
+            RegExp(r'^Exception: '),
+            '',
+          );
         });
       }
     });

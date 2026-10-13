@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 class PlaceService {
@@ -9,18 +10,20 @@ class PlaceService {
     final trimmedQuery = query.trim();
     if (trimmedQuery.length < 3) return const [];
 
-    final uri = Uri.https("nominatim.openstreetmap.org", "/search", {
+    final uri = Uri.https("photon.komoot.io", "/api/", {
       "q": trimmedQuery,
-      "format": "jsonv2",
-      "addressdetails": "1",
       "limit": "$_maxResults",
-      "countrycodes": "in",
+      "lang": "en",
+      "countrycode": "IN",
     });
 
     final response = await http.get(
       uri,
-      headers: const {"Accept": "application/json", "Accept-Language": "en"},
-    );
+      headers: {
+        "Accept": "application/geo+json, application/json",
+        if (!kIsWeb) "User-Agent": "Throttle/1.0",
+      },
+    ).timeout(const Duration(seconds: 12));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -29,53 +32,78 @@ class PlaceService {
     }
 
     final decoded = jsonDecode(response.body);
-    if (decoded is! List) return const [];
+    if (decoded is! Map<String, dynamic>) return const [];
+    final features = decoded["features"];
+    if (features is! List) return const [];
 
-    return decoded
+    return features
         .whereType<Map>()
-        .map((entry) => Map<String, dynamic>.from(entry))
-        .map((entry) {
-          final displayName = entry["display_name"]?.toString().trim() ?? "";
-          final title = _titleFromEntry(entry, displayName);
-          final subtitle = _subtitleFromDisplayName(displayName, title);
+        .map((feature) => Map<String, dynamic>.from(feature))
+        .map((feature) {
+          final properties = feature["properties"] is Map
+              ? Map<String, dynamic>.from(feature["properties"] as Map)
+              : <String, dynamic>{};
+          final geometry = feature["geometry"] is Map
+              ? Map<String, dynamic>.from(feature["geometry"] as Map)
+              : <String, dynamic>{};
+          final coordinates = geometry["coordinates"];
+          final title = properties["name"]?.toString().trim() ?? "";
+          final displayName = _displayName(properties, title);
+          final latitude = coordinates is List && coordinates.length >= 2
+              ? coordinates[1].toString()
+              : "";
+          final longitude = coordinates is List && coordinates.length >= 2
+              ? coordinates[0].toString()
+              : "";
+          final displayTitle = title.isEmpty ? displayName : title;
 
           return <String, String>{
-            "placeId": entry["place_id"]?.toString() ?? "",
-            "title": title,
-            "subtitle": subtitle,
+            "placeId": properties["osm_id"]?.toString() ?? "",
+            "title": displayTitle,
+            "subtitle": displayName == displayTitle
+                ? ""
+                : displayName
+                    .substring(displayTitle.length)
+                    .replaceFirst(RegExp(r"^[,\s]+"), ""),
             "fullText": displayName,
-            "latitude": entry["lat"]?.toString() ?? "",
-            "longitude": entry["lon"]?.toString() ?? "",
+            "latitude": latitude,
+            "longitude": longitude,
           };
         })
-        .where((item) => item["fullText"]?.isNotEmpty == true)
+        .where(
+          (item) =>
+              item["fullText"]?.isNotEmpty == true &&
+              item["latitude"]?.isNotEmpty == true &&
+              item["longitude"]?.isNotEmpty == true,
+        )
         .toList();
   }
 
-  static String _titleFromEntry(
-    Map<String, dynamic> entry,
-    String displayName,
-  ) {
-    final name = entry["name"]?.toString().trim();
-    if (name != null && name.isNotEmpty) return name;
-
-    if (displayName.isEmpty) return "";
-
-    final separatorIndex = displayName.indexOf(",");
-    if (separatorIndex == -1) return displayName;
-
-    return displayName.substring(0, separatorIndex).trim();
-  }
-
-  static String _subtitleFromDisplayName(String displayName, String title) {
-    if (displayName.isEmpty || title.isEmpty) return "";
-    if (displayName == title) return "";
-
-    final prefix = "$title,";
-    if (displayName.startsWith(prefix)) {
-      return displayName.substring(prefix.length).trim();
+  static String _displayName(Map<String, dynamic> properties, String title) {
+    final street = [
+      properties["housenumber"],
+      properties["street"],
+    ]
+        .where((part) => part != null && part.toString().trim().isNotEmpty)
+        .join(" ");
+    final parts = <String>[
+      title,
+      if (street.isNotEmpty) street,
+      properties["district"]?.toString() ?? "",
+      properties["city"]?.toString() ?? "",
+      properties["state"]?.toString() ?? "",
+      properties["country"]?.toString() ?? "",
+    ];
+    final uniqueParts = <String>[];
+    for (final part in parts) {
+      final value = part.trim();
+      if (value.isNotEmpty &&
+          !uniqueParts.any(
+            (existing) => existing.toLowerCase() == value.toLowerCase(),
+          )) {
+        uniqueParts.add(value);
+      }
     }
-
-    return displayName;
+    return uniqueParts.join(", ");
   }
 }
